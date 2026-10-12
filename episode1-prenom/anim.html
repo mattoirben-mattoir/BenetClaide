@@ -586,7 +586,7 @@ function poseAt(t) {
   else if (t < bt(25)) st.r = POINT;                                                                      // 1/3 pressure
   else if (t < bt(28)) { st.mood = 'grin'; st.r = THUMB; }
   else if (t < bt(29)) {}
-  else if (t < bt(40)) { st.r = POINT; if (t > bt(32.5) && t < bt(34)) st.mood = 'worried'; }            // 2/3 wear, vibrations
+  else if (t < bt(40)) { st.r = POINT; if (t > bt(32.5) && t < bt(34.3)) st.mood = 'worried'; }            // 2/3 wear, vibrations
   else if (t < bt(41)) {}
   else if (t < bt(48)) st.r = POINT;                                                                      // 3/3 balancing, alignment
   else if (t < bt(52)) { st.mood = 'grin'; st.r = THUMB; }                                                // tyres on top
@@ -740,12 +740,12 @@ function cloud(x, y, t, angry) {     // the Kashkazi cloud: grey, frowning, blow
 // ---------------------------------------------------------------- bubbles: [start, end, typing, lines, x, y, maxW, who, big]
 const LINES1 = [
   [bt(12), bt(14), 0, ['Ça va passer…'], 230, 620, 620, 'c', 1],                        // client close-up
-  [bt(14.6), bt(16.2), 0, ['Ah non.', 'Pas avec moi !'], 520, 600, 420, 'm'],          // Alonzo close-up
-  [bt(17), bt(20.2), 0, ['Avec la chaleur,', 'la pression', 'varie !'], 430, 610, 510, 'm'],
-  [bt(34.5), bt(39.7), 0, ['Ça vibre', 'au volant ?', 'Passez nous voir !'], 430, 610, 510, 'm'],
-  [bt(45.1), bt(47.9), 0, ['Bien réglés,', 'vos pneus durent', 'plus longtemps !'], 430, 610, 510, 'm'],
-  [bt(52), bt(55.8), .5, ['Vous vérifiez', 'tous les combien ?'], 400, 600, 540, 'm'],
-  [bt(58), bt(63.8), 0, ['On vous attend', 'à Combani !'], 520, 840, 420, 'm'],
+  [bt(14.6), bt(16.2), 0, ['Ah non.', 'Pas avec moi !'], 240, 330, 600, 'm'],          // above his face (gros plan), then the américain
+  [bt(17), bt(20.2), 0, ['Avec', 'la chaleur,', 'la pression', 'varie !'], 550, 620, 390, 'm'],
+  [bt(34.5), bt(39.7), 0, ['Ça vibre', 'au volant ?', 'Passez', 'nous voir !'], 550, 620, 390, 'm'],
+  [bt(45.1), bt(47.9), 0, ['Bien réglés,', 'vos pneus', 'durent plus', 'longtemps !'], 60, 620, 500, 'm'],   // reversed américain: bubble on the left
+  [bt(52), bt(55.8), .5, ['Vous vérifiez', 'tous les', 'combien ?'], 550, 620, 390, 'm'],
+  [bt(58), bt(63.8), 0, ['On vous', 'attend à', 'Combani !'], 580, 1000, 360, 'm'],
 ];
 
 // ---------------------------------------------------------------- camera: one framing per story beat
@@ -755,7 +755,12 @@ const SHOT = {
   plate: { x: 776, y: 1290, z: 2.0, r: .03 },       // the name plate, for the reveal
   client: { x: 560, y: 1150, z: 1.9, r: -.03 },     // « Ça va passer… »
   alonzo: { x: 380, y: 720, z: 1.7, r: .02 },       // facepalm, « Pas avec moi ! »
-  med: { x: 470, y: 900, z: 1.12, r: 0 }, medP: { x: 480, y: 900, z: 1.19, r: 0 },   // Alonzo + car, he explains
+  // shot sizes on Alonzo (his head is at world (280, 660), feet at y 1630)
+  am: { x: 387, y: 769, z: 1.5, r: 0 }, amP: { x: 395, y: 760, z: 1.62, r: 0 },   // plan américain: cut at the knees, him on the left third
+  amR: { x: 150, y: 769, z: 1.5, r: -.015 },        // reversed américain: him on the right third, bubble on the left
+  amEnd: { x: 387, y: 636, z: 1.5, r: 0 },          // américain, lower in the frame, under the end card
+  gp: { x: 303, y: 673, z: 3.0, r: .02 },           // gros plan: his face
+  two: { x: 560, y: 1080, z: 1.35, r: 0 },          // two-shot: Alonzo cut by the left edge, the car running off the right
   tyre: { x: 470, y: 1330, z: 2.1, r: -.04 },       // 1/3 the hose on the valve
   tread: { x: 500, y: 1380, z: 2.3, r: .03 },       // 2/3 the tread under the magnifier
   ask: { x: 540, y: 960, z: 1.05, r: 0 },
@@ -765,12 +770,13 @@ const SHOT = {
 const hookShot = t => ({ x: carState(t).x - 140, y: 1280, z: 1.9, r: -.045 });   // tracks the limping car
 const LIN = x => x;
 const KEYS = [                       // [beat, shot, easing into it]
-  [0, 'hook'], [3.6, 'hook'], [4.15, 'wide', eOut], [7.4, 'wide'], [7.9, 'plate'], [9.6, 'plate'], [10.4, 'wide'],
-  [11.9, 'wide'], [12.1, 'client', eOut], [13.9, 'client'], [14.05, 'alonzo', eOut], [14.95, 'alonzo'], [15.6, 'wide'],
-  [16, 'wide'], [16.7, 'med'], [20, 'medP', LIN], [20.3, 'tyre', eOut], [24.6, 'tyre'], [25.2, 'wide', eOut],          // 1/3
-  [28, 'wide'], [28.7, 'med'], [30, 'medP', LIN], [30.3, 'tread', eOut], [33.8, 'tread'], [34.3, 'med', eOut], [39.8, 'medP', LIN],   // 2/3
-  [40.4, 'wide'], [44.8, 'wideP', LIN], [45.3, 'med', eOut], [47.9, 'med'],                                             // 3/3
-  [48.2, 'wide', eOut], [52, 'wide'], [55.8, 'ask', LIN], [56.4, 'end'], [64, 'end'], [68, 'teaser', LIN],
+  [0, 'hook'], [3.6, 'hook'], [4.15, 'wide', eOut], [7.4, 'wide'], [7.9, 'plate'], [9.6, 'plate'], [10.4, 'two'],
+  [11.9, 'two'], [12.1, 'client', eOut], [13.9, 'client'], [14.05, 'gp', eOut], [14.95, 'gp'], [15.2, 'am', eOut],    // face close-up, then américain for the toss
+  [16, 'am'], [20, 'amP', LIN], [20.3, 'tyre', eOut], [24.6, 'tyre'], [25.2, 'amR', eOut], [28, 'amR'],               // 1/3
+  [28.3, 'am', eOut], [30, 'amP', LIN], [30.3, 'tread', eOut], [33.4, 'tread'], [33.55, 'gp', eOut], [34.2, 'gp'],      // 2/3 (his worried face on the shake)
+  [34.4, 'am', eOut], [39.8, 'amP', LIN],
+  [40.1, 'am', eOut], [44.8, 'amP', LIN], [45.2, 'amR', eOut], [47.9, 'amR'],                                           // 3/3, then the reversed américain
+  [48.2, 'wide', eOut], [51.8, 'wide'], [52.2, 'am', eOut], [55.8, 'amP', LIN], [56.4, 'amEnd'], [64, 'amEnd'], [68, 'teaser', LIN],
 ];
 const WB = document.createElement('canvas'); WB.width = W; WB.height = H; const WBX = WB.getContext('2d');
 const shotAt = (n, t) => n === 'hook' ? hookShot(t) : SHOT[n];
@@ -828,8 +834,8 @@ function render(t) {
   // M3 — her name
   if (t >= bt(8) && t < bt(12)) {
     g.save(); g.globalAlpha = 1 - lin(t, bt(11.5), bt(12));
-    outlined(NAME + ' !', 660, 470, bt(8), t, fit(NAME + ' !', 170, 500), RED);
-    marker('VOUS L’AVEZ BAPTISÉE !', 660, 590, bt(8.5), t, fit('VOUS L’AVEZ BAPTISÉE !', 64, 470), BLUE, WH);
+    outlined(NAME + ' !', 710, 470, bt(8), t, fit(NAME + ' !', 170, 440), RED);
+    marker('VOUS L’AVEZ BAPTISÉE !', 710, 590, bt(8.5), t, fit('VOUS L’AVEZ BAPTISÉE !', 64, 400), BLUE, WH);
     g.restore();
   }
   // 1/3 — pressure, every month: the hose on the valve, the dial climbs from the red to the blue, the tyre comes back up
@@ -839,22 +845,22 @@ function render(t) {
     if (a > 0) { callout([700, 900], project(c, valveAt(cs)), a); dial(790, 790, .6, f, a, t);
       warning(890, 690, eBack(lin(t, bt(21), bt(21.3))) * (1 - lin(t, bt(21.6), bt(21.9))));
       check(900, 680, eBack(lin(t, bt(23.1), bt(23.4))) * (1 - lin(t, bt(24.3), bt(24.6)))); } }
-  if (t >= bt(25.2) && t < bt(28)) marker('À FROID, AVANT DE ROULER', 690, 1065, bt(25.3), t, fit('À FROID, AVANT DE ROULER', 64, 470), BLUE, WH);
+  if (t >= bt(25.2) && t < bt(28)) { marker('À FROID', 300, 990, bt(25.3), t, 100, RED, WH); text('avant de rouler', 300, 1090, { f: 'Montserrat', w: 800, s: 46, col: WH, a: eOut(lin(t, bt(25.7), bt(26.1))) }); }
   // 2/3 — wear and vibrations: the magnifier sweeps the tread, one side is worn, then it shakes
   tipTitle(2, 'SURVEILLEZ L’USURE', 'ET LES VIBRATIONS', bt(28.3), bt(40), t);
-  if (t >= bt(30.4) && t < bt(34)) {
-    const w = project(c, wheelAt(cs)), lp = eBack(lin(t, bt(30.5), bt(31))) * (1 - eIn(lin(t, bt(33.6), bt(34))));
+  if (t >= bt(30.4) && t < bt(33.5)) {
+    const w = project(c, wheelAt(cs)), lp = eBack(lin(t, bt(30.5), bt(31))) * (1 - eIn(lin(t, bt(33.2), bt(33.5))));
     lens(w[0] - 40 + Math.sin(Math.PI * lin(t, bt(30.7), bt(32.3))) * 70, w[1] - 70, .9, lp, eOut(lin(t, bt(31), bt(32.2))));
-    const sh = lin(t, bt(32.5), bt(32.7)) * (1 - lin(t, bt(33.6), bt(34)));
+    const sh = lin(t, bt(32.5), bt(32.7)) * (1 - lin(t, bt(33.2), bt(33.5)));
     if (sh > 0) { g.save(); g.globalAlpha = sh; g.strokeStyle = RED; g.lineWidth = 12; g.lineCap = 'round';
       for (let i = 0; i < 3; i++) { const rr = 170 + i * 40 + (t * 120 % 40); g.beginPath(); g.arc(w[0], w[1], rr, -.4, .4); g.stroke(); g.beginPath(); g.arc(w[0], w[1], rr, Math.PI - .4, Math.PI + .4); g.stroke(); }
       g.restore(); }
-    warning(w[0] + 220, w[1] - 250, eBack(lin(t, bt(32.8), bt(33.1))) * (1 - eIn(lin(t, bt(33.6), bt(34)))));
+    warning(w[0] + 220, w[1] - 250, eBack(lin(t, bt(32.8), bt(33.1))) * (1 - eIn(lin(t, bt(33.2), bt(33.5)))));
   }
   // 3/3 — balancing & alignment: front view of the tyre, leaning, set straight on the dashed line
   tipTitle(3, 'ÉQUILIBRAGE', '& PARALLÉLISME', bt(40.3), bt(48), t);
   { const a = lin(t, bt(41), bt(41.4)) * (1 - lin(t, bt(44.6), bt(45)));
-    if (a > 0) callout([600, 1010], project(c, wheelAt(cs)), a);
+    { const wp = project(c, wheelAt(cs)); if (a > 0) callout([640, 1010], wp[1] < H - 40 ? wp : [wp[0], H - 40], a); }
     alignInset(730, 840, t, bt(41), bt(45)); }
   // result
   if (t >= bt(48.3) && t < bt(52)) {
@@ -867,10 +873,10 @@ function render(t) {
   // question
   if (t >= bt(52) && t < bt(56.3)) {
     g.save(); g.globalAlpha = 1 - lin(t, bt(55.8), bt(56.3));
-    { const a = eOut(lin(t, bt(53), bt(53.4))); g.save(); g.globalAlpha *= a; g.fillStyle = '#f4f6f9'; rrect(495, 790, 460, 110 + 90 * eOut(lin(t, bt(54), bt(54.3))) + 100 * eOut(lin(t, bt(54.5), bt(54.8))), 40); g.fill(); g.restore(); }
-    chip('CHAQUE MOIS', 725, 846, t, bt(53), BLUE);
-    chip('JAMAIS…', 725, 936, t, bt(54), RED);
-    text('Répondez en commentaire', 725, 1035, { f: 'Montserrat', w: 800, s: 32, col: INK, a: eOut(lin(t, bt(54.5), bt(55))) });
+    { const a = eOut(lin(t, bt(53), bt(53.4))); g.save(); g.globalAlpha *= a; g.fillStyle = '#f4f6f9'; rrect(565, 860, 440, 110 + 90 * eOut(lin(t, bt(54), bt(54.3))) + 100 * eOut(lin(t, bt(54.5), bt(54.8))), 40); g.fill(); g.restore(); }
+    chip('CHAQUE MOIS', 785, 916, t, bt(53), BLUE);
+    chip('JAMAIS…', 785, 1006, t, bt(54), RED);
+    text('Répondez en commentaire', 785, 1105, { f: 'Montserrat', w: 800, s: 32, col: INK, a: eOut(lin(t, bt(54.5), bt(55))) });
     g.restore();
   }
   endCard(t);
@@ -878,7 +884,8 @@ function render(t) {
   for (const [a, b, d, lines, bx, by, bw, who, big] of LINES1) {
     if (t < a || t > b) continue;
     const p = eBack(lin(t, a, a + .3)) * (1 - eIn(lin(t, b - .25, b))), typed = d ? lin(t, a + .1, a + .1 + d) : 1;
-    const tail = project(c, who === 'c' ? [cs.x + (-55 - cs.pop * 70) * CSC, cs.y + (-140 - cs.pop * 60) * CSC] : [alonzoPos(t).x + 110, alonzoPos(t).y - 140]);
+    const am = alonzoPos(t), left = bx + bw / 2 < project(c, [am.x, am.y])[0];   // bubble on his left or right: tail to that side of his face
+    const tail = project(c, who === 'c' ? [cs.x + (-55 - cs.pop * 70) * CSC, cs.y + (-140 - cs.pop * 60) * CSC] : left ? [am.x - 100, am.y - 150] : [am.x + 110, am.y - 140]);
     g.save(); if (big) g.translate(Math.sin(t * 38) * 4 * (1 - lin(t, a + .3, a + .9)) + Math.sin(t * 9) * 1.5, 0);
     bubble(lines, bx, by, bw, tail, p, typed, big); g.restore();
   }
@@ -894,7 +901,7 @@ function render(t) {
     marker('PROCHAIN ÉPISODE', 540, 790, bt(66), t, 80, RED, WH);
     revealLine('VENDREDI 18 DÉCEMBRE', 890, t, bt(66.5), 84, WH);
   }
-  if (t >= bt(4)) { g.save(); g.globalAlpha = 1 - clamp((c.z - 1.3) / .25);   // the header steps aside in the close-ups
+  if (t >= bt(4)) { g.save(); g.globalAlpha = t >= bt(56.4) && t < bt(64) ? 1 : 1 - clamp((c.z - 1.12) / .12);   // the header steps aside in the closer shots (back on the end card)
     punch('GARDE LE CAP !', W / 2, 300, bt(4), t, 150, t >= bt(56) ? WH : BLUE); g.restore(); }   // the jingle, then the series header
   grain(t);
 }
