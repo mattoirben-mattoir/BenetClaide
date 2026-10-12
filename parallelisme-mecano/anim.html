@@ -1,0 +1,552 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:Barlow;src:url(../video/assets/BarlowCondensed-BlackItalic.ttf);font-weight:900}
+@font-face{font-family:Montserrat;src:url(../video/assets/Montserrat.ttf);font-weight:100 900}
+html,body{margin:0;background:#fff}
+canvas{display:block}
+</style></head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script>
+// V3 — "3 conseils pneus" told as a short story: one hero tire, one mechanic who acts on it.
+// "Garde tes roues droites" told with the mechanic: he walks it, then fixes the wheels.
+const W = 1080, H = 1920;
+const c = document.getElementById('c'); let g = c.getContext('2d');
+const BLUE = '#084990', RED = '#E20816', WH = '#ffffff', INK = '#1d2a3f', GREY = '#5b6b82';
+const SKIN = '#7a4a2e', SKIN_D = '#5e3720', NAVY = '#1d2b55', NAVY_D = '#141f40', PANTS = '#2b2f38';
+
+// Scenes: hook, walking analogy, wheel geometry, benefits, end card (+ loop back to frame 0)
+const S = [0, 3.6, 8.0, 12.6, 16.6, 19.6];
+const DUR = S[S.length - 1];
+const BG = [WH, BLUE, WH, BLUE, WH];
+const TC = [600, 820];                           // iris transitions open from the axle
+const MX = 260, MY = 1160;                       // mechanic: base of the neck
+
+// ---------------------------------------------------------------- sound
+const BABBLE = (at, n) => Array.from({ length: n }, (_, i) => [at + i * .11, 'blip', { pitch: .85 + ((i * 7) % 5) * .09 }]);
+const stepsIn = (a, b, every, kind) => { const o = []; for (let k = Math.ceil(a / every); k * every < b; k++) o.push([k * every, kind, kind === 'step' ? { h: .8 + (k % 2) * .2 } : {}]); return o; };
+window.SFX = [
+  [0.05, 'pop', { pitch: .9 }], [0.3, 'pop', { pitch: 1.05 }], [0.65, 'swoosh'], [0.62, 'rattle', { d: .9 }], [0.95, 'error'], [1.0, 'swoosh'], ...BABBLE(2.0, 9),
+  [S[1], 'whoosh'], [S[1] + .1, 'pop'], [S[1] + .35, 'swoosh'], ...BABBLE(S[1] + .65, 9),
+  ...stepsIn(S[1] + .35, S[1] + 2.0, Math.PI / 5.5, 'step'), [S[1] + 1.3, 'ding'],
+  ...stepsIn(S[1] + 2.05, S[1] + 4.0, Math.PI / 6.2, 'stumble'), ...BABBLE(S[1] + 2.6, 9), [S[1] + 2.85, 'error'],
+  [S[2], 'whoosh'], [S[2] + .1, 'pop'], [S[2] + .35, 'swoosh'],
+  [S[2] + .4, 'error'], ...[1.1, 1.8, 2.35].map(d => [S[2] + d, 'pop', { pitch: .85 }]), ...BABBLE(S[2] + 2.95, 9),
+  ...[2.8, 2.95, 3.1, 3.25].map(d => [S[2] + d, 'tick']), [S[2] + 3.38, 'snap'], [S[2] + 3.5, 'ding'],
+  [S[3], 'whoosh'], [S[3] + .1, 'pop'], [S[3] + .35, 'swoosh'], ...[.45, 1.45, 2.45].map((d, i) => [S[3] + d + .1, 'pop', { pitch: 1 + i * .15 }]), [S[3] + 3.05, 'ding'],
+  [S[4] + .05, 'whoosh'], [S[4] + .45, 'impact'], [S[4] + .7, 'pop'], [S[4] + .9, 'pop', { pitch: 1.2 }], ...BABBLE(S[4] + 1.05, 8), [DUR - .45, 'whoosh'],
+];
+
+// ---------------------------------------------------------------- helpers
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lin = (t, a, b) => clamp((t - a) / (b - a));
+const eOut = x => 1 - Math.pow(1 - x, 3);
+const eIn = x => x * x * x;
+const eInOut = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const eBack = x => { const c1 = 1.7, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const img = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
+let LOGO;
+
+function text(str, x, y, { f = 'Barlow', w = 900, s = 60, col = INK, align = 'center', a = 1 } = {}) {
+  g.save(); g.globalAlpha *= a; g.font = `${w} ${s}px ${f}`; g.fillStyle = col; g.textAlign = align; g.textBaseline = 'middle';
+  g.fillText(str, x, y); g.restore();
+}
+function rrect(x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
+function fit(str, s, maxW) { g.save(); g.font = `900 ${s}px Barlow`; const w = g.measureText(str).width; g.restore(); return Math.min(s, Math.floor(s * maxW / w)); }
+// word that lands with a scale punch
+function punch(str, x, y, t0, t, s, col) {
+  const p = lin(t, t0, t0 + .28); if (p <= 0) return;
+  const k = 1 + .7 * (1 - eBack(p));
+  g.save(); g.translate(x, y); g.scale(k, k); text(str, 0, 0, { s, col, a: clamp(p * 3) }); g.restore();
+}
+// key phrase on a slanted marker band
+function marker(str, x, y, t0, t, s, bg, fg) {
+  const p = eOut(lin(t, t0, t0 + .35)); if (p <= 0) return;
+  g.save(); g.font = `900 ${s}px Barlow`; const w = g.measureText(str).width + 60; g.restore();
+  g.save(); g.translate(x - w / 2, y); g.transform(1, 0, -.25, 1, 0, 0);
+  g.beginPath(); g.rect(0, -s * .62, w * p, s * 1.2); g.fillStyle = bg; g.fill(); g.clip();
+  g.setTransform(1, 0, 0, 1, 0, 0); text(str, x, y + 4, { s, col: fg });
+  g.restore();
+}
+function swooshBg(col, a, t) {
+  g.save(); g.globalAlpha = a; g.translate(W * .5, H * .44); g.rotate(-.25 + t * .05); g.lineCap = 'round';
+  const a0 = Math.PI * .95, span = Math.PI * 1.15;
+  g.strokeStyle = col; g.lineWidth = 60; g.beginPath(); g.ellipse(0, 0, 670, 610, 0, a0, a0 + span); g.stroke();
+  g.lineWidth = 60; g.beginPath(); g.ellipse(37, 0, 558, 496, 0, a0 + .15, a0 + .15 + span * .95); g.stroke();
+  g.restore();
+}
+const sceneOf = t => { let k = 0; while (k < S.length - 2 && t >= S[k + 1]) k++; return k; };
+const onBlue = k => BG[k] === BLUE;
+
+// Background colour of each scene, revealed as an iris opening from the tire
+function background(t) {
+  const k = sceneOf(t), p = k > 0 ? eInOut(lin(t, S[k], S[k] + .45)) : 1;
+  const prev = BG[Math.max(0, k - 1)];
+  g.fillStyle = p < 1 ? prev : BG[k]; g.fillRect(0, 0, W, H);
+  if (p < 1) { g.fillStyle = BG[k]; g.beginPath(); g.arc(TC[0], TC[1], 2300 * p, 0, Math.PI * 2); g.fill(); }
+  swooshBg(onBlue(k) ? WH : BLUE, onBlue(k) ? .06 : .05, t);
+}
+
+
+function check(x, y, s, col = BLUE) {
+  if (s <= 0) return;
+  g.save(); g.translate(x, y); g.scale(s, s);
+  g.fillStyle = col; g.beginPath(); g.arc(0, 0, 46, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = WH; g.lineWidth = 4; g.stroke();
+  g.lineWidth = 10; g.lineCap = 'round'; g.lineJoin = 'round';
+  g.beginPath(); g.moveTo(-18, 2); g.lineTo(-5, 15); g.lineTo(20, -12); g.stroke();
+  g.restore();
+}
+function warning(x, y, s) {
+  if (s <= 0) return;
+  g.save(); g.translate(x, y); g.scale(s, s);
+  g.fillStyle = RED; g.strokeStyle = RED; g.lineJoin = 'round'; g.lineWidth = 16;
+  g.beginPath(); g.moveTo(0, -58); g.lineTo(58, 46); g.lineTo(-58, 46); g.closePath(); g.stroke(); g.fill();
+  text('!', 0, 10, { f: 'Montserrat', w: 900, s: 70, col: WH });
+  g.restore();
+}
+function confetti(x, y, t, t0) {
+  const r = t - t0; if (r < 0 || r > 1.4) return;
+  const cols = [RED, '#ffd34d', WH, '#7fb2ff'];
+  g.save(); g.globalAlpha = 1 - lin(r, .9, 1.4);
+  for (let i = 0; i < 36; i++) {
+    const a = (i * 137.5) * Math.PI / 180, sp = 380 + (i * 53 % 7) * 70;
+    const px = x + Math.cos(a) * sp * r, py = y + Math.sin(a) * sp * r * .8 + 900 * r * r;
+    g.save(); g.translate(px, py); g.rotate(r * (6 + i % 5)); g.fillStyle = cols[i % 4];
+    g.fillRect(-9, -5, 18, 10); g.restore();
+  }
+  g.restore();
+}
+
+
+// ---------------------------------------------------------------- the mechanic
+// two-bone IK: elbow position for a hand target
+function ik(sx, sy, tx, ty, a, b, bend) {
+  const dx = tx - sx, dy = ty - sy, d = Math.min(Math.hypot(dx, dy), a + b - 1), base = Math.atan2(dy, dx);
+  const A = Math.acos(clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1));
+  const ang = base + bend * A;
+  return [sx + Math.cos(ang) * a, sy + Math.sin(ang) * a, sx + Math.cos(base) * d, sy + Math.sin(base) * d];
+}
+function arm(sx, sy, tx, ty, bend, hand, prop) {
+  const [ex, ey, hx, hy] = ik(sx, sy, tx, ty, 165, 155, bend);
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  g.strokeStyle = SKIN; g.lineWidth = 46;
+  g.beginPath(); g.moveTo(sx, sy); g.lineTo(ex, ey); g.lineTo(hx, hy); g.stroke();
+  g.strokeStyle = NAVY; g.lineWidth = 60;
+  g.beginPath(); g.moveTo(sx, sy); g.lineTo(sx + (ex - sx) * .45, sy + (ey - sy) * .45); g.stroke();
+  const th = Math.atan2(hy - ey, hx - ex);
+  g.save(); g.translate(hx, hy); g.rotate(th);
+  if (prop === 'gauge') {           // pencil pressure gauge
+    g.fillStyle = '#20242b'; rrect(10, -9, 90, 18, 8); g.fill();
+    g.fillStyle = '#c9d0d9'; rrect(92, -12, 22, 24, 5); g.fill();
+  } else if (prop === 'wrench') {
+    g.fillStyle = '#aeb6c2'; rrect(10, -10, 120, 20, 9); g.fill();
+    g.beginPath(); g.arc(138, 0, 26, 0, Math.PI * 2); g.fill();
+    g.save(); g.globalCompositeOperation = 'destination-out'; g.fillRect(140, -9, 30, 18); g.restore();
+  }
+  g.fillStyle = SKIN;
+  if (hand === 'open') {
+    g.beginPath(); g.arc(14, 0, 30, 0, Math.PI * 2); g.fill();
+    for (let i = -1.5; i <= 1.5; i++) { g.save(); g.rotate(i * .28); rrect(24, -8, 40, 16, 8); g.fill(); g.restore(); }
+  } else if (hand === 'point') {
+    g.beginPath(); g.arc(12, 0, 28, 0, Math.PI * 2); g.fill(); rrect(16, -8, 56, 16, 8); g.fill();
+  } else {
+    g.beginPath(); g.arc(12, 0, 30, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = SKIN_D; g.lineWidth = 4; for (const fy of [-8, 6]) { g.beginPath(); g.moveTo(20, fy); g.lineTo(38, fy); g.stroke(); }
+  }
+  g.restore();
+  if (hand === 'thumb') { g.fillStyle = SKIN; rrect(hx - 11, hy - 66, 24, 50, 12); g.fill(); }
+}
+
+// st: { r: {x,y,bend,hand,prop}, l: {...}, mood, talk }
+function mechanic(x, y, t, st) {
+  const blink = (t % 2.9) < .12 ? .1 : 1, breathe = Math.sin(t * 2.4) * 4;
+  const shake = st.mood === 'worried' ? Math.sin(t * 40) * 2.5 : 0;
+  g.save(); g.translate(x + shake, y); g.scale(st.sc || 1, st.sc || 1);
+  if (st.sway) { g.translate(0, 780); g.rotate(st.sway); g.translate(0, -780); }
+  g.rotate(Math.sin(t * 1.7) * .015);
+  legs(st, t);
+  // left arm behind the body
+  const L = st.l || { x: -150, y: 330, bend: 1, hand: 'fist' };
+  arm(-108, 40, L.x, L.y, L.bend, L.hand, L.prop);
+  // torso
+  g.fillStyle = NAVY;
+  g.beginPath(); g.moveTo(-122, 34 + breathe * .3); g.quadraticCurveTo(-128, -6, -58, -12); g.lineTo(58, -12);
+  g.quadraticCurveTo(128, -6, 122, 34 + breathe * .3); g.lineTo(138, 430); g.lineTo(-138, 430); g.closePath(); g.fill();
+  g.fillStyle = NAVY_D; g.fillRect(-138, 390, 276, 40);
+  g.fillStyle = SKIN; g.beginPath(); g.moveTo(-34, -12); g.quadraticCurveTo(0, 28, 34, -12); g.closePath(); g.fill();
+  g.fillStyle = WH; g.beginPath(); g.arc(55, 110, 36, 0, Math.PI * 2); g.fill();
+  const lw = 58, lh = lw * LOGO.height / LOGO.width; g.drawImage(LOGO, 55 - lw / 2, 110 - lh / 2, lw, lh);
+  g.fillStyle = SKIN_D; g.fillRect(-28, -52, 56, 46);
+  // head
+  g.save(); g.translate(0, -140 + breathe * .4);
+  g.rotate(st.mood === 'worried' ? -.06 : Math.sin(t * 3) * .03 + (st.talk ? Math.sin(t * 9) * .025 : 0));
+  g.fillStyle = SKIN;
+  g.beginPath(); g.arc(-84, 8, 18, 0, Math.PI * 2); g.arc(84, 8, 18, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.ellipse(0, 0, 86, 98, 0, 0, Math.PI * 2); g.fill();
+  g.save(); g.beginPath(); g.ellipse(0, 0, 86, 98, 0, 0, Math.PI * 2); g.clip();
+  g.fillStyle = 'rgba(70,55,48,.45)'; g.beginPath(); g.ellipse(0, 62, 82, 52, 0, 0, Math.PI * 2); g.fill(); g.restore();
+  const shock = st.mood === 'shock', wb = st.mood === 'worried' || shock;
+  for (const ex of [-30, 28]) {
+    g.fillStyle = WH; g.beginPath(); g.ellipse(ex, -8, shock ? 19 : 15, (shock ? 22 : 17) * blink, 0, 0, Math.PI * 2); g.fill();
+    if (blink > .5) { g.fillStyle = '#1a1110'; g.beginPath(); g.arc(ex + 5, -6, shock ? 7 : 8, 0, Math.PI * 2); g.fill(); }
+  }
+  g.strokeStyle = '#2a1a12'; g.lineWidth = 8; g.lineCap = 'round';
+  const by = shock ? -10 : 0;
+  g.beginPath(); g.moveTo(-46, (wb ? -30 : -36) + by); g.lineTo(-16, (wb ? -42 : -38) + by); g.stroke();
+  g.beginPath(); g.moveTo(12, (wb ? -42 : -38) + by); g.lineTo(44, (wb ? -30 : -36) + by); g.stroke();
+  g.strokeStyle = SKIN_D; g.lineWidth = 6; g.beginPath(); g.arc(4, 18, 12, Math.PI * .1, Math.PI * .9); g.stroke();
+  const open = st.talk ? (.35 + .65 * Math.abs(Math.sin(t * 17) * Math.sin(t * 7.3))) : 0;
+  g.fillStyle = '#3a1712';
+  if (shock) { g.beginPath(); g.ellipse(4, 54, 18, 24, 0, 0, Math.PI * 2); g.fill(); }
+  else if (st.mood === 'worried') { g.beginPath(); g.ellipse(4, 50, 12, 14, 0, 0, Math.PI * 2); g.fill(); }
+  else if (open > .05) { g.beginPath(); g.ellipse(4, 50, 26, 6 + 18 * open, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = WH; g.fillRect(-14, 44 - 18 * open * .6, 36, 7); }
+  else if (st.mood === 'grin') {
+    g.beginPath(); g.moveTo(-30, 40); g.quadraticCurveTo(4, 88, 38, 40); g.closePath(); g.fill();
+    g.fillStyle = WH; g.beginPath(); g.moveTo(-26, 42); g.quadraticCurveTo(4, 56, 34, 42); g.closePath(); g.fill();
+  } else { g.strokeStyle = '#3a1712'; g.lineWidth = 7; g.beginPath(); g.arc(4, 30, 30, Math.PI * .2, Math.PI * .8); g.stroke(); }
+  // cap
+  g.fillStyle = NAVY; g.beginPath(); g.moveTo(-92, -38); g.quadraticCurveTo(-88, -118, 0, -120); g.quadraticCurveTo(88, -118, 92, -38); g.closePath(); g.fill();
+  g.fillStyle = NAVY_D; g.beginPath(); g.ellipse(70, -40, 78, 15, -.05, 0, Math.PI * 2); g.fill();
+  g.save(); g.translate(6, -78); g.lineCap = 'round';
+  g.strokeStyle = WH; g.lineWidth = 7; g.beginPath(); g.arc(0, 0, 20, Math.PI * .9, Math.PI * 2.1); g.stroke();
+  g.strokeStyle = RED; g.lineWidth = 6; g.beginPath(); g.arc(2, 2, 13, Math.PI * .95, Math.PI * 2.0); g.stroke();
+  g.restore();
+  if (wb && !shock) { g.fillStyle = '#7fc4ff'; g.beginPath(); g.moveTo(80, -40); g.quadraticCurveTo(96, -14, 80, -8); g.quadraticCurveTo(64, -14, 80, -40); g.fill(); }
+  if (shock) { g.strokeStyle = onBlue(sceneOf(t)) ? WH : RED; g.lineWidth = 7; for (const a of [-2.4, -1.9, -1.4]) { g.beginPath(); g.moveTo(Math.cos(a) * 140, Math.sin(a) * 140 - 30); g.lineTo(Math.cos(a) * 175, Math.sin(a) * 175 - 30); g.stroke(); } }
+  g.restore();
+  // right arm in front — does the work
+  const Rr = st.r || { x: 150, y: 330, bend: -1, hand: 'fist' };
+  arm(108, 40, Rr.x, Rr.y, Rr.bend, Rr.hand, Rr.prop);
+  g.restore();
+}
+
+// white cut-out outline + shadow around the character (sticker look, visible on blue)
+const OC = document.createElement('canvas'), OW = document.createElement('canvas');
+OC.width = OW.width = W; OC.height = OW.height = H;
+function sticker(fn) {
+  const main = g, oc = OC.getContext('2d'), ow = OW.getContext('2d');
+  oc.setTransform(1, 0, 0, 1, 0, 0); oc.clearRect(0, 0, W, H);
+  g = oc; fn(); g = main;
+  ow.setTransform(1, 0, 0, 1, 0, 0); ow.globalCompositeOperation = 'source-over'; ow.clearRect(0, 0, W, H);
+  ow.drawImage(OC, 0, 0); ow.globalCompositeOperation = 'source-in'; ow.fillStyle = WH; ow.fillRect(0, 0, W, H);
+  g.save(); g.shadowColor = 'rgba(0,20,60,.3)'; g.shadowBlur = 26; g.shadowOffsetY = 12; g.drawImage(OW, 0, 0); g.restore();
+  for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; g.drawImage(OW, Math.cos(a) * 9, Math.sin(a) * 9); }
+  g.drawImage(OC, 0, 0);
+}
+
+// speech bubble, typed on; tail from the edge facing the speaker
+function bubble(lines, x, y, w, tail, p, typed) {
+  if (p <= 0) return;
+  const h = 56 + lines.length * 52;
+  g.save(); g.translate(x + w / 2, y + h / 2); g.scale(p, p); g.translate(-(x + w / 2), -(y + h / 2));
+  g.shadowColor = 'rgba(0,20,60,.25)'; g.shadowBlur = 28; g.shadowOffsetY = 10;
+  g.fillStyle = WH; g.strokeStyle = BLUE; g.lineWidth = 6;
+  g.beginPath(); g.roundRect(x, y, w, h, 34); g.fill(); g.shadowColor = 'transparent'; g.stroke();
+  let a, b;  // tail base points
+  if (tail[1] > y + h) { const bx = clamp(tail[0], x + 60, x + w - 60); a = [bx - 24, y + h]; b = [bx + 20, y + h]; }
+  else { const sx = tail[0] < x ? x : x + w, ty = clamp(tail[1], y + 40, y + h - 40); a = [sx, ty - 22]; b = [sx, ty + 18]; }
+  g.beginPath(); g.moveTo(...a); g.lineTo(...tail); g.lineTo(...b); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(...a); g.lineTo(...tail); g.lineTo(...b); g.stroke();
+  g.fillStyle = WH; g.beginPath(); g.moveTo(a[0] + (b[0] - a[0]) * .1, a[1] + (b[1] - a[1]) * .1 - (a[1] === b[1] ? 4 : 0));
+  g.lineTo(b[0] - (b[0] - a[0]) * .1, b[1] - (b[1] - a[1]) * .1 - (a[1] === b[1] ? 4 : 0)); g.lineWidth = 8; g.strokeStyle = WH; g.stroke();
+  const total = lines.join('').length; let left = Math.floor(total * typed);
+  lines.forEach((l, i) => {
+    const s = l.slice(0, Math.max(0, left)); left -= l.length;
+    text(s, x + 34, y + h / 2 + (i - (lines.length - 1) / 2) * 52, { f: 'Montserrat', w: 700, s: 39, col: INK, align: 'left' });
+  });
+  g.restore();
+}
+
+
+// ---------------------------------------------------------------- hero axle (front view)
+// Two wheels on an axle. tl / tr: lean of each wheel (rad, + = top towards the outside),
+// yaw: toe (+ = fronts turned in), pivot on the contact point.
+function wheel(x, gy, lean, yaw, wob) {
+  const h = 250, w = 92;
+  g.save(); g.translate(x, gy); g.rotate(lean + wob); g.scale(1 - Math.abs(yaw) * .9, 1);
+  g.fillStyle = '#0b0d10'; rrect(-w / 2, -h, w, h, 30); g.fill();
+  g.fillStyle = '#323843';
+  for (let i = 0; i < 9; i++) rrect(-w / 2 + 10, -h + 16 + i * 26 + ((wob * 600) % 26 + 26) % 26 * 0, w - 20, 12, 5), g.fill();
+  g.fillStyle = '#1c2026'; g.fillRect(-4, -h, 8, h);
+  if (yaw) { g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(yaw > 0 ? -w / 2 : w / 2 - 14, -h + 20, 14, h - 40); }
+  g.restore();
+}
+function axle(cx, cy, t, st) {
+  const gy = cy + 125, half = 225;
+  // ground + shadow
+  g.save(); g.fillStyle = 'rgba(0,0,0,.16)'; g.beginPath(); g.ellipse(cx, gy, 330, 20, 0, 0, Math.PI * 2); g.fill(); g.restore();
+  // axle beam, springs, differential
+  g.strokeStyle = '#8d96a3'; g.lineWidth = 26; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(cx - half + 40, cy + 20); g.lineTo(cx + half - 40, cy + 20); g.stroke();
+  g.fillStyle = '#5b6470'; rrect(cx - 46, cy - 18, 92, 76, 18); g.fill();
+  g.strokeStyle = RED; g.lineWidth = 9;
+  for (const s of [-1, 1]) { g.beginPath(); for (let i = 0; i <= 6; i++) { const yy = cy - 70 + i * 14; g.lineTo(cx + s * (half - 95) + (i % 2 ? 14 : -14), yy); } g.stroke(); }
+  wheel(cx - half, gy, -st.lean, st.yaw, st.wob);
+  wheel(cx + half, gy, st.lean, -st.yaw, -st.wob);
+}
+
+// ---------------------------------------------------------------- walking legs for the analogy
+function legs(st, t) {
+  const bent = st.walk === 'bent', ph = t * (bent ? 6.2 : 5.5);
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  for (const side of [-1, 1]) {
+    const lift = st.walk ? Math.max(0, Math.sin(ph + (side > 0 ? Math.PI : 0))) * (bent ? 46 : 34) : 0;
+    const hx = side * 55, fx = side * (bent ? 30 : 55), fy = 760 - lift, kx = side * (55 + (bent ? 95 : 0)), ky = 580 - lift * .5;
+    g.strokeStyle = PANTS; g.lineWidth = 96;
+    g.beginPath(); g.moveTo(hx, 420); g.quadraticCurveTo(kx, ky, fx, fy); g.stroke();
+    g.save(); g.translate(fx, fy + 30); g.rotate(bent ? -side * .4 : 0);
+    g.fillStyle = '#111'; rrect(-56, -22, 112, 46, 20); g.fill();
+    g.fillStyle = RED; g.fillRect(-56, 14, 112, 10);
+    g.restore();
+  }
+}
+
+// ---------------------------------------------------------------- story
+const AX = [600, 820];                                       // axle centre
+const toLocal = (px, py, m = { x: MX, y: MY }) => ({ x: px - m.x, y: py - m.y });
+// mechanic placement per scene: x, y (neck), scale
+const PLACE = [[MX, MY, 1], [540, 720, .78], [MX, MY, 1], [MX, MY, 1], [MX, MY, 1]];
+// speech bubbles: [scene, start (s in scene), typing time, lines, box x, y, width]
+const SAY = [
+  [0, 1.9, .9, ['Oh oh… vos roues', 'ne sont plus droites !'], 450, 990, 480],
+  [1, .55, .9, ['Jambes droites :', 'j’avance facilement !'], 30, 440, 430],
+  [1, 2.5, .9, ['Jambes tordues :', 'ça devient bancal !'], 30, 440, 430],
+  [2, 2.85, .9, ['Je règle la géométrie', 'au millimètre près !'], 450, 990, 480],
+  [4, .95, .9, ['On vous attend', 'à Combani !'], 470, 960, 430],
+];
+const STEP_S = Math.PI / 5.5, STEP_B = Math.PI / 6.2;
+
+function axleState(t) {
+  const k = sceneOf(t), r = t - S[k];
+  let lean = 0, yaw = 0, wob = 0;
+  if (k === 0) { lean = .2 * eBack(lin(t, .6, .95)); wob = Math.sin(t * 22) * .03 * lin(t, .6, .8); }
+  if (k === 2) {
+    const fix = eBack(lin(r, 3.35, 3.7));
+    if (r < 1.05) lean = .2;                                   // carrossage
+    else if (r < 1.75) lean = -.18 * eOut(lin(r, 1.05, 1.25)); // contre-carrossage
+    else if (r < 2.3) yaw = .35 * eOut(lin(r, 1.75, 1.95));    // pincement
+    else yaw = -.35 * eOut(lin(r, 2.3, 2.5));                  // ouverture
+    lean *= 1 - fix; yaw *= 1 - clamp(fix);
+    wob = Math.sin(t * 20) * .02 * (1 - lin(r, 3.3, 3.4));
+  }
+  return { lean, yaw, wob };
+}
+
+function presenter(t) {
+  const k = sceneOf(t), r = t - S[k];
+  const st = { mood: 'happy', sc: 1 };
+  // position: blends to the new place during the iris transition
+  const p = k > 0 ? eInOut(lin(r, 0, .45)) : 1, A = PLACE[Math.max(0, k - 1)], B = PLACE[k];
+  let x = A[0] + (B[0] - A[0]) * p, y = A[1] + (B[1] - A[1]) * p; st.sc = A[2] + (B[2] - A[2]) * p;
+  if (p < 1 && (A[0] !== B[0])) y -= Math.sin(Math.PI * p) * 160;
+  const say = SAY.find(s => s[0] === k && r >= s[1] && (SAY.find(n => n[0] === k && n[1] > s[1] && r >= n[1]) === undefined));
+  const typed = say ? lin(r, say[1] + .1, say[1] + .1 + say[2]) : 0;
+  st.talk = typed > 0 && typed < 1;
+  if (k === 0) {
+    const e = lin(t, .9, 1.3); x = MX - (1 - eOut(e)) * 520; y = MY - Math.sin(Math.PI * e) * 120;
+    if (t > 1.0 && t < 1.8) { st.mood = 'shock'; st.r = { ...toLocal(440, 970), bend: 1, hand: 'open' }; st.l = { x: -230, y: -60, bend: -1, hand: 'open' }; }
+  }
+  if (k === 1) {
+    if (r > .3 && r < 2.0) { st.walk = 'straight'; const ph = t * 5.5; y -= Math.abs(Math.sin(ph)) * 8; st.r = { x: 150 + Math.sin(ph) * 40, y: 330, bend: -1, hand: 'fist' }; st.l = { x: -150 - Math.sin(ph) * 40, y: 330, bend: 1, hand: 'fist' }; }
+    if (r > 1.25 && r < 2.0) st.mood = 'grin';
+    if (r >= 2.0 && r < 4.0) {
+      st.walk = 'bent'; st.mood = r > 2.7 ? 'worried' : 'happy'; const ph = t * 6.2;
+      y -= Math.abs(Math.sin(ph)) * 16; x += Math.sin(ph * .5) * 18;
+      st.sway = Math.sin(ph) * .08 + Math.sin(ph * 2.3) * .03;
+      st.r = { x: 210, y: 150 + Math.sin(ph * 1.3) * 60, bend: -1, hand: 'open' }; st.l = { x: -210, y: 150 - Math.sin(ph * 1.1) * 60, bend: 1, hand: 'open' };
+    }
+  }
+  if (k === 2) {
+    st.r = r < 2.7 ? { ...toLocal(AX[0] - 330, AX[1] + 40), bend: 1, hand: 'point' } : undefined;
+    if (r > .4 && r < 2.6) st.mood = 'worried';
+    if (r >= 2.7 && r < 3.35) st.r = { ...toLocal(AX[0] - 300 + Math.sin(t * 18) * 14, AX[1] + 60 + Math.cos(t * 18) * 14), bend: 1, hand: 'fist', prop: 'wrench' };
+    if (r >= 3.45) { st.mood = 'grin'; st.l = { x: -210, y: -110, bend: -1, hand: 'thumb' }; }
+  }
+  if (k === 3) {
+    st.mood = r > .4 ? 'grin' : 'happy';                     // reacts to each benefit, clear of the text
+    if (r > 3.0) st.l = { x: -210, y: -110, bend: -1, hand: 'thumb' };
+  }
+  if (k === 4 && r > .4) st.r = { x: 215 + Math.sin(t * 12) * 28, y: -190, bend: 1, hand: 'open' };
+  if (st.talk && st.mood === 'happy') st.mood = 'talk';
+  const joy = k === 2 ? 3.45 : k === 1 ? 1.25 : -9;
+  y -= Math.sin(Math.PI * lin(r, joy, joy + .35)) * 45 * (k === 1 ? 0 : 1);
+  y += eIn(lin(t, DUR - .5, DUR - .15)) * 900;
+  if (t < .9) return;
+  sticker(() => mechanic(x, y, t, st));
+  if (say) {
+    const nextAt = (SAY.find(n => n[0] === k && n[1] > say[1]) || [, k < 4 ? S[k + 1] - S[k] : DUR - .45 - S[k]])[1];
+    const bp = eBack(lin(r, say[1], say[1] + .3)) * (1 - eIn(lin(r, nextAt - .25, nextAt - .05)));
+    const head = [x, y - 140 * st.sc];
+    bubble(say[3], say[4], say[5], say[6], say[4] > x ? [head[0] + 110 * st.sc, head[1] + 30] : [head[0] - 30, head[1] - 110 * st.sc], bp, typed);
+  }
+}
+
+const ROWS_Y = [525, 665, 805];
+function benefitIcon(kind, x, y, p) {
+  if (p <= 0) return;
+  g.save(); g.translate(x, y); g.scale(p, p);
+  g.fillStyle = kind === 1 ? RED : WH; g.beginPath(); g.arc(0, 0, 56, 0, Math.PI * 2); g.fill();
+  const fg = kind === 1 ? WH : BLUE; g.strokeStyle = fg; g.fillStyle = fg; g.lineCap = 'round';
+  if (kind === 0) { g.lineWidth = 10; g.beginPath(); g.arc(0, 0, 30, 0, Math.PI * 2); g.stroke(); g.lineWidth = 5; g.beginPath(); g.arc(0, 0, 12, 0, Math.PI * 2); g.stroke(); for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; g.beginPath(); g.moveTo(Math.cos(a) * 35, Math.sin(a) * 35); g.lineTo(Math.cos(a) * 41, Math.sin(a) * 41); g.stroke(); } }
+  else if (kind === 1) { g.beginPath(); g.moveTo(-11, -34); g.lineTo(11, -34); g.lineTo(32, 34); g.lineTo(-32, 34); g.closePath(); g.fill(); g.strokeStyle = RED; g.lineWidth = 5; g.setLineDash([10, 8]); g.beginPath(); g.moveTo(0, -30); g.lineTo(0, 32); g.stroke(); g.setLineDash([]); }
+  else { g.beginPath(); g.moveTo(0, -36); g.bezierCurveTo(24, -8, 29, 6, 29, 14); g.arc(0, 14, 29, 0, Math.PI); g.bezierCurveTo(-29, 6, -24, -8, 0, -36); g.fill(); }
+  g.restore();
+}
+
+function titles(t) {
+  const k = sceneOf(t), r = t - S[k], c1 = onBlue(k) ? WH : BLUE;
+  const out = k < 4 ? 1 - eIn(lin(t, S[k + 1] - .2, S[k + 1])) : 1;
+  g.save(); g.globalAlpha = out;
+  if (k === 0) {
+    punch('GARDE TES', W / 2, 290, .05, t, 120, BLUE);
+    punch('ROUES DROITES', W / 2, 410, .3, t, fit('ROUES DROITES', 120, 860), BLUE);
+    marker('GARDE LE CAP !', W / 2, 540, .65, t, 92, RED, WH);
+  }
+  if (k === 1) {
+    punch('C’EST COMME', W / 2 + 40, 250, .1, t, 84, c1);
+    marker('QUAND ON MARCHE', W / 2, 345, .35, t, 70, RED, WH);
+    const s1 = eBack(lin(r, 1.15, 1.45)) * (1 - eIn(lin(r, 1.85, 2.0)));
+    if (s1 > 0) { g.save(); g.translate(W / 2, 1430); g.scale(s1, s1); text('DROITES', -60, 0, { s: 92, col: WH }); g.restore(); check(W / 2 + 140, 1428, s1); }
+    const s2 = eBack(lin(r, 2.75, 3.05));
+    if (s2 > 0) { g.save(); g.translate(W / 2, 1430); g.scale(s2, s2); text('TORDUES', -60, 0, { s: 92, col: '#ff8a92' }); g.restore(); cross(W / 2 + 150, 1428, s2); }
+  }
+  if (k === 2) {
+    punch('POUR VOS ROUES,', W / 2, 290, .1, t, 92, c1);
+    marker('C’EST PAREIL !', W / 2, 410, .35, t, 80, RED, WH);
+    const chips = [['CARROSSAGE', .35, 1.05], ['CONTRE-CARROSSAGE', 1.05, 1.75], ['PINCEMENT', 1.75, 2.3], ['OUVERTURE', 2.3, 2.75]];
+    for (const [lab, a, b] of chips) {
+      const p = eBack(lin(r, a, a + .25)) * (1 - eIn(lin(r, b - .12, b)));
+      if (p > 0) { g.save(); g.translate(AX[0], 560); g.scale(p, p); g.save(); g.font = '900 52px Barlow'; const w = g.measureText(lab).width + 120; g.restore();
+        g.transform(1, 0, -.25, 1, 0, 0); g.fillStyle = RED; g.fillRect(-w / 2, -38, w, 76); g.setTransform(1, 0, 0, 1, 0, 0); g.restore();
+        g.save(); g.translate(AX[0], 560); g.scale(p, p); text(lab, -20, 3, { s: 52, col: WH }); g.font = '900 52px Barlow'; cross(g.measureText(lab).width / 2 + 8, 0, .55, INK); g.restore(); }
+    }
+    if (r >= 3.4) { const p = eBack(lin(r, 3.4, 3.7)); g.save(); g.translate(AX[0], 560); g.scale(p, p); g.save(); g.transform(1, 0, -.25, 1, 0, 0); g.fillStyle = BLUE; g.fillRect(-290, -38, 580, 76); g.restore(); text('GÉOMÉTRIE CORRECTE', -10, 3, { s: 52, col: WH }); g.restore(); }
+    // toe arrows
+    const ya = axleState(t).yaw;
+    if (Math.abs(ya) > .05) { g.save(); g.strokeStyle = RED; g.fillStyle = RED; g.lineWidth = 9; g.lineCap = 'round';
+      for (const s of [-1, 1]) { const x0 = AX[0] + s * 225, dir = ya > 0 ? -s : s; g.beginPath(); g.moveTo(x0 - dir * 40, AX[1] - 175); g.lineTo(x0 + dir * 40, AX[1] - 175); g.stroke();
+        g.beginPath(); g.moveTo(x0 + dir * 58, AX[1] - 175); g.lineTo(x0 + dir * 30, AX[1] - 190); g.lineTo(x0 + dir * 30, AX[1] - 160); g.closePath(); g.fill(); } g.restore(); }
+  }
+  if (k === 3) {
+    punch('UN BON PARALLÉLISME', W / 2, 290, .1, t, fit('UN BON PARALLÉLISME', 92, 860), c1);
+    marker('C’EST…', W / 2, 400, .35, t, 76, RED, WH);
+    const rows = [['DES PNEUS QUI DURENT', 'Comme des jambes bien alignées', .45], ['UNE VOITURE STABLE', 'Comme quand on marche droit', 1.45], ['DU CARBURANT ÉCONOMISÉ', 'Avancer sans effort en plus', 2.45]];
+    rows.forEach(([a, b, at], i) => {
+      const y = ROWS_Y[i]; benefitIcon(i, 140, y, eBack(lin(r, at, at + .35)));
+      const tp = eOut(lin(r, at + .05, at + .4));
+      if (tp > 0) { g.save(); g.globalAlpha *= tp; g.translate(-40 * (1 - tp), 0);
+        text(a, 222, y - 20, { s: fit(a, 70, 700), col: WH, align: 'left' });
+        text(b, 224, y + 36, { f: 'Montserrat', w: 600, s: 32, col: 'rgba(255,255,255,.85)', align: 'left' }); g.restore(); }
+    });
+  }
+  g.restore();
+}
+
+function cross(x, y, s, col = RED) {
+  if (s <= 0) return;
+  g.save(); g.translate(x, y); g.scale(s, s);
+  g.fillStyle = col; g.beginPath(); g.arc(0, 0, 46, 0, Math.PI * 2); g.fill(); g.strokeStyle = WH; g.lineWidth = 4; g.stroke();
+  g.lineWidth = 10; g.lineCap = 'round'; g.beginPath(); g.moveTo(-15, -15); g.lineTo(15, 15); g.moveTo(15, -15); g.lineTo(-15, 15); g.stroke();
+  g.restore();
+}
+
+function hero(t) {
+  const k = sceneOf(t);
+  // the axle is out of frame during the walking analogy and the benefits
+  const vis = k === 0 || k === 2 ? 1 : 0, prev = k > 0 && (k - 1 === 0 || k - 1 === 2) ? 1 : 0;
+  const r = t - S[k], p = eInOut(lin(r, 0, .45));
+  const v = k > 0 ? prev + (vis - prev) * p : 1;
+  if (v <= 0.01) return;
+  const st = axleState(t);
+  g.save(); g.globalAlpha = v; g.translate(AX[0], AX[1] + (1 - v) * 300); g.scale(.85 + .15 * v, .85 + .15 * v); g.translate(-AX[0], -AX[1]);
+  // guide lines: red when wrong, blue/white when right
+  const ok = Math.abs(st.lean) < .02 && Math.abs(st.yaw) < .02;
+  g.save(); g.setLineDash([22, 16]); g.lineDashOffset = -t * 90; g.lineWidth = 6; g.strokeStyle = ok ? (onBlue(k) ? WH : BLUE) : '#ff5a66';
+  for (const s of [-1, 1]) { g.beginPath(); g.moveTo(AX[0] + s * 225, AX[1] - 200); g.lineTo(AX[0] + s * 225, AX[1] + 150); g.stroke(); }
+  g.restore();
+  axle(AX[0], AX[1], t, st);
+  g.restore();
+  if (k === 2) check(AX[0] + 300, AX[1] - 150, eBack(lin(r, 3.45, 3.7)));
+}
+
+function endCard(t) {
+  const k = sceneOf(t); if (k !== 4) return;
+  const r = t - S[4], bp = eOut(lin(r, .1, .5));
+  g.fillStyle = BLUE; g.beginPath(); g.moveTo(0, 0); g.lineTo(W, 0); g.lineTo(W, 540 * bp); g.quadraticCurveTo(W / 2, 640 * bp, 0, 540 * bp); g.closePath(); g.fill();
+  revealLine('ROULEZ DROIT !', 260, r, .2, 96, WH);
+  const lp = eBack(lin(r, .3, .7));
+  if (lp > 0) {
+    g.save(); g.translate(W / 2, 430); g.scale(lp, lp); g.rotate((1 - lp) * -.2);
+    g.shadowColor = 'rgba(0,20,60,.35)'; g.shadowBlur = 40; g.shadowOffsetY = 12;
+    g.fillStyle = WH; g.beginPath(); g.ellipse(0, 0, 165, 140, -.12, 0, Math.PI * 2); g.fill(); g.shadowColor = 'transparent';
+    const lw = 270, lh = lw * LOGO.height / LOGO.width; g.drawImage(LOGO, -lw / 2, -lh / 2, lw, lh);
+    g.restore();
+  }
+  const pr = eOut(lin(r, .6, .95));
+  if (pr > 0) {
+    g.save(); g.globalAlpha = pr; g.translate(-60 * (1 - pr), 0);
+    const pulse = 1 + Math.sin(r * 7) * .05 * lin(r, 1.2, 1.5);
+    g.save(); g.translate(170, 690); g.scale(pulse * .8, pulse * .8);
+    g.fillStyle = BLUE; g.beginPath(); g.arc(0, 0, 92, 0, Math.PI * 2); g.fill();
+    g.rotate(.8); g.strokeStyle = WH; g.fillStyle = WH; g.lineCap = 'round';
+    g.lineWidth = 20; g.beginPath(); g.arc(22, 0, 44, Math.PI * .62, Math.PI * 1.38); g.stroke();
+    for (const sy of [-1, 1]) { g.save(); g.translate(22 + Math.cos(Math.PI * (1 + .38 * sy)) * 44, Math.sin(Math.PI * (1 + .38 * sy)) * 44); g.rotate(sy * .3); rrect(-10, -16, 40, 32, 10); g.fill(); g.restore(); }
+    g.restore();
+    text('APPELEZ-NOUS', 270, 655, { f: 'Montserrat', w: 600, s: 40, col: BLUE, align: 'left' });
+    text('+262 639 291 702', 268, 728, { f: 'Montserrat', w: 800, s: 60, col: BLUE, align: 'left' });
+    g.restore();
+  }
+  const ar = eOut(lin(r, .8, 1.15));
+  if (ar > 0) {
+    g.save(); g.globalAlpha = ar; g.translate(-60 * (1 - ar), 0);
+    g.save(); g.translate(170, 840 - 12 * Math.abs(Math.sin(r * 5)) * lin(r, 1.3, 1.5));
+    g.fillStyle = RED; g.beginPath(); g.arc(0, -20, 40, Math.PI * .85, Math.PI * 2.15); g.lineTo(0, 52); g.closePath(); g.fill();
+    g.fillStyle = WH; g.beginPath(); g.arc(0, -20, 16, 0, Math.PI * 2); g.fill();
+    g.restore();
+    text('32 Route de Coconi', 270, 815, { f: 'Montserrat', w: 500, s: 40, col: INK, align: 'left' });
+    text('COMBANI', 270, 875, { f: 'Montserrat', w: 800, s: 50, col: BLUE, align: 'left' });
+    g.restore();
+  }
+}
+function revealLine(str, y, r, at, s, col) {
+  const p = eOut(lin(r, at, at + .4)); if (p <= 0) return;
+  g.save(); g.beginPath(); g.rect(0, y - s * .8, W, s * 1.6); g.clip(); text(str, W / 2, y + (1 - p) * s, { s, col, a: p }); g.restore();
+}
+
+// film grain
+const GRAIN = Array.from({ length: 4 }, () => {
+  const cv = document.createElement('canvas'); cv.width = 270; cv.height = 480; const x = cv.getContext('2d');
+  const im = x.createImageData(270, 480);
+  for (let i = 0; i < im.data.length; i += 4) { const v = Math.random() * 255; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; }
+  x.putImageData(im, 0, 0); return cv;
+});
+function grain(t) { g.save(); g.globalAlpha = .05; g.globalCompositeOperation = 'overlay'; g.drawImage(GRAIN[Math.floor(t * 12) % 4], 0, 0, W, H); g.restore(); }
+
+
+// loop: the last frames close back onto frame 0 (white, straight axle)
+function loopBack(t) {
+  const p = eInOut(lin(t, DUR - .45, DUR - .05)); if (p <= 0) return;
+  g.fillStyle = WH; g.beginPath(); g.arc(TC[0], TC[1], 2300 * p, 0, Math.PI * 2); g.fill();
+  if (p > .2) { g.save(); g.globalAlpha = lin(p, .2, .6); swooshBg(BLUE, .05, t); axle(AX[0], AX[1], t, { lean: 0, yaw: 0, wob: 0 }); g.restore(); }
+}
+
+function render(t) {
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  background(t);
+  hero(t);
+  titles(t);
+  endCard(t);
+  confetti(AX[0] + 300, AX[1] - 150, t, S[2] + 3.5);
+  presenter(t);
+  loopBack(t);
+  grain(t);
+}
+window.render = render;
+Promise.all([
+  document.fonts.load('900 40px Barlow'), document.fonts.load('600 40px Montserrat'), document.fonts.load('700 40px Montserrat'), document.fonts.load('800 40px Montserrat'),
+  img('../video/assets/logo.png').then(i => LOGO = i),
+]).then(() => { render(0); window.ready = true; });
+</script>
+</body></html>
