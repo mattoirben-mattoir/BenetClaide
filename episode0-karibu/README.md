@@ -19,3 +19,11 @@ Déroulé : vrai plan « Karibu ! » → clin d'œil, flash, croquis blanc qui d
 + « Épisode 1 · vendredi 4 décembre » (jingle de série) → Alonzo montre la voiture du client : « Et sa voiture ? Donnez-lui un prénom ! » + logo + contact.
 
 Re-rendu : `video/build.sh episode0-karibu 17.4 centre-auto-alonzo-episode0-karibu-maquette.mp4` depuis la racine.
+
+## V2 (relecture motion design)
+- **Pneu avant à plat lisible** : la voiture s'affaisse sur la roue avant, pneu écrasé avec bourrelet, jante basse, petits jets d'air à l'arrivée ; sourcil triste et grosse moue.
+- **Bulles lisibles sur téléphone** : texte 52 px (64 px gras pour « Ça va passer… »), largeur calée sur le texte, mots affichés entiers (plus de « Ça va pas »). « Ça va passer… » apparaît d'un bloc et tremble ; « Ah non. Pas avec moi ! » d'un bloc, tenu jusqu'au titre.
+- **Zones de sécurité Facebook** : voiture (x 664, échelle 0,95), Alonzo (HOME x 280, MASC x 720), pouce et flèche sortis de la colonne des boutons à droite (> 940 px).
+- **Fin** : logo et contact agrandis, appel à l'action « QUEL PRÉNOM ? » qui pulse sur le temps + « Répondez en commentaire », flèche qui rebondit sur la voiture ; la bulle se limite à « Et sa voiture ? ».
+- **Croquis de transformation** : il est maintenant dessiné à l'échelle de la photo (1,6) et la recouvre exactement (il était à l'échelle 1).
+- Aucun timing modifié : les bruitages et le calage Alpajo restent valables.

@@ -363,9 +363,11 @@ function sticker(fn, maskOnly) {
 }
 
 // speech bubble, typed on; tail from the edge facing the speaker
-function bubble(lines, x, y, w, tail, p, typed) {
+function bubble(lines, x, y, maxW, tail, p, typed, big) {
   if (p <= 0) return;
-  const h = 56 + lines.length * 52;
+  const F = big ? 64 : 52, wt = big ? 800 : 700;
+  g.save(); g.font = `${wt} ${F}px Montserrat`; const tw = Math.max(...lines.map(l => g.measureText(l).width)); g.restore();
+  const fs = Math.min(F, Math.floor(F * (maxW - 72) / tw)), lh = fs * 1.25, w = tw * fs / F + 72, h = 50 + lines.length * lh;
   g.save(); g.translate(x + w / 2, y + h / 2); g.scale(p, p); g.translate(-(x + w / 2), -(y + h / 2));
   g.shadowColor = 'rgba(0,20,60,.25)'; g.shadowBlur = 28; g.shadowOffsetY = 10;
   g.fillStyle = WH; g.strokeStyle = BLUE; g.lineWidth = 6;
@@ -377,10 +379,10 @@ function bubble(lines, x, y, w, tail, p, typed) {
   g.beginPath(); g.moveTo(...a); g.lineTo(...tail); g.lineTo(...b); g.stroke();
   g.fillStyle = WH; g.beginPath(); g.moveTo(a[0] + (b[0] - a[0]) * .1, a[1] + (b[1] - a[1]) * .1 - (a[1] === b[1] ? 4 : 0));
   g.lineTo(b[0] - (b[0] - a[0]) * .1, b[1] - (b[1] - a[1]) * .1 - (a[1] === b[1] ? 4 : 0)); g.lineWidth = 8; g.strokeStyle = WH; g.stroke();
-  const total = lines.join('').length; let left = Math.floor(total * typed);
+  const words = lines.map(l => l.split(' ')), nW = words.flat().length; let left = Math.ceil(nW * typed - 1e-6);
   lines.forEach((l, i) => {
-    const s = l.slice(0, Math.max(0, left)); left -= l.length;
-    text(s, x + 34, y + h / 2 + (i - (lines.length - 1) / 2) * 52, { f: 'Montserrat', w: 700, s: 39, col: INK, align: 'left' });
+    const s = words[i].slice(0, Math.max(0, left)).join(' '); left -= words[i].length;
+    text(s, x + 36, y + h / 2 + (i - (lines.length - 1) / 2) * lh, { f: 'Montserrat', w: wt, s: fs, col: INK, align: 'left' });
   });
   g.restore();
 }
@@ -450,6 +452,7 @@ function grain(t) { g.save(); g.globalAlpha = .05; g.globalCompositeOperation = 
 const CAR = '#F2B33D', CAR_D = '#cf8f22';
 function car(x, y, t, st) {
   g.save(); g.translate(x, y); g.rotate(st.tilt || 0); g.scale(st.sc || 1, st.sc || 1);
+  g.translate(170, 172); g.rotate(-.045); g.translate(-170, -172);   // sags onto the flat front tyre (pivot: rear tyre on the ground)
   // shadow
   g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(0, 172, 300, 18, 0, 0, Math.PI * 2); g.fill();
   // body
@@ -474,12 +477,17 @@ function car(x, y, t, st) {
   g.fillStyle = WH; g.beginPath(); g.ellipse(-262, 18, 22, 26, 0, 0, Math.PI * 2); g.fill();
   g.fillStyle = '#1a1110'; g.beginPath(); g.arc(-266, 24, 10, 0, Math.PI * 2); g.fill();
   g.fillStyle = CAR_D; g.beginPath(); g.ellipse(-262, 6, 26, 16, 0, Math.PI, Math.PI * 2); g.fill();
-  g.strokeStyle = '#3a2a10'; g.lineWidth = 7; g.beginPath(); g.moveTo(-292, 92); g.quadraticCurveTo(-276, 78, -258, 92); g.stroke();
-  // wheels (front one flat)
+  g.strokeStyle = '#3a2a10'; g.lineWidth = 6; g.lineCap = 'round'; g.beginPath(); g.moveTo(-290, -16); g.lineTo(-240, -30); g.stroke();   // sad brow
+  g.lineWidth = 10; g.beginPath(); g.moveTo(-300, 100); g.quadraticCurveTo(-272, 70, -238, 98); g.stroke();                              // big sulky frown
+  // wheels (front one flat: squashed onto the road, bulging at the bottom, rim sitting low)
   for (const [wx, flat] of [[-170, 1], [170, 0]]) {
-    g.save(); g.translate(wx, 110); if (flat) { g.translate(0, 62); g.scale(1.12, .74); g.translate(0, -62); }
-    g.fillStyle = '#16181c'; g.beginPath(); g.arc(0, 0, 62, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#aeb6c2'; g.beginPath(); g.arc(0, 0, 30, 0, Math.PI * 2); g.fill();
+    g.save(); g.translate(wx, flat ? 117 : 110);
+    if (flat) {
+      g.fillStyle = '#16181c'; g.beginPath(); g.ellipse(0, 0, 76, 40, 0, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.ellipse(0, 30, 90, 13, 0, 0, Math.PI * 2); g.fill();
+      g.scale(1, .86);
+    } else { g.fillStyle = '#16181c'; g.beginPath(); g.arc(0, 0, 62, 0, Math.PI * 2); g.fill(); }
+    g.fillStyle = '#aeb6c2'; g.beginPath(); g.arc(0, 0, flat ? 27 : 30, 0, Math.PI * 2); g.fill();
     g.rotate(st.spin || 0); g.fillStyle = '#5b6470'; for (let i = 0; i < 4; i++) { g.rotate(Math.PI / 2); g.fillRect(-4, 6, 8, 22); }
     g.restore();
   }
@@ -490,6 +498,10 @@ function car(x, y, t, st) {
     if (a <= 0) continue;
     g.fillStyle = `rgba(120,128,140,${a})`; g.beginPath(); g.arc(x - 210 + Math.sin(i * 3 + t * 2) * 20, y - 60 - ph * 220, 26 + ph * 40, 0, Math.PI * 2); g.fill();
   }
+  if (st.hiss > 0) { g.save(); g.strokeStyle = `rgba(255,255,255,${st.hiss})`; g.lineWidth = 7; g.lineCap = 'round';
+    const hx = x + (-170 - 95) * (st.sc || 1), hy = y + 150 * (st.sc || 1);
+    for (let i = 0; i < 3; i++) { const k = (t * 1.6 + i / 3) % 1; g.beginPath(); g.arc(hx - k * 70, hy - 10 - i * 18, 18 + k * 22, Math.PI * .6, Math.PI * 1.25); g.stroke(); }
+    g.restore(); }
   if (st.honk) { g.save(); g.translate(x + 60, y - 290); g.rotate(-.12); g.scale(st.honk, st.honk); text('TÛT ! TÛT !', 0, 0, { s: 62, col: RED }); g.restore(); }
 }
 
@@ -498,8 +510,8 @@ function car(x, y, t, st) {
 // assets/alonzo-reference.jpg: THE reference photo of Alonzo (1080x1920 crop). The drawing is traced on his pose:
 // centred at x 545, sunglasses at y ~180, feet at y ~1840, mic held at the chest in his right hand, left arm down.
 const PH = { x: 545, y: 538, sc: 1.6 };
-const MASC = { x: 765, y: 480, sc: 1.05 };                           // where he settles to introduce himself
-const HOME = { x: 300, y: 800, sc: 1.0 };
+const MASC = { x: 720, y: 480, sc: 1.05 };                           // where he settles to introduce himself
+const HOME = { x: 280, y: 800, sc: 1.0 };
 const T0 = 2.0, SETTLE = T0 + 1.1;  // T0: the wink / transformation; SETTLE: he steps back to his place in the scene
 const FLIP = [5.6, 6.15];           // mic flip during the hop
 
@@ -528,7 +540,7 @@ function transformation(t) {
   if (p <= 0 || t > T0 + 1.2) return;
   // white sketch of the mascot drawn from top to bottom, with a glowing pen line
   const top = PH.y - 300 * PH.sc, bot = PH.y + 860 * PH.sc, yy = top + (bot - top) * eInOut(p);
-  sticker(() => mechanic(PH.x, PH.y, T0, poseAt(T0 + .8)), true);
+  sticker(() => mechanic(PH.x, PH.y, T0, { ...poseAt(T0 + .8), sc: PH.sc }), true);   // same scale as the photo pose, so the sketch traces him
   g.save(); g.beginPath(); g.rect(0, 0, W, yy); g.clip();
   g.globalAlpha = .9 * (1 - lin(t, T0 + .7, T0 + 1.0)); g.drawImage(OW, 0, 0); g.restore();
   if (p < 1) {
@@ -551,7 +563,7 @@ function poseAt(t) {
     st.mood = t < 3.6 ? 'shock' : 'happy'; st.r = t < 3.6 ? { x: 130, y: -20, bend: 1, hand: 'open' } : { x: 40, y: 90, bend: 1, hand: 'open' };
     if (t >= 3.6) st.l = MIC_MOUTH;
   }
-  else if (t < FLIP[0]) { st.mood = 'grin'; st.r = { x: 210, y: -110, bend: 1, hand: 'thumb' }; }
+  else if (t < FLIP[0]) { st.mood = 'grin'; st.r = { x: 195, y: -110, bend: 1, hand: 'thumb' }; }
   else if (t < FLIP[1]) { st.mood = 'grin'; st.l = CATCH; }            // mic in the air: open hand ready to catch
   else if (t < 8.2) st.mood = 'happy';
   else if (t < 9.3) { st.mood = 'worried'; st.r = { x: 10, y: -170, bend: 1, hand: 'open' }; }             // facepalm
@@ -566,10 +578,10 @@ function poseAt(t) {
 }
 
 const LINES0 = [
-  [3.6, 5.55, .6, ['Eh oui… c’est moi,', 'Alonzo !'], 40, 260, 470, 'm'],
-  [7.55, 9.6, .7, ['Ça va passer…'], 500, 930, 380, 'c'],
-  [8.9, 10.0, .6, ['Ah non.', 'Pas avec moi !'], 410, 560, 400, 'm'],
-  [14.25, 17.4, .9, ['Et sa voiture ?', 'Donnez-lui un prénom !'], 385, 600, 545, 'm'],
+  [3.6, 5.55, .6, ['Eh oui… c’est moi,', 'Alonzo !'], 40, 250, 580, 'm'],
+  [7.55, 9.6, 0, ['Ça va passer…'], 400, 900, 540, 'c', 1],          // the client's line for the whole season: big, all at once, it trembles
+  [8.9, 10.9, 0, ['Ah non.', 'Pas avec moi !'], 400, 545, 540, 'm'],   // all at once, held past the outfit change so it can be read
+  [14.25, 17.4, .5, ['Et sa voiture ?'], 400, 560, 540, 'm'],
 ];
 
 function mascotPos(t) {
@@ -585,11 +597,11 @@ function groundPos(t) {              // mascot position without the hop
 }
 
 function carState(t) {
-  const e = lin(t, 6.2, 7.0), x = 1500 + (765 - 1500) * eOut(e);
+  const e = lin(t, 6.2, 7.0), x = 1500 + (664 - 1500) * eOut(e);
   const skid = Math.sin(Math.PI * lin(t, 6.85, 7.25)) * -.05;
   const shake = t > 7.1 ? Math.sin(t * 45) * 2 : 0;
   return {
-    x: x + shake, y: 1290, sc: 1.05, tilt: skid, spin: -t * 14 * (1 - e) - 6, smoke: lin(t, 7.0, 7.5),
+    x: x + shake, y: 1290, sc: .95, hiss: lin(t, 6.8, 7.0) * (1 - lin(t, 7.6, 7.9)), tilt: skid, spin: -t * 14 * (1 - e) - 6, smoke: lin(t, 7.0, 7.5),
     honk: t > 7.15 && t < 7.75 ? eBack(lin(t, 7.15, 7.35)) : 0, pop: eBack(lin(t, 7.45, 7.75)) * (1 - lin(t, 9.4, 9.7)),
   };
 }
@@ -616,7 +628,7 @@ function render(t) {
   if (t >= 10.0) {
     punch('GARDE LE CAP !', W / 2, 300, 10.0, t, 150, BLUE);
     g.save(); g.globalAlpha = 1 - lin(t, 13.2, 13.45);   // cleared before the mic/wrench swap
-    revealLine('Tous les 15 jours, un conseil pour votre voiture', 395, t, 10.3, 36, INK);
+    revealLine('Tous les 15 jours, un conseil pour votre voiture', 395, t, 10.3, fit('Tous les 15 jours, un conseil pour votre voiture', 50, 900), INK);
     marker('ÉPISODE 1 · VENDREDI 4 DÉCEMBRE', W / 2, 480, 10.6, t, fit('ÉPISODE 1 · VENDREDI 4 DÉCEMBRE', 60, 820), RED, WH);
     g.restore();
   }
@@ -662,24 +674,31 @@ function render(t) {
   // end block: logo + contact
   const ep = eBack(lin(t, 15.0, 15.4));
   if (ep > 0) {
-    g.save(); g.translate(230, 450); g.scale(ep, ep);
+    g.save(); g.translate(195, 452); g.scale(ep * 1.1, ep * 1.1);
     g.shadowColor = 'rgba(8,40,90,.25)'; g.shadowBlur = 24; g.fillStyle = WH; g.beginPath(); g.ellipse(0, 0, 100, 86, -.1, 0, Math.PI * 2); g.fill(); g.shadowColor = 'transparent';
     const lw = 165, lh = lw * LOGO.height / LOGO.width; g.drawImage(LOGO, -lw / 2, -lh / 2, lw, lh);
     g.restore();
-    text('Combani', 600, 425, { f: 'Montserrat', w: 800, s: 34, col: BLUE, a: clamp(ep) });
-    text('+262 639 29 17 02', 600, 475, { f: 'Montserrat', w: 800, s: 38, col: BLUE, a: clamp(ep) });
+    text('Combani', 640, 432, { f: 'Montserrat', w: 800, s: 44, col: BLUE, a: clamp(ep) });
+    text('+262 639 29 17 02', 640, 496, { f: 'Montserrat', w: 800, s: 52, col: BLUE, a: clamp(ep) });
   }
-  // bouncing arrow: comment!
-  if (t >= 14.6) { const b = Math.abs(Math.sin(t * 5)) * 18, a = eOut(lin(t, 14.6, 14.9)); g.save(); g.globalAlpha = a; g.fillStyle = RED;
-    g.beginPath(); g.moveTo(840, 800 + b); g.lineTo(890, 800 + b); g.lineTo(890, 850 + b); g.lineTo(930, 850 + b); g.lineTo(865, 920 + b); g.lineTo(800, 850 + b); g.lineTo(840, 850 + b); g.closePath(); g.fill(); g.restore(); }
+  // the call to action: big marker that pulses on the beat, a line to say where, and an arrow bouncing onto the car
+  if (t >= 14.6) {
+    const beat = Math.pow(Math.max(0, Math.cos(Math.PI * 2 * (t - 14.6) / BEAT)), 6), k = 1 + .05 * beat * lin(t, 15, 15.3);
+    g.save(); g.translate(700, 790); g.scale(k, k); g.translate(-700, -790);
+    marker('QUEL PRÉNOM ?', 700, 790, 14.6, t, fit('QUEL PRÉNOM ?', 112, 420), RED, WH); g.restore();
+    text('Répondez en commentaire', 700, 880, { f: 'Montserrat', w: 800, s: 34, col: INK, a: eOut(lin(t, 14.8, 15.1)) });
+    const b = Math.abs(Math.sin(t * 5)) * 18, a = eOut(lin(t, 14.6, 14.9)), ax = 700; g.save(); g.globalAlpha = a; g.fillStyle = RED;
+    g.beginPath(); g.moveTo(ax - 25, 975 + b); g.lineTo(ax + 25, 975 + b); g.lineTo(ax + 25, 1020 + b); g.lineTo(ax + 62, 1020 + b); g.lineTo(ax, 1085 + b); g.lineTo(ax - 62, 1020 + b); g.lineTo(ax - 25, 1020 + b); g.closePath(); g.fill(); g.restore();
+  }
   // bubbles
-  for (const [a, b, d, lines, bx, by, bw, who] of LINES0) {
+  for (const [a, b, d, lines, bx, by, bw, who, big] of LINES0) {
     if (t < a || t > b) continue;
-    const p = eBack(lin(t, a, a + .3)) * (1 - eIn(lin(t, b - .25, b))), typed = lin(t, a + .1, a + .1 + d);
+    const p = eBack(lin(t, a, a + .3)) * (1 - eIn(lin(t, b - .25, b))), typed = d ? lin(t, a + .1, a + .1 + d) : 1;
     let tail;
     if (who === 'c') { const cs = carState(t); tail = [cs.x + (-55 - cs.pop * 70) * 1.05, cs.y + (-140 - cs.pop * 60) * 1.05]; }
     else { const m = mascotPos(t); tail = bx > m.x ? [m.x + 110 * m.sc, m.y - 140 * m.sc] : [m.x - 100 * m.sc, m.y - 150 * m.sc]; }   // tail toward his mouth
-    bubble(lines, bx, by, bw, tail, p, typed);
+    g.save(); if (big) g.translate(Math.sin(t * 38) * 4 * (1 - lin(t, a + .3, a + .9)) + Math.sin(t * 9) * 1.5, 0);   // nervous tremble
+    bubble(lines, bx, by, bw, tail, p, typed, big); g.restore();
   }
   grain(t);
 }
