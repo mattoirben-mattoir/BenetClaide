@@ -146,9 +146,18 @@ def snap():
     return norm(x, .4)
 
 
+def blip(pitch=1.0):
+    """Wordless 'speech' syllable for the mechanic's bubbles (cartoon babble)."""
+    d = .075; t = t_(d); f0 = 210 * pitch * (1 + .08 * np.sin(2 * np.pi * 9 * t))
+    ph = 2 * np.pi * np.cumsum(f0) / SR
+    s = np.sin(ph) + .6 * np.sin(2 * ph) + .35 * np.sin(3 * ph) + .2 * np.sin(5 * ph)
+    s = band(s, 250, 3000) * env(len(t), .006, .035)
+    return norm(s, .16)
+
+
 FX = {'whoosh': whoosh, 'swoosh': swoosh, 'camera': camera, 'pop': pop, 'tick': tick, 'ding': ding,
       'error': error, 'hiss': hiss, 'rattle': rattle, 'roll': roll, 'impact': impact, 'riser': riser,
-      'step': step, 'stumble': stumble, 'snap': snap}
+      'step': step, 'stumble': stumble, 'snap': snap, 'blip': blip}
 # where the "hit" of each effect sits inside its sample (so the hit lands on the event time)
 HIT = {'whoosh': .2, 'swoosh': .12, 'camera': .3, 'riser': .8}
 GAIN = {'tick': .8, 'pop': 1.0}
