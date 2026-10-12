@@ -1,6 +1,7 @@
 # Épisode 0 « Karibu ! » — maquette
 
 - `centre-auto-alonzo-episode0-karibu-maquette.mp4` : 17,4 s, 1080×1920, musique + bruitages. Piste bruitages seule : `audio-bruitages.wav`.
+- Mascotte = Alonzo d'après ses photos : crâne rasé, lunettes de soleil relevées sur la tête, barbe noire courte, silhouette fine, chemise blanche + fleur à la boutonnière, pantalon bleu marine, ceinture noire, mocassins. Tenue réglable dans `anim.html` : `LOOK = 'ville'` (comme dans la vidéo Karibu) ou `'atelier'` (tee-shirt bleu marine + logo).
 - **Maquette** : les 2 premières secondes utilisent une photo provisoire (photo d'atelier du visuel Facebook). Elles seront
   remplacées par le vrai plan d’Alonzo, le gérant (« Karibu ! » + clin d'œil + 1 s immobile), puis la transformation reprend sa pose.
 

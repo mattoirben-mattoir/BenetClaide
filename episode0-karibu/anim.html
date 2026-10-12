@@ -15,7 +15,12 @@ canvas{display:block}
 const W = 1080, H = 1920;
 const c = document.getElementById('c'); let g = c.getContext('2d');
 const BLUE = '#084990', RED = '#E20816', WH = '#ffffff', INK = '#1d2a3f', GREY = '#5b6b82';
-const SKIN = '#7a4a2e', SKIN_D = '#5e3720', NAVY = '#1d2b55', NAVY_D = '#141f40', PANTS = '#2b2f38';
+const SKIN = '#6e4128', SKIN_D = '#52301c', NAVY = '#1d2b55', NAVY_D = '#141f40';
+// Alonzo's look, from his photos: shaved head, sunglasses up on the head, short black beard, slim.
+// 'ville' = white shirt + navy trousers (what he wears in the Karibu footage), 'atelier' = navy work tee
+const LOOK = 'ville';
+const SHIRT = LOOK === 'ville' ? '#ffffff' : NAVY, SHIRT_L = '#c9d1dc', BEARD = '#17110e';
+const PANTS = LOOK === 'ville' ? NAVY : '#2b2f38';
 const DUR = 17.4;
 const S = [0, DUR];
 const sceneOf = () => 0, onBlue = () => false;   // single-scene episode (used by shared drawing code)
@@ -113,10 +118,19 @@ function ik(sx, sy, tx, ty, a, b, bend) {
 function arm(sx, sy, tx, ty, bend, hand, prop) {
   const [ex, ey, hx, hy] = ik(sx, sy, tx, ty, 165, 155, bend);
   g.lineCap = 'round'; g.lineJoin = 'round';
-  g.strokeStyle = SKIN; g.lineWidth = 46;
-  g.beginPath(); g.moveTo(sx, sy); g.lineTo(ex, ey); g.lineTo(hx, hy); g.stroke();
-  g.strokeStyle = NAVY; g.lineWidth = 60;
-  g.beginPath(); g.moveTo(sx, sy); g.lineTo(sx + (ex - sx) * .45, sy + (ey - sy) * .45); g.stroke();
+  if (LOOK === 'ville') {            // long sleeve, rolled cuff at the wrist
+    const cx = hx + (ex - hx) * .18, cy = hy + (ey - hy) * .18;
+    g.strokeStyle = SHIRT_L; g.lineWidth = 58;
+    g.beginPath(); g.moveTo(sx, sy); g.lineTo(ex, ey); g.lineTo(cx, cy); g.stroke();
+    g.strokeStyle = SHIRT; g.lineWidth = 50;
+    g.beginPath(); g.moveTo(sx, sy); g.lineTo(ex, ey); g.lineTo(cx, cy); g.stroke();
+    g.strokeStyle = SKIN; g.lineWidth = 40; g.beginPath(); g.moveTo(cx, cy); g.lineTo(hx, hy); g.stroke();
+  } else {
+    g.strokeStyle = SKIN; g.lineWidth = 46;
+    g.beginPath(); g.moveTo(sx, sy); g.lineTo(ex, ey); g.lineTo(hx, hy); g.stroke();
+    g.strokeStyle = NAVY; g.lineWidth = 60;
+    g.beginPath(); g.moveTo(sx, sy); g.lineTo(sx + (ex - sx) * .45, sy + (ey - sy) * .45); g.stroke();
+  }
   const th = Math.atan2(hy - ey, hx - ex);
   g.save(); g.translate(hx, hy); g.rotate(th);
   if (prop === 'gauge') {           // pencil pressure gauge
@@ -157,24 +171,49 @@ function mechanic(x, y, t, st) {
   legs(st, t);
   // left arm behind the body
   const L = st.l || { x: -150, y: 330, bend: 1, hand: 'fist' };
-  arm(-108, 40, L.x, L.y, L.bend, L.hand, L.prop);
-  // torso
-  g.fillStyle = NAVY;
-  g.beginPath(); g.moveTo(-122, 34 + breathe * .3); g.quadraticCurveTo(-128, -6, -58, -12); g.lineTo(58, -12);
-  g.quadraticCurveTo(128, -6, 122, 34 + breathe * .3); g.lineTo(138, 430); g.lineTo(-138, 430); g.closePath(); g.fill();
-  g.fillStyle = NAVY_D; g.fillRect(-138, 390, 276, 40);
-  g.fillStyle = SKIN; g.beginPath(); g.moveTo(-34, -12); g.quadraticCurveTo(0, 28, 34, -12); g.closePath(); g.fill();
-  g.fillStyle = WH; g.beginPath(); g.arc(55, 110, 36, 0, Math.PI * 2); g.fill();
-  const lw = 58, lh = lw * LOGO.height / LOGO.width; g.drawImage(LOGO, 55 - lw / 2, 110 - lh / 2, lw, lh);
-  g.fillStyle = SKIN_D; g.fillRect(-28, -52, 56, 46);
+  arm(-100, 40, L.x, L.y, L.bend, L.hand, L.prop);
+  // torso (slim, fitted)
+  g.fillStyle = SHIRT; g.strokeStyle = SHIRT_L; g.lineWidth = 5;
+  g.beginPath(); g.moveTo(-112, 34 + breathe * .3); g.quadraticCurveTo(-118, -6, -54, -12); g.lineTo(54, -12);
+  g.quadraticCurveTo(118, -6, 112, 34 + breathe * .3); g.quadraticCurveTo(100, 230, 112, 430); g.lineTo(-112, 430); g.quadraticCurveTo(-100, 230, -112, 34 + breathe * .3); g.closePath(); g.fill();
+  if (LOOK === 'ville') {
+    g.stroke();
+    g.strokeStyle = SHIRT_L; g.lineWidth = 4; g.beginPath(); g.moveTo(0, 20); g.lineTo(0, 390); g.stroke();   // button placket
+    g.fillStyle = SHIRT_L; for (let by = 70; by < 390; by += 70) { g.beginPath(); g.arc(8, by, 5, 0, Math.PI * 2); g.fill(); }
+    g.fillStyle = '#16181d'; g.fillRect(-112, 384, 224, 30);                          // black belt
+    g.strokeStyle = '#c9ccd2'; g.lineWidth = 5; g.strokeRect(-18, 388, 30, 22);
+    g.fillStyle = NAVY; g.fillRect(-112, 414, 224, 18);
+  } else {
+    g.fillStyle = NAVY_D; g.fillRect(-114, 390, 228, 40);
+  }
+  g.fillStyle = SKIN; g.beginPath(); g.moveTo(-30, -12); g.quadraticCurveTo(0, 34, 30, -12); g.closePath(); g.fill();
+  if (LOOK === 'ville') {
+    // open collar
+    g.fillStyle = SHIRT; g.strokeStyle = SHIRT_L; g.lineWidth = 4;
+    for (const sd of [-1, 1]) { g.beginPath(); g.moveTo(sd * 30, -26); g.lineTo(sd * 62, -4); g.lineTo(sd * 8, 40); g.lineTo(sd * 22, -10); g.closePath(); g.fill(); g.stroke(); }
+    // flower boutonniere (as in the Karibu photo)
+    g.save(); g.translate(60, 92);
+    g.fillStyle = '#2f8a3a'; g.beginPath(); g.ellipse(-14, 18, 14, 6, .6, 0, Math.PI * 2); g.fill();
+    g.fillStyle = RED; for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2 + t * .4; g.beginPath(); g.arc(Math.cos(a) * 13, Math.sin(a) * 13, 11, 0, Math.PI * 2); g.fill(); }
+    g.fillStyle = '#ffd23f'; g.beginPath(); g.arc(0, 0, 8, 0, Math.PI * 2); g.fill();
+    g.restore();
+  } else {
+    g.fillStyle = WH; g.beginPath(); g.arc(52, 110, 36, 0, Math.PI * 2); g.fill();
+    const lw = 58, lh = lw * LOGO.height / LOGO.width; g.drawImage(LOGO, 52 - lw / 2, 110 - lh / 2, lw, lh);
+  }
+  g.fillStyle = SKIN_D; g.fillRect(-26, -52, 52, 46);
   // head
   g.save(); g.translate(0, -140 + breathe * .4);
   g.rotate(st.mood === 'worried' ? -.06 : Math.sin(t * 3) * .03 + (st.talk ? Math.sin(t * 9) * .025 : 0));
   g.fillStyle = SKIN;
   g.beginPath(); g.arc(-84, 8, 18, 0, Math.PI * 2); g.arc(84, 8, 18, 0, Math.PI * 2); g.fill();
-  g.beginPath(); g.ellipse(0, 0, 86, 98, 0, 0, Math.PI * 2); g.fill();
-  g.save(); g.beginPath(); g.ellipse(0, 0, 86, 98, 0, 0, Math.PI * 2); g.clip();
-  g.fillStyle = 'rgba(70,55,48,.45)'; g.beginPath(); g.ellipse(0, 62, 82, 52, 0, 0, Math.PI * 2); g.fill(); g.restore();
+  g.beginPath(); g.ellipse(0, -4, 84, 102, 0, 0, Math.PI * 2); g.fill();
+  // shaved head: soft shine on the crown
+  g.fillStyle = 'rgba(255,255,255,.16)'; g.beginPath(); g.ellipse(-26, -78, 30, 12, -.35, 0, Math.PI * 2); g.fill();
+  // short full black beard, mustache shaped around the mouth
+  g.fillStyle = BEARD;
+  g.beginPath(); g.moveTo(-85, -12); g.quadraticCurveTo(-74, 26, -36, 26); g.quadraticCurveTo(4, 12, 42, 26); g.quadraticCurveTo(76, 26, 85, -12);
+  g.lineTo(86, 2); g.ellipse(0, 2, 86, 112, 0, 0, Math.PI); g.closePath(); g.fill();
   const shock = st.mood === 'shock', wb = st.mood === 'worried' || shock;
   for (const ex of [-30, 28]) {
     if (st.wink && ex > 0) { g.strokeStyle = '#1a1110'; g.lineWidth = 7; g.lineCap = 'round'; g.beginPath(); g.arc(ex, -12, 14, Math.PI * .15, Math.PI * .85); g.stroke(); continue; }
@@ -187,27 +226,33 @@ function mechanic(x, y, t, st) {
   g.beginPath(); g.moveTo(12, (wb ? -42 : -38) + by); g.lineTo(44, (wb ? -30 : -36) + by); g.stroke();
   g.strokeStyle = SKIN_D; g.lineWidth = 6; g.beginPath(); g.arc(4, 18, 12, Math.PI * .1, Math.PI * .9); g.stroke();
   const open = st.talk ? (.35 + .65 * Math.abs(Math.sin(t * 17) * Math.sin(t * 7.3))) : 0;
-  g.fillStyle = '#3a1712';
+  g.fillStyle = '#6b231a';
   if (shock) { g.beginPath(); g.ellipse(4, 54, 18, 24, 0, 0, Math.PI * 2); g.fill(); }
   else if (st.mood === 'worried') { g.beginPath(); g.ellipse(4, 50, 12, 14, 0, 0, Math.PI * 2); g.fill(); }
   else if (open > .05) { g.beginPath(); g.ellipse(4, 50, 26, 6 + 18 * open, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = WH; g.fillRect(-14, 44 - 18 * open * .6, 36, 7); }
   else if (st.mood === 'grin') {
     g.beginPath(); g.moveTo(-30, 40); g.quadraticCurveTo(4, 88, 38, 40); g.closePath(); g.fill();
     g.fillStyle = WH; g.beginPath(); g.moveTo(-26, 42); g.quadraticCurveTo(4, 56, 34, 42); g.closePath(); g.fill();
-  } else { g.strokeStyle = '#3a1712'; g.lineWidth = 7; g.beginPath(); g.arc(4, 30, 30, Math.PI * .2, Math.PI * .8); g.stroke(); }
-  // cap
-  g.fillStyle = NAVY; g.beginPath(); g.moveTo(-92, -38); g.quadraticCurveTo(-88, -118, 0, -120); g.quadraticCurveTo(88, -118, 92, -38); g.closePath(); g.fill();
-  g.fillStyle = NAVY_D; g.beginPath(); g.ellipse(70, -40, 78, 15, -.05, 0, Math.PI * 2); g.fill();
-  g.save(); g.translate(6, -78); g.lineCap = 'round';
-  g.strokeStyle = WH; g.lineWidth = 7; g.beginPath(); g.arc(0, 0, 20, Math.PI * .9, Math.PI * 2.1); g.stroke();
-  g.strokeStyle = RED; g.lineWidth = 6; g.beginPath(); g.arc(2, 2, 13, Math.PI * .95, Math.PI * 2.0); g.stroke();
+  } else {                          // his big smile: white teeth in the beard
+    g.beginPath(); g.moveTo(-24, 40); g.quadraticCurveTo(4, 72, 32, 40); g.quadraticCurveTo(4, 50, -24, 40); g.fill();
+    g.fillStyle = WH; g.beginPath(); g.moveTo(-20, 42); g.quadraticCurveTo(4, 60, 28, 42); g.quadraticCurveTo(4, 49, -20, 42); g.fill();
+  }
+  // sunglasses pushed up on the head (his signature)
+  g.save(); g.translate(0, -72); g.rotate(-.04);
+  g.strokeStyle = '#0d0f12'; g.lineWidth = 7; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(-40, 0); g.quadraticCurveTo(-74, -2, -86, 22); g.moveTo(44, 0); g.quadraticCurveTo(76, -2, 86, 22); g.stroke();
+  g.beginPath(); g.moveTo(-10, -2); g.quadraticCurveTo(2, -10, 14, -2); g.stroke();
+  for (const lx of [-26, 30]) {
+    g.fillStyle = '#0d0f12'; g.beginPath(); g.roundRect(lx - 24, -14, 48, 30, [8, 8, 16, 16]); g.fill();
+    g.fillStyle = 'rgba(140,190,255,.45)'; g.beginPath(); g.ellipse(lx - 8, -4, 9, 4, -.4, 0, Math.PI * 2); g.fill();
+  }
   g.restore();
   if (wb && !shock) { g.fillStyle = '#7fc4ff'; g.beginPath(); g.moveTo(80, -40); g.quadraticCurveTo(96, -14, 80, -8); g.quadraticCurveTo(64, -14, 80, -40); g.fill(); }
   if (shock) { g.strokeStyle = onBlue(sceneOf(t)) ? WH : RED; g.lineWidth = 7; for (const a of [-2.4, -1.9, -1.4]) { g.beginPath(); g.moveTo(Math.cos(a) * 140, Math.sin(a) * 140 - 30); g.lineTo(Math.cos(a) * 175, Math.sin(a) * 175 - 30); g.stroke(); } }
   g.restore();
   // right arm in front — does the work
   const Rr = st.r || { x: 150, y: 330, bend: -1, hand: 'fist' };
-  arm(108, 40, Rr.x, Rr.y, Rr.bend, Rr.hand, Rr.prop);
+  arm(100, 40, Rr.x, Rr.y, Rr.bend, Rr.hand, Rr.prop);
   g.restore();
 }
 
@@ -262,7 +307,8 @@ function legs(st, t) {
     g.beginPath(); g.moveTo(hx, 420); g.quadraticCurveTo(kx, ky, fx, fy); g.stroke();
     g.save(); g.translate(fx, fy + 30); g.rotate(bent ? -side * .4 : 0);
     g.fillStyle = '#111'; rrect(-56, -22, 112, 46, 20); g.fill();
-    g.fillStyle = RED; g.fillRect(-56, 14, 112, 10);
+    if (LOOK === 'ville') { g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.ellipse(side * 18, -8, 22, 6, 0, 0, Math.PI * 2); g.fill(); }
+    else { g.fillStyle = RED; g.fillRect(-56, 14, 112, 10); }
     g.restore();
   }
 }
@@ -384,7 +430,7 @@ const LINES0 = [
   [3.35, 5.55, .8, ['Eh oui… c’est moi,', 'Alonzo, en dessin !'], 40, 260, 470, 'm'],
   [7.55, 9.6, .7, ['Ça va passer…'], 500, 930, 380, 'c'],
   [8.9, 10.0, .6, ['Ah non.', 'Pas avec moi !'], 410, 560, 400, 'm'],
-  [14.25, 17.4, .9, ['Et sa voiture ?', 'Donnez-lui un prénom !'], 395, 600, 520, 'm'],
+  [14.25, 17.4, .9, ['Et sa voiture ?', 'Donnez-lui un prénom !'], 385, 600, 545, 'm'],
 ];
 
 function mascotPos(t) {
