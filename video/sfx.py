@@ -3,7 +3,7 @@
 # event list (window.SFX in anim.html, exported by render.js), so every cue
 # lands on the frame where the element moves.
 # Usage: python3 sfx.py <events.json> <duration_s> <out.wav>
-import json, sys
+import json, os, sys
 import numpy as np
 import soundfile as sf
 from scipy import signal
@@ -234,11 +234,13 @@ def main():
         if i < 0:
             s = s[-i:]; i = 0
         j = min(N, i + len(s)); fx[i:j] += s[:j - i]
-    mix = music(dur) * .55 + fx
+    # SFX_MUSIC=0: effects only, for a version where the client lays their own music
+    with_music = os.environ.get('SFX_MUSIC', '1') != '0'
+    mix = (music(dur) * .55 if with_music else 0) + fx
     # stereo: a little width on the effects
     left, right = mix + .08 * np.roll(fx, 220), mix + .08 * np.roll(fx, -220)
     st = np.stack([left, right], 1)
-    st = st / np.abs(st).max() * .95
+    st = st / np.abs(st).max() * (.95 if with_music else .7)  # effects-only stem: -3 dBFS peak, headroom for the music
     sf.write(out, st.astype(np.float32), SR)
     print('ok', len(events), 'events')
 

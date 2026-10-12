@@ -1,7 +1,7 @@
 // Renders anim.html frame by frame and pipes PNGs into ffmpeg.
 // Usage: node render.js <audio.wav> <out.mp4> [stillsDir]
 // Env: PAGE (animation html, default ./anim.html), DUR (seconds, default 12), STILLS (comma-separated times),
-//      SFX_OUT (write the page's sound-effect events, window.SFX, to this JSON file and exit)
+//      LOUDNORM=0 (keep the mix level, e.g. an effects-only stem), SFX_OUT (write the page's sound-effect events, window.SFX, to this JSON file and exit)
 const { chromium } = require('playwright');
 const { spawn } = require('child_process');
 const path = require('path');
@@ -26,7 +26,7 @@ const fs = require('fs');
     await browser.close(); return;
   }
   const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-i', '-', '-i', audio,
-    '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-af', 'loudnorm=I=-14:TP=-1.5:LRA=11', '-ar', '44100', '-c:a', 'aac', '-b:a', '192k',
+    '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', ...(process.env.LOUDNORM === '0' ? [] : ['-af', 'loudnorm=I=-14:TP=-1.5:LRA=11']), '-ar', '44100', '-c:a', 'aac', '-b:a', '192k',
     '-t', String(DUR), '-movflags', '+faststart', out], { stdio: ['pipe', 'inherit', 'inherit'] });
   for (let f = 0; f < FPS * DUR; f++) {
     const buf = await page.evaluate(t => { render(t); return document.getElementById('c').toDataURL('image/png'); }, f / FPS);
