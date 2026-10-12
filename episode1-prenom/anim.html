@@ -444,10 +444,16 @@ const GRAIN = Array.from({ length: 4 }, () => {
 function grain(t) { g.save(); g.globalAlpha = .05; g.globalCompositeOperation = 'overlay'; g.drawImage(GRAIN[Math.floor(t * 12) % 4], 0, 0, W, H); g.restore(); }
 
 // ---------------------------------------------------------------- beat grid
-// Alpajo, 143.6 BPM, 4 beats a bar, a downbeat at 0 s (lay the track so a downbeat starts the video).
+// Alpajo, ~143.6 BPM, 4 beats a bar, a downbeat at 0 s.
 // 17 bars (28.4 s): M1 hook · M2 jingle · M3 the name · M4 « Ça va passer… » / « Pas avec moi ! » · M5–7 1/3 pressure · M8–10 2/3 wear & vibrations
 // · M11–12 3/3 balancing & alignment · M13 result · M14 question · M15–16 end card · M17 teaser
-const BEAT = 60 / 143.6, bt = n => n * BEAT;
+// The real beats of the Alpajo track (played live, it drifts from ~142 to ~146 BPM): beat-tracked on the recording, smoothed
+// with a cubic tempo curve (±20 ms rms). Beat 0 = 2.788 s into the recording (the same downbeat Épisode 0 opens on).
+// Everything below is written in beats, so it all follows the band.
+const BEATS = [0, 0.422, 0.844, 1.266, 1.687, 2.109, 2.53, 2.951, 3.372, 3.792, 4.213, 4.633, 5.053, 5.473, 5.892, 6.312, 6.731, 7.15, 7.569, 7.988, 8.407, 8.825, 9.243, 9.662, 10.079, 10.497, 10.915, 11.332, 11.749, 12.166, 12.583, 13, 13.417, 13.833, 14.249, 14.665, 15.081, 15.497, 15.912, 16.328, 16.743, 17.158, 17.573, 17.988, 18.402, 18.817, 19.231, 19.645, 20.059, 20.473, 20.887, 21.3, 21.714, 22.127, 22.54, 22.953, 23.366, 23.779, 24.191, 24.603, 25.016, 25.428, 25.84, 26.251, 26.663, 27.075, 27.486, 27.897, 28.308, 28.719, 29.13, 29.541, 29.951, 30.361, 30.772, 31.182];
+const BEAT = (BEATS[BEATS.length - 1] - BEATS[0]) / (BEATS.length - 1);   // average beat, for durations
+const bt = n => { if (n <= 0) return n * BEAT; const i = Math.min(Math.floor(n), BEATS.length - 2); return BEATS[i] + (n - i) * (BEATS[i + 1] - BEATS[i]); };
+const beatOf = t => { if (t <= 0) return t / BEAT; let i = 0; while (i < BEATS.length - 2 && BEATS[i + 1] <= t) i++; return i + (t - BEATS[i]) / (BEATS[i + 1] - BEATS[i]); };
 const NAME = 'TITINE';             // MAQUETTE — replace with the name the audience chose (Épisode 0 vote)
 const HOME = { x: 280, y: 800, sc: 1 }, CARX = 664, CARY = 1290, CSC = .95;
 
@@ -770,7 +776,7 @@ const WB = document.createElement('canvas'); WB.width = W; WB.height = H; const 
 const shotAt = (n, t) => n === 'hook' ? hookShot(t) : SHOT[n];
 const HITS = [4, 8, 23, 48, 65];
 function cam(t, still) {
-  const b = Math.max(0, t / BEAT); let i = 1; while (i < KEYS.length - 1 && KEYS[i][0] < b) i++;
+  const b = Math.max(0, beatOf(t)); let i = 1; while (i < KEYS.length - 1 && KEYS[i][0] < b) i++;
   const [b0, n0] = KEYS[i - 1], [b1, n1, ease] = KEYS[i];
   const p = (ease || eInOut)(clamp((b - b0) / (b1 - b0))), A = shotAt(n0, t), B = shotAt(n1, t);
   const c = { x: A.x + (B.x - A.x) * p, y: A.y + (B.y - A.y) * p, z: A.z * Math.pow(B.z / A.z, p), r: A.r + (B.r - A.r) * p };
