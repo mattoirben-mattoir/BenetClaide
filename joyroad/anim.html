@@ -1,0 +1,263 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:Barlow;src:url(../video/assets/BarlowCondensed-BlackItalic.ttf);font-weight:900}
+@font-face{font-family:Montserrat;src:url(../video/assets/Montserrat.ttf);font-weight:100 900}
+html,body{margin:0;background:#fff}
+canvas{display:block}
+</style></head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script>
+const W = 1080, H = 1920, DUR = 18;
+const c = document.getElementById('c'), g = c.getContext('2d');
+// Centre Auto Alonzo charter
+const BLUE = '#084990', RED = '#E20816', WH = '#ffffff', INK = '#1d2a3f', GREY = '#5b6b82', JOY = '#FFD200';
+
+// Scene boundaries (seconds), aligned with the voice-over
+const S = [0, 3.35, 5.35, 7.55, 9.75, 12.05, 14.15, DUR];
+
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lin = (t, a, b) => clamp((t - a) / (b - a));
+const eOut = x => 1 - Math.pow(1 - x, 3);
+const eIn = x => x * x * x;
+const eInOut = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const eBack = x => { const c1 = 1.7, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+
+const IMG = {};
+const load = (k, src) => new Promise(r => { const i = new Image(); i.onload = () => { IMG[k] = i; r(); }; i.src = src; });
+
+function text(str, x, y, { f = 'Barlow', w = 900, s = 60, col = INK, align = 'center', a = 1, ls = 0 } = {}) {
+  g.save(); g.globalAlpha *= a; g.font = `${w} ${s}px ${f}`; g.fillStyle = col; g.textAlign = align; g.textBaseline = 'middle';
+  if (ls) g.letterSpacing = ls + 'px';
+  g.fillText(str, x, y); g.restore();
+}
+// Largest Barlow size (<= s) that keeps str within maxW
+function fit(str, s, maxW) { g.save(); g.font = `900 ${s}px Barlow`; if (str.length) g.letterSpacing = '0px'; const w = g.measureText(str).width; g.restore(); return Math.min(s, Math.floor(s * maxW / w)); }
+function rrect(x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
+function revealText(str, x, y, t0, t, opts) {
+  const p = eOut(lin(t, t0, t0 + .45));
+  if (p <= 0) return;
+  const s = opts.s || 60;
+  g.save(); g.beginPath(); g.rect(0, y - s * .8, W, s * 1.6); g.clip();
+  text(str, x, y + (1 - p) * s * 1.2, { ...opts, a: p });
+  g.restore();
+}
+// Draw an image centred at (cx, cy) with a given width
+function pic(k, cx, cy, w, { a = 1, rot = 0, sc = 1, shadow = 0 } = {}) {
+  const i = IMG[k], h = w * i.height / i.width;
+  g.save(); g.globalAlpha *= a; g.translate(cx, cy); g.rotate(rot); g.scale(sc, sc);
+  if (shadow) { g.shadowColor = 'rgba(8,40,90,.28)'; g.shadowBlur = shadow; g.shadowOffsetY = shadow * .35; }
+  g.drawImage(i, -w / 2, -h / 2, w, h);
+  g.restore();
+}
+
+// Logo swooshes (blue outer, red inner)
+function swoosh(cx, cy, r, rot, p, wB = 22, wR = 22) {
+  g.save(); g.translate(cx, cy); g.rotate(rot); g.lineCap = 'round';
+  const a0 = Math.PI * .95, span = Math.PI * 1.15;
+  g.strokeStyle = BLUE; g.lineWidth = wB;
+  g.beginPath(); g.ellipse(0, 0, r * 1.08, r * .98, 0, a0, a0 + span * p); g.stroke();
+  g.strokeStyle = RED; g.lineWidth = wR;
+  g.beginPath(); g.ellipse(r * .06, 0, r * .9, r * .8, 0, a0 + .15, a0 + .15 + span * .95 * p); g.stroke();
+  g.restore();
+}
+
+function background(t) {
+  g.fillStyle = WH; g.fillRect(0, 0, W, H);
+  g.save(); g.globalAlpha = .07; swoosh(W * .5, H * .42, 620, -.25 + t * .05, 1, 60, 60); g.restore();
+}
+
+// Shop logo on top during the product scenes
+function chrome(t) {
+  const a = eOut(lin(t, S[1], S[1] + .4)) * (1 - eOut(lin(t, S[6] - .2, S[6] + .1)));
+  if (a <= 0) return;
+  g.save(); g.globalAlpha = a;
+  const lw = 210, lh = lw * IMG.logo.height / IMG.logo.width;
+  g.drawImage(IMG.logo, W / 2 - lw / 2, 235 - 30 * (1 - a), lw, lh);
+  g.restore();
+}
+
+function wipe(t, at) {
+  const d = .42, p = lin(t, at - d / 2, at + d / 2);
+  if (p <= 0 || p >= 1) return;
+  const x = -W * 1.2 + eInOut(p) * W * 3.0;
+  g.save(); g.translate(x, 0); g.transform(1, 0, -.3, 1, 0, 0);
+  g.fillStyle = BLUE; g.fillRect(0, 0, 260, H * 1.2);
+  g.fillStyle = RED; g.fillRect(-110, 0, 70, H * 1.2);
+  g.restore();
+}
+const sceneOut = (t, end) => 1 - eIn(lin(t, end - .22, end));
+
+// Slanted label (red by default)
+function tag(label, x, y, p, { col = RED, txt = WH, s = 58, w = null } = {}) {
+  if (p <= 0) return;
+  g.save(); g.font = `900 ${s}px Barlow`; const tw = w || g.measureText(label).width + 70; g.restore();
+  g.save(); g.translate(x, y); g.scale(p, p);
+  g.save(); g.transform(1, 0, -.25, 1, 0, 0); g.fillStyle = col; g.fillRect(-tw / 2, -s * .82, tw, s * 1.64); g.restore();
+  text(label, 0, 2, { s, col: txt, ls: 1 });
+  g.restore();
+}
+
+// ---------- Intro ----------
+function intro(t) {
+  g.save(); g.globalAlpha = sceneOut(t, S[1]);
+  // "PNEUMATIQUE" banner, as on the post
+  const bp = eOut(lin(t, 0, .45));
+  g.save(); g.translate(W / 2 + (1 - bp) * -W, 330); g.rotate(-.025);
+  g.fillStyle = BLUE; g.fillRect(-420, -82, 840, 164);
+  text('PNEUMATIQUE', 0, 6, { f: 'Montserrat', w: 900, s: 104, col: WH });
+  g.restore();
+  // the four tires slide up, staggered
+  const tires = [['tire-normal', 175, 255], ['tire-renforce', 365, 270], ['tire-at', 580, 335], ['tire-mt', 815, 390]];
+  tires.forEach(([k, x, w], i) => {
+    const p = eBack(lin(t, .25 + i * .12, .75 + i * .12));
+    if (p <= 0) return;
+    const bob = Math.sin(t * 3 + i) * 5 * lin(t, 1.2, 1.6);
+    pic(k, x, 720 + (1 - p) * 500 + bob, w * .72, { a: clamp(p * 2), shadow: 30 });
+  });
+  revealText('PRENEZ LA ROUTE', W / 2, 1035, .7, t, { s: 120, col: BLUE });
+  revealText('COMME UN CHAMPION', W / 2, 1150, .85, t, { s: 120, col: RED });
+  tag('À MAYOTTE', W / 2, 1270, eBack(lin(t, 1.1, 1.45)), { col: BLUE, s: 50 });
+  // Joyroad logo lands when the name is spoken
+  const jp = eBack(lin(t, 2.2, 2.6));
+  if (jp > 0) pic('joyroad', W / 2, 1395, 640, { sc: jp, rot: (1 - jp) * -.15 });
+  g.restore();
+}
+
+// ---------- One tire range ----------
+function product(t, t0, t1, i, { key, label, l1, l2, sub, car }) {
+  g.save(); g.globalAlpha = sceneOut(t, t1);
+  // ghost number
+  const np = eOut(lin(t, t0, t0 + .5));
+  g.save(); g.globalAlpha *= np * .1; g.font = '900 420px Barlow'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = BLUE; g.fillText('0' + i, W / 2 + 290 - np * 40, 640); g.restore();
+  // blue disc + rotating swoosh behind the tire
+  const dp = eBack(lin(t, t0, t0 + .45));
+  if (dp > 0) {
+    g.save(); g.translate(W / 2, 780); g.scale(dp, dp);
+    g.fillStyle = 'rgba(8,73,144,.08)'; g.beginPath(); g.arc(0, 0, 300, 0, Math.PI * 2); g.fill();
+    g.restore();
+    swoosh(W / 2, 780, 300, t * 1.6, eOut(lin(t, t0 + .1, t0 + .7)), 12, 12);
+  }
+  // tire slides in from the right with a small tilt, then floats
+  const tp = eOut(lin(t, t0 + .05, t0 + .55));
+  const settle = eBack(lin(t, t0 + .05, t0 + .6));
+  const bob = Math.sin((t - t0) * 3.2) * 6 * lin(t, t0 + .6, t0 + .9);
+  // speed lines
+  if (tp < 1) {
+    g.save(); g.globalAlpha *= 1 - tp; g.strokeStyle = RED; g.lineCap = 'round'; g.lineWidth = 10;
+    for (let k = 0; k < 3; k++) { const y = 640 + k * 130, x = W / 2 + 230 + (1 - tp) * 500; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 220, y); g.stroke(); }
+    g.restore();
+  }
+  const h = 540, iw = h * IMG[key].width / IMG[key].height;
+  pic(key, W / 2 + (1 - tp) * 700, 790 + bob, iw, { rot: (1 - settle) * .12, shadow: 40 });
+  // label + counter
+  tag(label, 280, 462, eBack(lin(t, t0 + .1, t0 + .45)), { s: 56 });
+  text(i + ' / 4', 820, 462, { s: 64, col: BLUE, a: eOut(lin(t, t0 + .3, t0 + .6)) });
+  // vehicle card
+  const cp = eBack(lin(t, t0 + .45, t0 + .8));
+  if (cp > 0) {
+    g.save(); g.translate(820, 1010); g.scale(cp, cp);
+    g.shadowColor = 'rgba(8,40,90,.22)'; g.shadowBlur = 30; g.shadowOffsetY = 10;
+    rrect(-120, -85, 240, 170, 28); g.fillStyle = WH; g.fill();
+    g.restore();
+    pic(car, 820, 1030, 196 * cp);
+    text('IDÉAL POUR', 820, 960, { f: 'Montserrat', w: 800, s: 20, col: GREY, ls: 2, a: cp });
+  }
+  revealText(l1, W / 2, 1180, t0 + .2, t, { s: fit(l1, 100, 820), col: BLUE });
+  revealText(l2, W / 2, 1280, t0 + .3, t, { s: fit(l2, 100, 820), col: RED });
+  revealText(sub, W / 2, 1390, t0 + .45, t, { f: 'Montserrat', w: 600, s: 46, col: GREY });
+  g.restore();
+}
+
+// ---------- Brands ----------
+function brands(t) {
+  const t0 = S[5];
+  g.save(); g.globalAlpha = sceneOut(t, S[6]);
+  revealText('ET AUSSI LES', W / 2, 470, t0 + .05, t, { s: 80, col: RED });
+  revealText('GRANDES MARQUES', W / 2, 570, t0 + .15, t, { s: 110, col: BLUE });
+  [['fulda', 470], ['goodyear', 470], ['michelin', 430]].forEach(([k, w], i) => {
+    const p = eBack(lin(t, t0 + .3 + i * .18, t0 + .7 + i * .18));
+    if (p <= 0) return;
+    const y = 780 + i * 190, x = W / 2 + (i % 2 ? 1 : -1) * (1 - p) * 300;
+    g.save(); g.translate(x, y); g.scale(p, p);
+    g.shadowColor = 'rgba(8,40,90,.18)'; g.shadowBlur = 30; g.shadowOffsetY = 10;
+    rrect(-300, -75, 600, 150, 30); g.fillStyle = WH; g.fill();
+    g.restore();
+    pic(k, x, y, w * p);
+  });
+  revealText('Style & performance', W / 2, 1390, t0 + .9, t, { f: 'Montserrat', w: 600, s: 46, col: GREY });
+  g.restore();
+}
+
+// ---------- Outro ----------
+function outro(t) {
+  const t0 = S[6];
+  const bp = eOut(lin(t, t0, t0 + .4));
+  g.fillStyle = BLUE; g.beginPath(); g.moveTo(0, 0); g.lineTo(W, 0); g.lineTo(W, 820 * bp); g.quadraticCurveTo(W / 2, 980 * bp, 0, 820 * bp); g.closePath(); g.fill();
+  const lp = eBack(lin(t, t0 + .15, t0 + .6));
+  if (lp > 0) {
+    g.save(); g.translate(W / 2, 650); g.scale(lp, lp); g.rotate((1 - lp) * -.2);
+    g.shadowColor = 'rgba(0,20,60,.35)'; g.shadowBlur = 50; g.shadowOffsetY = 16;
+    g.fillStyle = WH; g.beginPath(); g.ellipse(0, 0, 340, 300, -.12, 0, Math.PI * 2); g.fill();
+    g.shadowColor = 'transparent';
+    const lw = 580, lh = lw * IMG.logo.height / IMG.logo.width;
+    g.drawImage(IMG.logo, -lw / 2, -lh / 2, lw, lh);
+    g.restore();
+  }
+  revealText('ENVIE D’EN SAVOIR PLUS ?', W / 2, 290, t0 + .15, t, { s: 86, col: WH });
+  pic('joyroad', W / 2, 1050, 520, { a: eOut(lin(t, t0 + .4, t0 + .8)), sc: .9 + .1 * eBack(lin(t, t0 + .4, t0 + .8)) });
+  const pr = eOut(lin(t, t0 + .55, t0 + .95));
+  if (pr > 0) {
+    g.save(); g.globalAlpha = pr; g.translate(-60 * (1 - pr), 0);
+    const pulse = 1 + Math.sin((t - t0) * 7) * .04 * lin(t, t0 + 1.3, t0 + 1.6);
+    g.save(); g.translate(190, 1210); g.scale(pulse * .87, pulse * .87);
+    g.fillStyle = BLUE; g.beginPath(); g.arc(0, 0, 92, 0, Math.PI * 2); g.fill();
+    g.rotate(.8); g.strokeStyle = WH; g.fillStyle = WH; g.lineCap = 'round';
+    g.lineWidth = 20; g.beginPath(); g.arc(22, 0, 44, Math.PI * .62, Math.PI * 1.38); g.stroke();
+    for (const sy of [-1, 1]) { g.save(); g.translate(22 + Math.cos(Math.PI * (1 + .38 * sy)) * 44, Math.sin(Math.PI * (1 + .38 * sy)) * 44); g.rotate(sy * .3); rrect(-10, -16, 40, 32, 10); g.fill(); g.restore(); }
+    g.restore();
+    text('APPELEZ-NOUS', 310, 1170, { f: 'Montserrat', w: 600, s: 46, col: BLUE, align: 'left' });
+    text('+262 639 291 702', 308, 1250, { f: 'Montserrat', w: 800, s: 64, col: BLUE, align: 'left' });
+    g.restore();
+  }
+  const ar = eOut(lin(t, t0 + .75, t0 + 1.15));
+  if (ar > 0) {
+    g.save(); g.globalAlpha = ar; g.translate(-60 * (1 - ar), 0);
+    g.save(); g.translate(190, 1385 - 14 * Math.abs(Math.sin((t - t0) * 5)) * lin(t, t0 + 1.4, t0 + 1.6));
+    g.fillStyle = RED; g.beginPath(); g.arc(0, -20, 46, Math.PI * .85, Math.PI * 2.15); g.lineTo(0, 62); g.closePath(); g.fill();
+    g.fillStyle = WH; g.beginPath(); g.arc(0, -20, 18, 0, Math.PI * 2); g.fill();
+    g.restore();
+    text('32 Route de Coconi', 310, 1345, { f: 'Montserrat', w: 500, s: 46, col: INK, align: 'left' });
+    text('COMBANI', 310, 1412, { f: 'Montserrat', w: 800, s: 54, col: BLUE, align: 'left' });
+    g.restore();
+  }
+}
+
+const PRODUCTS = [
+  { key: 'tire-normal', label: 'PNEU NORMAL', l1: 'CONFORT', l2: '& CONTRÔLE', sub: 'Finesse et contrôle impeccable', car: 'car-city' },
+  { key: 'tire-renforce', label: 'PNEU RENFORCÉ', l1: 'POUR CEUX QUI', l2: 'N’ONT PAS DE LIMITES', sub: 'Robuste au quotidien', car: 'car-suv' },
+  { key: 'tire-at', label: 'ALL-TERRAIN', l1: 'L’AVENTURE', l2: 'SOUS TOUS LES ANGLES', sub: 'Route, pistes et chemins', car: 'car-pickup' },
+  { key: 'tire-mt', label: 'MUD-TERRAIN', l1: 'TOUS TERRAINS', l2: 'SANS CONCESSION', sub: 'Même les plus imprévisibles', car: 'car-pickup' },
+];
+
+function render(t) {
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  background(t);
+  if (t < S[1]) intro(t);
+  else if (t < S[5]) { const i = S.findIndex((s, k) => t >= s && t < S[k + 1]); product(t, S[i], S[i + 1], i, PRODUCTS[i - 1]); }
+  else if (t < S[6]) brands(t);
+  else outro(t);
+  chrome(t);
+  for (let i = 1; i < S.length - 1; i++) wipe(t, S[i]);
+}
+window.render = render;
+Promise.all([
+  document.fonts.load('900 40px Barlow'), document.fonts.load('600 40px Montserrat'), document.fonts.load('900 40px Montserrat'),
+  load('logo', '../video/assets/logo.png'),
+  ...['joyroad', 'tire-normal', 'tire-renforce', 'tire-at', 'tire-mt', 'car-city', 'car-suv', 'car-pickup', 'fulda', 'goodyear', 'michelin']
+    .map(k => load(k, `assets/${k}.png`)),
+]).then(() => { render(0); window.ready = true; });
+</script>
+</body></html>
