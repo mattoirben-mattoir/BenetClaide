@@ -17,10 +17,12 @@ const c = document.getElementById('c'); let g = c.getContext('2d');
 const BLUE = '#084990', RED = '#E20816', WH = '#ffffff', INK = '#1d2a3f', GREY = '#5b6b82';
 const SKIN = '#6e4128', SKIN_D = '#52301c', NAVY = '#1d2b55', NAVY_D = '#141f40';
 // Alonzo's look, from his photos: shaved head, sunglasses up on the head, short black beard, slim.
-// 'ville' = white shirt + navy trousers (what he wears in the Karibu footage), 'atelier' = navy work tee
-const LOOK = 'ville';
-const SHIRT = LOOK === 'ville' ? '#ffffff' : NAVY, SHIRT_L = '#c9d1dc', BEARD = '#17110e';
-const PANTS = LOOK === 'ville' ? NAVY : '#2b2f38';
+// Top: 'ville' = white shirt (what he wears in the Karibu footage), 'atelier' = navy work tee with the logo.
+// Episode 0: he arrives in his shirt, then pulls the work tee on over it (~9.5 s). Navy trousers + loafers throughout.
+let LOOK = 'ville', SHIRT = '#ffffff';
+const SHIRT_L = '#c9d1dc', BEARD = '#17110e', PANTS = NAVY;
+function setLook(l) { LOOK = l; SHIRT = l === 'ville' ? '#ffffff' : NAVY; }
+const DRESS = [9.65, 9.95];      // the work tee slides down from the neck to the belt
 const DUR = 17.4;
 const S = [0, DUR];
 const sceneOf = () => 0, onBlue = () => false;   // single-scene episode (used by shared drawing code)
@@ -31,7 +33,7 @@ window.SFX = [
   [0.2, 'pop'], [3.2, 'swoosh'], [1.98, 'snap'], [2.0, 'impact'], [2.1, 'swoosh'], [2.2, 'riser', { d: .55 }], [2.75, 'ding'], [3.0, 'pop', { pitch: 1.2 }],
   ...BABBLE(3.45, 8), [5.6, 'swoosh'],
   [6.2, 'roll', { d: .9 }], [6.25, 'whoosh'], [6.9, 'screech', { d: .5 }], [7.2, 'honk'], [7.5, 'honk'], ...BABBLE(7.65, 6, .62),
-  [8.25, 'tick'], ...BABBLE(9.0, 7),
+  [8.25, 'tick'], ...BABBLE(9.0, 7), [9.43, 'whoosh'], [9.66, 'swoosh'], [9.93, 'pop', { pitch: 1.25 }],
   [10.0, 'jingle'], [10.02, 'impact'], [10.6, 'swoosh'],
   [14.0, 'pop'], ...BABBLE(14.35, 10), [14.6, 'pop', { pitch: 1.3 }], [15.05, 'pop', { pitch: 1.1 }],
 ];
@@ -161,8 +163,19 @@ function arm(sx, sy, tx, ty, bend, hand, prop) {
   }
 }
 
-// st: { r: {x,y,bend,hand,prop}, l: {...}, mood, talk }
+// st.dress (0..1): the work tee being pulled on over the shirt, top to bottom
 function mechanic(x, y, t, st) {
+  const d = st.dress || 0;
+  if (d <= 0 || d >= 1) { setLook(d >= 1 ? 'atelier' : 'ville'); return mech0(x, y, t, st); }
+  const sc = st.sc || 1, edge = y + (-60 + 500 * d) * sc;
+  setLook('ville'); mech0(x, y, t, st);
+  setLook('atelier'); g.save(); g.beginPath(); g.rect(0, 0, W, edge); g.clip(); mech0(x, y, t, st); g.restore();
+  // the hem, still rolled up as it comes down
+  g.fillStyle = NAVY_D; rrect(x - 130 * sc, edge - 14 * sc, 260 * sc, 28 * sc, 14 * sc); g.fill();
+}
+
+// st: { r: {x,y,bend,hand,prop}, l: {...}, mood, talk }
+function mech0(x, y, t, st) {
   const blink = (t % 2.9) < .12 ? .1 : 1, breathe = Math.sin(t * 2.4) * 4;
   const shake = st.mood === 'worried' ? Math.sin(t * 40) * 2.5 : 0;
   g.save(); g.translate(x + shake, y); g.scale(st.sc || 1, st.sc || 1);
@@ -184,7 +197,7 @@ function mechanic(x, y, t, st) {
     g.strokeStyle = '#c9ccd2'; g.lineWidth = 5; g.strokeRect(-18, 388, 30, 22);
     g.fillStyle = NAVY; g.fillRect(-112, 414, 224, 18);
   } else {
-    g.fillStyle = NAVY_D; g.fillRect(-114, 390, 228, 40);
+    g.fillStyle = NAVY_D; g.fillRect(-114, 400, 228, 30);
   }
   g.fillStyle = SKIN; g.beginPath(); g.moveTo(-30, -12); g.quadraticCurveTo(0, 34, 30, -12); g.closePath(); g.fill();
   if (LOOK === 'ville') {
@@ -307,8 +320,7 @@ function legs(st, t) {
     g.beginPath(); g.moveTo(hx, 420); g.quadraticCurveTo(kx, ky, fx, fy); g.stroke();
     g.save(); g.translate(fx, fy + 30); g.rotate(bent ? -side * .4 : 0);
     g.fillStyle = '#111'; rrect(-56, -22, 112, 46, 20); g.fill();
-    if (LOOK === 'ville') { g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.ellipse(side * 18, -8, 22, 6, 0, 0, Math.PI * 2); g.fill(); }
-    else { g.fillStyle = RED; g.fillRect(-56, 14, 112, 10); }
+    { g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.ellipse(side * 18, -8, 22, 6, 0, 0, Math.PI * 2); g.fill(); }
     g.restore();
   }
 }
@@ -415,7 +427,7 @@ function transformation(t) {
 }
 
 function poseAt(t) {
-  const st = { mood: 'happy', sc: 1 };
+  const st = { mood: 'happy', sc: 1, dress: eOut(lin(t, DRESS[0], DRESS[1])) };
   if (t < T0 + 1.1) { st.mood = 'grin'; st.wink = true; st.r = { x: 205 + Math.sin(t * 12) * 26, y: -230, bend: 1, hand: 'open' }; }  // "Karibu" wave + wink
   else if (t < 4.3) { st.mood = 'shock'; st.r = { x: 130, y: -20, bend: 1, hand: 'open' }; st.l = { x: -130, y: -20, bend: -1, hand: 'open' }; }  // looks at his drawn hands
   else if (t < 5.6) { st.mood = 'grin'; st.l = { x: -210, y: -110, bend: -1, hand: 'thumb' }; }
@@ -485,6 +497,17 @@ function render(t) {
     if (say && t < say[0] + say[2] + .1) st.talk = true;
     if (st.talk && st.mood === 'happy') st.mood = 'talk';
     g.save(); g.globalAlpha = mA; sticker(() => mechanic(m.x, m.y, t, st)); g.restore();
+  }
+  // the work tee drops onto him, then slides on
+  if (t >= DRESS[0] - .22 && t < DRESS[0] + .02) {
+    const m = mascotPos(t), k = eIn(lin(t, DRESS[0] - .22, DRESS[0])), ty = -150 + (m.y - 250 * m.sc + 150) * k;
+    g.save(); g.translate(m.x, ty); g.rotate((1 - k) * .5); g.scale(.9 * m.sc, .9 * m.sc);
+    g.fillStyle = NAVY; g.strokeStyle = WH; g.lineWidth = 10; g.lineJoin = 'round';
+    g.beginPath(); g.moveTo(-50, -60); g.quadraticCurveTo(0, -36, 50, -60); g.lineTo(130, -20); g.lineTo(100, 30); g.lineTo(80, 18); g.lineTo(80, 120);
+    g.lineTo(-80, 120); g.lineTo(-80, 18); g.lineTo(-100, 30); g.lineTo(-130, -20); g.closePath(); g.stroke(); g.fill();
+    g.fillStyle = WH; g.beginPath(); g.arc(36, 0, 24, 0, Math.PI * 2); g.fill();
+    const lw = 38, lh = lw * LOGO.height / LOGO.width; g.drawImage(LOGO, 36 - lw / 2, -lh / 2, lw, lh);
+    g.restore();
   }
   // end block: logo + contact
   const ep = eBack(lin(t, 15.0, 15.4));
