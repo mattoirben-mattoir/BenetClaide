@@ -103,19 +103,11 @@ function background(t) {
 function chrome(t) {
   const a = eOut(lin(t, S[1], S[1] + .4)) * (1 - eOut(lin(t, S[4] - .2, S[4] + .1)));
   if (a > 0) {
-    const lw = 250, lh = lw * LOGO.height / LOGO.width;
+    const lw = 210, lh = lw * LOGO.height / LOGO.width;
     g.save(); g.globalAlpha = a;
-    g.drawImage(LOGO, W / 2 - lw / 2, 70 - 30 * (1 - a), lw, lh);
-    const step = t < S[2] ? 1 : t < S[3] ? 2 : 3;
-    for (let i = 1; i <= 3; i++) {
-      const w = i === step ? 90 : 26, x = W / 2 + (i - 2) * 120 - w / 2;
-      g.save(); g.transform(1, 0, -.3, 1, 0, 0);
-      rrect(x + 1720 * .3, 1720, w, 16, 4); g.fillStyle = i < step ? BLUE : i === step ? RED : '#d6dce5'; g.fill();
-      g.restore();
-    }
+    g.drawImage(LOGO, W / 2 - lw / 2, 235 - 30 * (1 - a), lw, lh);
     g.restore();
   }
-  g.fillStyle = RED; g.fillRect(0, H - 12, W * (t / 12), 12);
 }
 
 // Slanted blue/red wipe between scenes (italic angle of the logo)
@@ -136,7 +128,7 @@ function intro(t) {
   const out = sceneOut(t, S[1]);
   g.save(); g.globalAlpha = out;
   // photo, Ken Burns zoom
-  const ph = 1340, z = 1.04 + .06 * lin(t, 0, 2.2);
+  const ph = 1200, z = 1.04 + .06 * lin(t, 0, 2.2);
   const pw = W * z, phh = pw * PHOTO.height / PHOTO.width;
   g.save(); g.beginPath(); g.rect(0, 0, W, ph); g.clip();
   g.drawImage(PHOTO, W / 2 - pw / 2, -20 * lin(t, 0, 2.2), pw, phh);
@@ -155,19 +147,20 @@ function intro(t) {
   // title card
   const cp = eBack(lin(t, .15, .6));
   if (cp > 0) {
-    g.save(); g.translate(W - 60, 1440); g.scale(cp, cp);
+    g.save(); g.translate(W / 2, 1125); g.scale(cp, cp);
     g.shadowColor = 'rgba(8,40,90,.25)'; g.shadowBlur = 40; g.shadowOffsetY = 12;
-    rrect(-860, -250, 860, 430, 48); g.fillStyle = WH; g.fill();
+    rrect(-400, -205, 800, 410, 48); g.fillStyle = WH; g.fill();
     g.restore();
   }
-  revealText('3 CONSEILS,', W - 490, 1270, .35, t, { s: 150, col: BLUE });
-  revealText('POUR FAIRE DURER', W - 490, 1410, .5, t, { s: 104, col: RED });
-  revealText('VOS PNEUS', W - 490, 1520, .62, t, { s: 104, col: RED });
+  revealText('3 CONSEILS,', W / 2, 1010, .3, t, { s: 140, col: BLUE });
+  revealText('POUR FAIRE DURER', W / 2, 1150, .45, t, { s: 100, col: RED });
+  revealText('VOS PNEUS', W / 2, 1250, .57, t, { s: 100, col: RED });
   // logo
-  const lo = eBack(lin(t, .8, 1.2));
+  const lo = eBack(lin(t, .7, 1.1));
   if (lo > 0) {
-    const lw = 360 * lo, lh = lw * LOGO.height / LOGO.width;
-    g.drawImage(LOGO, W / 2 - lw / 2, 1760 - lh / 2, lw, lh);
+    const lw = 280 * lo, lh = lw * LOGO.height / LOGO.width;
+    g.save(); g.shadowColor = 'rgba(255,255,255,.9)'; g.shadowBlur = 30;
+    g.drawImage(LOGO, 215 - lw / 2, 380 - lh / 2, lw, lh); g.restore();
   }
   g.restore();
 }
@@ -258,7 +251,7 @@ function align(cx, cy, t, t0) {
   g.strokeStyle = ok > .5 ? BLUE : RED; g.lineWidth = 6;
   for (const s of [-1, 1]) {
     g.save(); g.translate(cx + s * 230, cy); g.rotate((s < 0 ? skew : -skew) * s);
-    g.beginPath(); g.moveTo(0, -400); g.lineTo(0, 400); g.stroke();
+    g.beginPath(); g.moveTo(0, -240); g.lineTo(0, 290); g.stroke();
     g.restore();
   }
   g.setLineDash([]);
@@ -269,7 +262,7 @@ function align(cx, cy, t, t0) {
     g.fillStyle = WH; for (const dx of [-40, 0, 40]) g.fillRect(dx - 3, -18, 6, 36);
     g.restore();
   }
-  check(cx, cy + 300, eBack(lin(t, t0 + 1.35, t0 + 1.65)));
+  check(cx, cy + 265, eBack(lin(t, t0 + 1.35, t0 + 1.65)));
   g.restore();
 }
 
@@ -278,22 +271,21 @@ function tipScene(t, t0, t1, num, title1, title2, sub1, sub2, icon) {
   // big outlined number
   const np = eOut(lin(t, t0, t0 + .5));
   g.save(); g.globalAlpha *= np * .12; g.font = '900 420px Barlow'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillStyle = BLUE; g.fillText(num, W / 2 + 320 - np * 40, 520); g.restore();
+  g.fillStyle = BLUE; g.fillText(num, W / 2 + 300 - np * 40, 640); g.restore();
   // slanted "CONSEIL 0X" tag
   const pp = eBack(lin(t, t0 + .05, t0 + .4));
   if (pp > 0) {
-    g.save(); g.translate(90, 380); g.scale(pp, pp); g.transform(1, 0, -.25, 1, 0, 0);
+    g.save(); g.translate(90, 500); g.scale(pp, pp); g.transform(1, 0, -.25, 1, 0, 0);
     g.fillStyle = RED; g.fillRect(0, -48, 300, 96);
     g.restore();
-    g.save(); g.translate(90, 380); g.scale(pp, pp);
+    g.save(); g.translate(90, 500); g.scale(pp, pp);
     text('CONSEIL ' + num, 138, 2, { s: 60, col: WH, ls: 1 });
     g.restore();
   }
-  icon(W / 2, 800, t, t0 + .1);
-  revealText(title1, W / 2, 1220, t0 + .2, t, { s: 118, col: BLUE });
-  if (title2) revealText(title2, W / 2, 1335, t0 + .3, t, { s: 118, col: RED });
-  revealText(sub1, W / 2, 1480, t0 + .45, t, { f: 'Montserrat', w: 600, s: 44, col: GREY });
-  revealText(sub2, W / 2, 1545, t0 + .55, t, { f: 'Montserrat', w: 600, s: 44, col: GREY });
+  icon(W / 2, 790, t, t0 + .1);
+  revealText(title1, W / 2, 1160, t0 + .2, t, { s: 100, col: BLUE });
+  if (title2) revealText(title2, W / 2, 1260, t0 + .3, t, { s: 100, col: RED });
+  if (sub1) revealText(sub1, W / 2, 1375, t0 + .45, t, { f: 'Montserrat', w: 600, s: 46, col: GREY });
   g.restore();
 }
 
@@ -302,46 +294,46 @@ function outro(t) {
   const t0 = S[4];
   // blue top block with the logo on a white disc
   const bp = eOut(lin(t, t0, t0 + .4));
-  g.fillStyle = BLUE; g.beginPath(); g.moveTo(0, 0); g.lineTo(W, 0); g.lineTo(W, 900 * bp); g.quadraticCurveTo(W / 2, 1060 * bp, 0, 900 * bp); g.closePath(); g.fill();
+  g.fillStyle = BLUE; g.beginPath(); g.moveTo(0, 0); g.lineTo(W, 0); g.lineTo(W, 820 * bp); g.quadraticCurveTo(W / 2, 980 * bp, 0, 820 * bp); g.closePath(); g.fill();
   g.fillStyle = RED; g.fillRect(0, 0, W, 0);
   const lp = eBack(lin(t, t0 + .15, t0 + .6));
   if (lp > 0) {
-    g.save(); g.translate(W / 2, 640); g.scale(lp, lp); g.rotate((1 - lp) * -.2);
+    g.save(); g.translate(W / 2, 650); g.scale(lp, lp); g.rotate((1 - lp) * -.2);
     g.shadowColor = 'rgba(0,20,60,.35)'; g.shadowBlur = 50; g.shadowOffsetY = 16;
-    g.fillStyle = WH; g.beginPath(); g.ellipse(0, 0, 420, 370, -.12, 0, Math.PI * 2); g.fill();
+    g.fillStyle = WH; g.beginPath(); g.ellipse(0, 0, 340, 300, -.12, 0, Math.PI * 2); g.fill();
     g.shadowColor = 'transparent';
-    const lw = 720, lh = lw * LOGO.height / LOGO.width;
+    const lw = 580, lh = lw * LOGO.height / LOGO.width;
     g.drawImage(LOGO, -lw / 2, -lh / 2, lw, lh);
     g.restore();
   }
-  revealText('BESOIN D’UN CHECK-UP ?', W / 2, 240, t0 + .25, t, { s: 92, col: WH });
-  revealText('POUR UN DIAGNOSTIC PRÉCIS', W / 2, 1170, t0 + .6, t, { s: 76, col: RED });
+  revealText('BESOIN D’UN CHECK-UP ?', W / 2, 290, t0 + .15, t, { s: 86, col: WH });
+  revealText('POUR UN DIAGNOSTIC PRÉCIS', W / 2, 1060, t0 + .4, t, { s: 72, col: RED });
   // phone row
-  const pr = eOut(lin(t, t0 + .8, t0 + 1.2));
+  const pr = eOut(lin(t, t0 + .55, t0 + .95));
   if (pr > 0) {
     g.save(); g.globalAlpha = pr; g.translate(-60 * (1 - pr), 0);
     const pulse = 1 + Math.sin((t - t0) * 7) * .04 * lin(t, t0 + 1.3, t0 + 1.6);
-    g.save(); g.translate(190, 1370); g.scale(pulse, pulse);
+    g.save(); g.translate(190, 1210); g.scale(pulse * .87, pulse * .87);
     g.fillStyle = BLUE; g.beginPath(); g.arc(0, 0, 92, 0, Math.PI * 2); g.fill();
     // handset glyph
     g.rotate(.8); g.strokeStyle = WH; g.fillStyle = WH; g.lineCap = 'round';
     g.lineWidth = 20; g.beginPath(); g.arc(22, 0, 44, Math.PI * .62, Math.PI * 1.38); g.stroke();
     for (const sy of [-1, 1]) { g.save(); g.translate(22 + Math.cos(Math.PI * (1 + .38 * sy)) * 44, Math.sin(Math.PI * (1 + .38 * sy)) * 44); g.rotate(sy * .3); rrect(-10, -16, 40, 32, 10); g.fill(); g.restore(); }
     g.restore();
-    text('APPELEZ-NOUS', 320, 1325, { f: 'Montserrat', w: 600, s: 46, col: BLUE, align: 'left' });
-    text('+262 639 291702', 318, 1410, { f: 'Montserrat', w: 800, s: 68, col: BLUE, align: 'left' });
+    text('APPELEZ-NOUS', 310, 1170, { f: 'Montserrat', w: 600, s: 46, col: BLUE, align: 'left' });
+    text('+262 639 291702', 308, 1250, { f: 'Montserrat', w: 800, s: 68, col: BLUE, align: 'left' });
     g.restore();
   }
   // address row
-  const ar = eOut(lin(t, t0 + 1.05, t0 + 1.45));
+  const ar = eOut(lin(t, t0 + .75, t0 + 1.15));
   if (ar > 0) {
     g.save(); g.globalAlpha = ar; g.translate(-60 * (1 - ar), 0);
-    g.save(); g.translate(190, 1590 - 14 * Math.abs(Math.sin((t - t0) * 5)) * lin(t, t0 + 1.4, t0 + 1.6));
+    g.save(); g.translate(190, 1385 - 14 * Math.abs(Math.sin((t - t0) * 5)) * lin(t, t0 + 1.4, t0 + 1.6));
     g.fillStyle = RED; g.beginPath(); g.arc(0, -20, 46, Math.PI * .85, Math.PI * 2.15); g.lineTo(0, 62); g.closePath(); g.fill();
     g.fillStyle = WH; g.beginPath(); g.arc(0, -20, 18, 0, Math.PI * 2); g.fill();
     g.restore();
-    text('32 Route de Coconi', 320, 1550, { f: 'Montserrat', w: 500, s: 46, col: INK, align: 'left' });
-    text('COMBANI', 320, 1620, { f: 'Montserrat', w: 800, s: 54, col: BLUE, align: 'left' });
+    text('32 Route de Coconi', 310, 1345, { f: 'Montserrat', w: 500, s: 46, col: INK, align: 'left' });
+    text('COMBANI', 310, 1412, { f: 'Montserrat', w: 800, s: 54, col: BLUE, align: 'left' });
     g.restore();
   }
 }
@@ -350,14 +342,12 @@ function render(t) {
   g.setTransform(1, 0, 0, 1, 0, 0);
   background(t);
   if (t < S[1]) intro(t);
-  else if (t < S[2]) tipScene(t, S[1], S[2], '01', 'VÉRIFIEZ LA PRESSION', 'CHAQUE MOIS', 'malgré la chaleur', 'et les routes abîmées', gauge);
-  else if (t < S[3]) tipScene(t, S[2], S[3], '02', 'SURVEILLEZ L’USURE', 'ET LES VIBRATIONS', 'usure inégale ou vibrations ?', 'un problème peut se cacher', wear);
-  else if (t < S[4]) tipScene(t, S[3], S[4], '03', 'ÉQUILIBRAGE', '& PARALLÉLISME', 'des pneus bien alignés =', 'une conduite stable', align);
+  else if (t < S[2]) tipScene(t, S[1], S[2], '01', 'VÉRIFIEZ LA PRESSION', 'CHAQUE MOIS', 'Chaleur et routes abîmées', '', gauge);
+  else if (t < S[3]) tipScene(t, S[2], S[3], '02', 'SURVEILLEZ L’USURE', 'ET LES VIBRATIONS', 'Usure inégale = signal d’alerte', '', wear);
+  else if (t < S[4]) tipScene(t, S[3], S[4], '03', 'ÉQUILIBRAGE', '& PARALLÉLISME', 'Pour une conduite stable', '', align);
   else outro(t);
   chrome(t);
   for (let i = 1; i < 5; i++) wipe(t, S[i]);
-  const fb = 1 - lin(t, 0, .15);
-  if (fb > 0) { g.fillStyle = `rgba(255,255,255,${fb})`; g.fillRect(0, 0, W, H); }
 }
 window.render = render;
 Promise.all([
