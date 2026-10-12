@@ -155,9 +155,35 @@ def blip(pitch=1.0):
     return norm(s, .16)
 
 
+def honk():
+    """Car horn: two detuned square tones (classic two-note horn chord)."""
+    t = t_(.22); s = signal.square(2 * np.pi * 415 * t) + signal.square(2 * np.pi * 523 * t)
+    s = lowp(s, 2500) * np.minimum(t / .01, 1) * np.minimum((.22 - t) / .03, 1)
+    return norm(s, .3)
+
+
+def screech(d=0.6):
+    """Tyre skid: sliding tone + filtered noise."""
+    t = t_(d); f = 2100 - 400 * t / d + 60 * np.sin(2 * np.pi * 23 * t)
+    tone = np.sin(2 * np.pi * np.cumsum(f) / SR) * .5
+    s = tone + band(rng.standard_normal(len(t)), 1500, 4500)
+    s *= np.minimum(t / .03, 1) * np.minimum((d - t) / .15, 1)
+    return norm(s, .28)
+
+
+def jingle():
+    """Series signature: three bright plucked notes (G5, C6, E6), the last one held."""
+    out = np.zeros(int(1.3 * SR))
+    for k, (f, at, d) in enumerate([(784, 0, .25), (1047, .13, .25), (1319, .26, .9)]):
+        t = t_(d); s = np.sin(2 * np.pi * f * t) + .35 * np.sin(4 * np.pi * f * t) + .15 * np.sin(6 * np.pi * f * t)
+        s *= env(len(t), .003, d * .45)
+        i = int(at * SR); out[i:i + len(s)] += s
+    return norm(out, .4)
+
+
 FX = {'whoosh': whoosh, 'swoosh': swoosh, 'camera': camera, 'pop': pop, 'tick': tick, 'ding': ding,
       'error': error, 'hiss': hiss, 'rattle': rattle, 'roll': roll, 'impact': impact, 'riser': riser,
-      'step': step, 'stumble': stumble, 'snap': snap, 'blip': blip}
+      'step': step, 'stumble': stumble, 'snap': snap, 'blip': blip, 'honk': honk, 'screech': screech, 'jingle': jingle}
 # where the "hit" of each effect sits inside its sample (so the hit lands on the event time)
 HIT = {'whoosh': .2, 'swoosh': .12, 'camera': .3, 'riser': .8}
 GAIN = {'tick': .8, 'pop': 1.0}
