@@ -171,6 +171,20 @@ def screech(d=0.6):
     return norm(s, .28)
 
 
+def thunder(d=1.4):
+    # distant rumble: low-passed noise with a soft crack at the front
+    n = int(d * SR); x = lowp(rng.standard_normal(n), 180, 4) * env(n, .05, d * .45)
+    c = band(rng.standard_normal(int(.25 * SR)), 300, 2500) * env(int(.25 * SR), .002, .05)
+    x[:len(c)] += c * .25
+    return norm(x, .55)
+
+
+def drip(pitch=1.0):
+    # water drop "plic": fast upward sine chirp
+    t = t_(.12); f = (900 + 2600 * (t / .12)) * pitch
+    return norm(np.sin(2 * np.pi * np.cumsum(f) / SR) * env(len(t), .001, .03), .3)
+
+
 def jingle():
     """Series signature: three bright plucked notes (G5, C6, E6), the last one held."""
     out = np.zeros(int(1.3 * SR))
@@ -183,7 +197,7 @@ def jingle():
 
 FX = {'whoosh': whoosh, 'swoosh': swoosh, 'camera': camera, 'pop': pop, 'tick': tick, 'ding': ding,
       'error': error, 'hiss': hiss, 'rattle': rattle, 'roll': roll, 'impact': impact, 'riser': riser,
-      'step': step, 'stumble': stumble, 'snap': snap, 'blip': blip, 'honk': honk, 'screech': screech, 'jingle': jingle}
+      'step': step, 'stumble': stumble, 'snap': snap, 'blip': blip, 'honk': honk, 'screech': screech, 'jingle': jingle, 'thunder': thunder, 'drip': drip}
 # where the "hit" of each effect sits inside its sample (so the hit lands on the event time)
 HIT = {'whoosh': .2, 'swoosh': .12, 'camera': .3, 'riser': .8}
 GAIN = {'tick': .8, 'pop': 1.0}
@@ -262,7 +276,7 @@ def main():
         j = min(N, i + len(s)); fx[i:j] += s[:j - i]
     # SFX_MUSIC=0: effects only, for a version where the client lays their own music
     with_music = os.environ.get('SFX_MUSIC', '1') != '0'
-    mix = (music(dur) * .55 if with_music else 0) + fx
+    mix = (music(dur, float(os.environ.get('SFX_BPM', 118))) * .55 if with_music else 0) + fx   # SFX_BPM: match the episode's beat grid
     # stereo: a little width on the effects
     left, right = mix + .08 * np.roll(fx, 220), mix + .08 * np.roll(fx, -220)
     st = np.stack([left, right], 1)

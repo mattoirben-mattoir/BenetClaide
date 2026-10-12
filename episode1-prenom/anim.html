@@ -1,0 +1,773 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:Barlow;src:url(../video/assets/BarlowCondensed-BlackItalic.ttf);font-weight:900}
+@font-face{font-family:Montserrat;src:url(../video/assets/Montserrat.ttf);font-weight:100 900}
+html,body{margin:0;background:#fff}
+canvas{display:block}
+</style></head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script>
+// Épisode 1 « Le prénom ! » — the car gets the name the audience chose, Alonzo checks her pressure.
+// Shared rig (Alonzo, bubbles, sticker, garage) comes from Épisode 0. Written straight on the beat grid (no time warp).
+const W = 1080, H = 1920;
+const c = document.getElementById('c'); let g = c.getContext('2d');
+const BLUE = '#084990', RED = '#E20816', WH = '#ffffff', INK = '#1d2a3f', GREY = '#5b6b82';
+// colour script (AD): warm skin with light + shade, navy ink line on every part, brand blue tee vs deep navy trousers
+const SKIN = '#7b4a2b', SKIN_D = '#55301a', SKIN_HI = '#a06a45', NAVY = '#1d2b55', NAVY_D = '#141f40';
+const INKL = '#121c36', LIPS = '#4a1712', GLASS = '#0b0d11', MIC = '#f2782a', LEAF = '#5aa832', TEE_D = '#063b75';
+// Alonzo's look, from his photos: shaved head, sunglasses up on the head, short black beard, slim.
+// Top: 'ville' = white shirt (what he wears in the Karibu footage), 'atelier' = navy work tee with the logo.
+// Episode 0: he arrives in his shirt, then pulls the work tee on over it (~9.5 s). Navy trousers + loafers throughout.
+let LOOK = 'ville', SHIRT = '#ffffff', SHIRT_D = '#e2e8f1';
+const BEARD = '#15100d', PANTS = '#1c2647';
+function setLook(l) { LOOK = l; SHIRT = l === 'ville' ? '#ffffff' : BLUE; SHIRT_D = l === 'ville' ? '#e2e8f1' : TEE_D; }
+const DRESS = [-2, -1];          // always in his work gear from Épisode 1 on
+const DUR = 18.4;
+const sceneOf = () => 0, onBlue = () => false;   // single-scene episode (used by shared drawing code)
+
+// ---------------------------------------------------------------- sound
+const BABBLE = (at, n, base = .85) => Array.from({ length: n }, (_, i) => [at + i * .11, 'blip', { pitch: base + ((i * 7) % 5) * .09 }]);
+/* SFX: see the end of the file (written in beats) */
+
+// ---------------------------------------------------------------- helpers
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lin = (t, a, b) => clamp((t - a) / (b - a));
+const eOut = x => 1 - Math.pow(1 - x, 3);
+const eIn = x => x * x * x;
+const eInOut = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const eBack = x => { const c1 = 1.7, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const img = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
+let LOGO;
+
+function text(str, x, y, { f = 'Barlow', w = 900, s = 60, col = INK, align = 'center', a = 1 } = {}) {
+  g.save(); g.globalAlpha *= a; g.font = `${w} ${s}px ${f}`; g.fillStyle = col; g.textAlign = align; g.textBaseline = 'middle';
+  g.fillText(str, x, y); g.restore();
+}
+function rrect(x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
+function fit(str, s, maxW) { g.save(); g.font = `900 ${s}px Barlow`; const w = g.measureText(str).width; g.restore(); return Math.min(s, Math.floor(s * maxW / w)); }
+// word that lands with a scale punch
+function punch(str, x, y, t0, t, s, col) {
+  const p = lin(t, t0, t0 + .28); if (p <= 0) return;
+  const k = 1 + .7 * (1 - eBack(p));
+  g.save(); g.translate(x, y); g.scale(k, k); text(str, 0, 0, { s, col, a: clamp(p * 3) }); g.restore();
+}
+// key phrase on a slanted marker band
+function marker(str, x, y, t0, t, s, bg, fg) {
+  const p = eOut(lin(t, t0, t0 + .35)); if (p <= 0) return;
+  g.save(); g.font = `900 ${s}px Barlow`; const w = g.measureText(str).width + 60; g.restore();
+  g.save(); g.translate(x - w / 2, y); g.transform(1, 0, -.25, 1, 0, 0);
+  g.beginPath(); g.rect(0, -s * .62, w * p, s * 1.2); g.fillStyle = bg; g.fill(); g.clip();
+  g.setTransform(1, 0, 0, 1, 0, 0); text(str, x, y + 4, { s, col: fg });
+  g.restore();
+}
+function swooshBg(col, a, t) {
+  g.save(); g.globalAlpha = a; g.translate(W * .5, H * .44); g.rotate(-.25 + t * .05); g.lineCap = 'round';
+  const a0 = Math.PI * .95, span = Math.PI * 1.15;
+  g.strokeStyle = col; g.lineWidth = 60; g.beginPath(); g.ellipse(0, 0, 670, 610, 0, a0, a0 + span); g.stroke();
+  g.lineWidth = 60; g.beginPath(); g.ellipse(37, 0, 558, 496, 0, a0 + .15, a0 + .15 + span * .95); g.stroke();
+  g.restore();
+}
+
+function check(x, y, s, col = BLUE) {
+  if (s <= 0) return;
+  g.save(); g.translate(x, y); g.scale(s, s);
+  g.fillStyle = col; g.beginPath(); g.arc(0, 0, 46, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = WH; g.lineWidth = 4; g.stroke();
+  g.lineWidth = 10; g.lineCap = 'round'; g.lineJoin = 'round';
+  g.beginPath(); g.moveTo(-18, 2); g.lineTo(-5, 15); g.lineTo(20, -12); g.stroke();
+  g.restore();
+}
+function warning(x, y, s) {
+  if (s <= 0) return;
+  g.save(); g.translate(x, y); g.scale(s, s);
+  g.fillStyle = RED; g.strokeStyle = RED; g.lineJoin = 'round'; g.lineWidth = 16;
+  g.beginPath(); g.moveTo(0, -58); g.lineTo(58, 46); g.lineTo(-58, 46); g.closePath(); g.stroke(); g.fill();
+  text('!', 0, 10, { f: 'Montserrat', w: 900, s: 70, col: WH });
+  g.restore();
+}
+function confetti(x, y, t, t0) {
+  const r = t - t0; if (r < 0 || r > 1.4) return;
+  const cols = [RED, '#ffd34d', WH, '#7fb2ff'];
+  g.save(); g.globalAlpha = 1 - lin(r, .9, 1.4);
+  for (let i = 0; i < 36; i++) {
+    const a = (i * 137.5) * Math.PI / 180, sp = 380 + (i * 53 % 7) * 70;
+    const px = x + Math.cos(a) * sp * r, py = y + Math.sin(a) * sp * r * .8 + 900 * r * r;
+    g.save(); g.translate(px, py); g.rotate(r * (6 + i % 5)); g.fillStyle = cols[i % 4];
+    g.fillRect(-9, -5, 18, 10); g.restore();
+  }
+  g.restore();
+}
+
+
+
+// ---------------------------------------------------------------- the mechanic: Alonzo
+// Drawn from his photos (Karibu day): shaved head, sport sunglasses up on the head, short trimmed beard
+// along the jaw + moustache, slim fitted white shirt with a cream flower, navy trousers, black belt,
+// black patent loafers, orange foam microphone. Every part carries a navy ink line so it reads on any background.
+// two-bone IK: elbow position for a hand target
+function ik(sx, sy, tx, ty, a, b, bend) {
+  const dx = tx - sx, dy = ty - sy, d = Math.min(Math.hypot(dx, dy), a + b - 1), base = Math.atan2(dy, dx);
+  const A = Math.acos(clamp((a * a + d * d - b * b) / (2 * a * d), -1, 1));
+  const ang = base + bend * A;
+  return [sx + Math.cos(ang) * a, sy + Math.sin(ang) * a, sx + Math.cos(base) * d, sy + Math.sin(base) * d];
+}
+// a stroked limb segment with its ink line
+function limb(pts, w, col) {
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  for (const [c, lw] of [[INKL, w + 9], [col, w]]) {
+    g.strokeStyle = c; g.lineWidth = lw; g.beginPath(); g.moveTo(...pts[0]); for (const p of pts.slice(1)) g.lineTo(...p); g.stroke();
+  }
+}
+function handShape(hand, grow) {
+  const k = grow;
+  if (hand === 'open') {
+    g.beginPath(); g.arc(14, 0, 30 + k, 0, Math.PI * 2); g.fill();
+    for (let i = -1.5; i <= 1.5; i++) { g.save(); g.rotate(i * .28); rrect(24 - k, -8 - k, 40 + 2 * k, 16 + 2 * k, 8 + k); g.fill(); g.restore(); }
+  } else if (hand === 'point') {
+    g.beginPath(); g.arc(12, 0, 28 + k, 0, Math.PI * 2); g.fill(); rrect(16 - k, -8 - k, 56 + 2 * k, 16 + 2 * k, 8 + k); g.fill();
+  } else { g.beginPath(); g.arc(12, 0, 30 + k, 0, Math.PI * 2); g.fill(); }
+}
+function arm(sx, sy, tx, ty, bend, hand, prop) {
+  const [ex, ey, hx, hy] = ik(sx, sy, tx, ty, 165, 155, bend);
+  if (LOOK === 'ville') {            // long sleeve, cuff at the wrist
+    const cx = hx + (ex - hx) * .2, cy = hy + (ey - hy) * .2;
+    limb([[cx, cy], [hx, hy]], 40, SKIN);
+    limb([[sx, sy], [ex, ey], [cx, cy]], 54, SHIRT);
+    g.strokeStyle = SHIRT_D; g.lineWidth = 3; g.beginPath(); g.moveTo(ex + (cx - ex) * .8 - 4, ey + (cy - ey) * .8); g.lineTo(cx - 4, cy); g.stroke();
+  } else {                           // plain short sleeve
+    limb([[sx, sy], [ex, ey], [hx, hy]], 46, SKIN);
+    limb([[sx, sy], [sx + (ex - sx) * .5, sy + (ey - sy) * .5]], 62, SHIRT);
+  }
+  // highlight along the forearm (light from the top left)
+  const h0 = LOOK === 'ville' ? .86 : .45;
+  g.strokeStyle = SKIN_HI; g.lineWidth = 8; g.globalAlpha = .55; g.beginPath(); g.moveTo(ex + (hx - ex) * h0 - 10, ey + (hy - ey) * h0); g.lineTo(hx - 12, hy - 6); g.stroke(); g.globalAlpha = 1;
+  const th = Math.atan2(hy - ey, hx - ex);
+  g.save(); g.translate(hx, hy); g.rotate(th);
+  if (prop === 'gauge') {
+    g.fillStyle = '#20242b'; rrect(10, -9, 90, 18, 8); g.fill();
+    g.fillStyle = '#c9d0d9'; rrect(92, -12, 22, 24, 5); g.fill();
+  } else if (prop === 'wrench') {
+    wrenchShape(0);
+  } else if (prop === 'micLow') {   // mic held down along the leg, as in the photo
+    g.fillStyle = INKL; rrect(4, -13, 76, 26, 10); g.fill(); g.fillStyle = '#25282e'; rrect(8, -9, 70, 18, 8); g.fill();
+    foam(98, 0);
+  }
+  g.fillStyle = INKL; handShape(hand, 4.5);
+  g.fillStyle = SKIN; handShape(hand, 0);
+  if (!hand || hand === 'fist') { g.strokeStyle = SKIN_D; g.lineWidth = 4; for (const fy of [-8, 6]) { g.beginPath(); g.moveTo(22, fy); g.lineTo(38, fy); g.stroke(); } }
+  g.restore();
+  if (hand === 'thumb') { g.fillStyle = INKL; rrect(hx - 15, hy - 70, 32, 58, 16); g.fill(); g.fillStyle = SKIN; rrect(hx - 11, hy - 66, 24, 50, 12); g.fill(); }
+  if (prop === 'mic') {             // mic held upright, foam up
+    g.fillStyle = INKL; rrect(hx - 14, hy - 82, 28, 74, 11); g.fill(); g.fillStyle = '#25282e'; rrect(hx - 10, hy - 78, 20, 66, 8); g.fill();
+    foam(hx, hy - 102);
+    if (WAVES >= 0) {                // his voice in the mic
+      g.strokeStyle = BLUE; g.lineWidth = 6; g.lineCap = 'round';
+      for (let i = 0; i < 3; i++) { const k = (WAVES * 2.2 + i / 3) % 1; g.globalAlpha = 1 - k; g.beginPath(); g.arc(hx, hy - 102, 44 + k * 60, Math.PI * .8, Math.PI * 1.2); g.stroke(); }
+      g.globalAlpha = 1;
+    }
+  }
+  if (prop === 'micOut') {          // mic held out to the viewer: your turn!
+    g.fillStyle = INKL; rrect(hx - 14, hy - 70, 28, 64, 11); g.fill(); g.fillStyle = '#25282e'; rrect(hx - 10, hy - 66, 20, 56, 8); g.fill();
+    g.save(); g.translate(hx - 6, hy - 96); g.scale(1.45, 1.45); foam(0, 0); g.restore();
+  }
+}
+let WAVES = -1;
+// open-end wrench, along +x from x0 (handle) to the jaw; navy ink line, steel with a highlight
+function wrenchShape(x0) {
+  g.save(); g.translate(x0, 0);
+  for (const [c, k] of [[INKL, 4], ['#b9c2ce', 0]]) {
+    g.fillStyle = c; rrect(10 - k, -11 - k, 124 + 2 * k, 22 + 2 * k, 10 + k); g.fill();
+    g.beginPath(); g.arc(146, 0, 30 + k, 0, Math.PI * 2); g.fill();
+  }
+  g.fillStyle = '#e6ebf1'; rrect(22, -7, 96, 5, 3); g.fill();
+  g.fillStyle = INKL; g.beginPath(); g.moveTo(150, -12); g.lineTo(184, -16); g.lineTo(184, 16); g.lineTo(150, 12); g.closePath(); g.fill();
+  g.save(); g.globalCompositeOperation = 'destination-out'; g.beginPath(); g.moveTo(154, -9); g.lineTo(190, -13); g.lineTo(190, 13); g.lineTo(154, 9); g.closePath(); g.fill(); g.restore();
+  g.restore();
+}
+function foam(x, y) {
+  g.fillStyle = INKL; g.beginPath(); g.arc(x, y, 31, 0, Math.PI * 2); g.fill();
+  g.fillStyle = MIC; g.beginPath(); g.arc(x, y, 27, 0, Math.PI * 2); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.45)'; g.beginPath(); g.ellipse(x - 9, y - 10, 9, 6, -.6, 0, Math.PI * 2); g.fill();
+}
+
+// st.dress (0..1): the work tee being pulled on over the shirt, top to bottom
+function mechanic(x, y, t, st) {
+  const d = st.dress || 0;
+  if (d <= 0 || d >= 1) { setLook(d >= 1 ? 'atelier' : 'ville'); return mech0(x, y, t, st); }
+  const sc = st.sc || 1, le = -60 + 900 * d, edge = y + le * sc;
+  setLook('ville'); mech0(x, y, t, st);
+  setLook('atelier'); g.save(); g.beginPath(); g.rect(0, 0, W, edge); g.clip(); mech0(x, y, t, st); g.restore();
+  if (le < 430) {                    // the tee's hem, still rolled up as it comes down
+    g.fillStyle = INKL; rrect(x - 134 * sc, edge - 18 * sc, 268 * sc, 36 * sc, 18 * sc); g.fill();
+    g.fillStyle = TEE_D; rrect(x - 130 * sc, edge - 14 * sc, 260 * sc, 28 * sc, 14 * sc); g.fill();
+  } else {                           // then a bright sweep line turns trousers + shoes into work gear
+    g.save(); g.strokeStyle = WH; g.lineWidth = 6 * sc; g.shadowColor = '#ffd34d'; g.shadowBlur = 18;
+    g.beginPath(); g.moveTo(x - 130 * sc, edge); g.lineTo(x + 130 * sc, edge); g.stroke(); g.restore();
+  }
+}
+
+// st: { r: {x,y,bend,hand,prop}, l: {...}, mood, talk }
+function mech0(x, y, t, st) {
+  const blink = (t % 2.9) < .12 ? .1 : 1, breathe = Math.sin(t * 2.4) * 4;
+  const shake = st.mood === 'worried' ? Math.sin(t * 40) * 2.5 : 0;
+  g.save(); g.translate(x + shake, y); g.scale(st.sc || 1, st.sc || 1);
+  if (st.sway) { g.translate(0, 780); g.rotate(st.sway); g.translate(0, -780); }
+  g.rotate(Math.sin(t * 1.7) * .015);
+  legs(st, t);
+  // left arm: behind the body, or in front when it holds the mic
+  const L = st.l || { x: -150, y: 330, bend: 1, hand: 'fist' };
+  if (!st.lFront) arm(-100, 40, L.x, L.y, L.bend, L.hand, L.prop);
+  // torso (slim, fitted)
+  const torso = () => { g.beginPath(); g.moveTo(-112, 34 + breathe * .3); g.quadraticCurveTo(-118, -6, -54, -12); g.lineTo(54, -12);
+    g.quadraticCurveTo(118, -6, 112, 34 + breathe * .3); g.quadraticCurveTo(100, 230, 112, 430); g.lineTo(-112, 430); g.quadraticCurveTo(-100, 230, -112, 34 + breathe * .3); g.closePath(); };
+  torso(); g.fillStyle = SHIRT; g.fill();
+  // volume: shade on the right side, under the light from the top left
+  g.save(); torso(); g.clip(); g.fillStyle = SHIRT_D;
+  g.beginPath(); g.moveTo(70, -20); g.quadraticCurveTo(50, 200, 78, 440); g.lineTo(140, 440); g.lineTo(140, -20); g.closePath(); g.fill();
+  if (LOOK === 'ville') {
+    g.strokeStyle = '#b4c0d0'; g.lineWidth = 4; g.beginPath(); g.moveTo(0, 20); g.lineTo(0, 384); g.stroke();   // button placket
+    g.fillStyle = '#a6b2c4'; for (let by = 70; by < 384; by += 62) { g.beginPath(); g.arc(9, by, 5, 0, Math.PI * 2); g.fill(); }
+    g.strokeStyle = '#d3dbe6'; g.lineWidth = 3; for (const [a, b] of [[[-70, 330], [-20, 372]], [[64, 300], [24, 360]]]) { g.beginPath(); g.moveTo(...a); g.lineTo(...b); g.stroke(); }  // folds at the belt
+    g.fillStyle = '#121316'; g.fillRect(-120, 384, 240, 30);                          // black belt
+    g.fillStyle = '#2a2d33'; g.fillRect(-120, 386, 240, 4);
+    g.strokeStyle = '#dfe3e8'; g.lineWidth = 5; g.strokeRect(-18, 389, 30, 20);
+    g.fillStyle = PANTS; g.fillRect(-120, 414, 240, 18);
+  } else {
+    g.fillStyle = TEE_D; g.fillRect(-120, 404, 240, 30);
+  }
+  g.restore();
+  torso(); g.strokeStyle = INKL; g.lineWidth = 6; g.stroke();
+  // neck + collar
+  g.fillStyle = SKIN_D; g.fillRect(-26, -52, 52, 46);
+  g.fillStyle = SKIN; g.beginPath(); g.moveTo(-30, -12); g.quadraticCurveTo(0, 34, 30, -12); g.closePath(); g.fill();
+  if (LOOK === 'ville') {
+    g.fillStyle = SHIRT; g.strokeStyle = INKL; g.lineWidth = 4; g.lineJoin = 'round';
+    for (const sd of [-1, 1]) { g.beginPath(); g.moveTo(sd * 30, -26); g.lineTo(sd * 62, -4); g.lineTo(sd * 8, 40); g.lineTo(sd * 22, -10); g.closePath(); g.fill(); g.stroke(); }
+    // cream jasmine boutonniere with green leaves (as in the photos)
+    g.save(); g.translate(60, 96);
+    for (const [lx, ly, r] of [[-16, 14, .7], [14, 18, -.7], [-2, -20, 1.6]]) {
+      g.fillStyle = '#2f6e1f'; g.beginPath(); g.ellipse(lx, ly, 18, 9, r, 0, Math.PI * 2); g.fill();
+      g.fillStyle = LEAF; g.beginPath(); g.ellipse(lx, ly, 15, 6.5, r, 0, Math.PI * 2); g.fill();
+    }
+    for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2 + t * .4;
+      g.fillStyle = '#b7ac72'; g.beginPath(); g.arc(Math.cos(a) * 11, Math.sin(a) * 11, 10, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#fbf6dc'; g.beginPath(); g.arc(Math.cos(a) * 11, Math.sin(a) * 11, 8, 0, Math.PI * 2); g.fill(); }
+    g.fillStyle = '#f2c230'; g.beginPath(); g.arc(0, 0, 6, 0, Math.PI * 2); g.fill();
+    g.restore();
+  } else {
+    g.strokeStyle = TEE_D; g.lineWidth = 8; g.lineCap = 'round';                    // plain crew neck
+    g.beginPath(); g.moveTo(-34, -12); g.quadraticCurveTo(0, 40, 34, -12); g.stroke();
+    g.fillStyle = INKL; g.beginPath(); g.arc(54, 112, 46, 0, Math.PI * 2); g.fill();
+    g.fillStyle = WH; g.beginPath(); g.arc(54, 112, 42, 0, Math.PI * 2); g.fill();
+    const lw = 70, lh = lw * LOGO.height / LOGO.width; g.drawImage(LOGO, 54 - lw / 2, 112 - lh / 2, lw, lh);
+  }
+  // head
+  g.save(); g.translate(0, -140 + breathe * .4);
+  g.rotate(st.mood === 'worried' ? -.06 : Math.sin(t * 3) * .03 + (st.talk ? Math.sin(t * 9) * .025 : 0));
+  const head = () => { g.beginPath(); g.ellipse(0, -4, 82, 104, 0, 0, Math.PI * 2); };
+  for (const sd of [-1, 1]) {        // ears
+    g.fillStyle = INKL; g.beginPath(); g.ellipse(sd * 82, 10, 22, 26, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = SKIN; g.beginPath(); g.ellipse(sd * 82, 10, 18, 22, 0, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = SKIN_D; g.lineWidth = 4; g.beginPath(); g.arc(sd * 84, 10, 9, sd > 0 ? -1.2 : Math.PI - 1.9, sd > 0 ? 1.9 : Math.PI + 1.2); g.stroke();
+  }
+  head(); g.fillStyle = SKIN; g.fill();
+  g.save(); head(); g.clip();
+  g.fillStyle = SKIN_D; g.globalAlpha = .55; g.beginPath(); g.ellipse(58, 10, 50, 120, -.1, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1;  // core shadow
+  g.fillStyle = SKIN_HI; g.globalAlpha = .7; g.beginPath(); g.ellipse(-32, -62, 34, 22, -.4, 0, Math.PI * 2); g.fill();                    // shine on the shaved crown
+  g.fillStyle = WH; g.globalAlpha = .35; g.beginPath(); g.ellipse(-38, -70, 14, 7, -.5, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1;
+  // short trimmed beard along the jaw + moustache (skin stays visible on the cheeks)
+  g.fillStyle = BEARD;
+  g.beginPath(); g.moveTo(-84, -6); g.quadraticCurveTo(-76, 46, -42, 66); g.quadraticCurveTo(4, 82, 46, 66); g.quadraticCurveTo(78, 46, 84, -6);
+  g.lineTo(90, 0); g.lineTo(90, 120); g.lineTo(-90, 120); g.lineTo(-90, 0); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(-36, 46); g.quadraticCurveTo(-20, 24, 4, 29); g.quadraticCurveTo(28, 24, 42, 46); g.quadraticCurveTo(24, 37, 4, 39); g.quadraticCurveTo(-16, 37, -36, 46); g.fill();
+  g.strokeStyle = BEARD; g.lineWidth = 9; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(-36, 46); g.lineTo(-42, 66); g.moveTo(42, 46); g.lineTo(46, 66); g.stroke();
+  g.restore();
+  head(); g.strokeStyle = INKL; g.lineWidth = 6; g.stroke();
+  const shock = st.mood === 'shock', wb = st.mood === 'worried' || shock;
+  for (const ex of [-30, 28]) {
+    if (st.wink && ex > 0) { g.strokeStyle = BEARD; g.lineWidth = 7; g.lineCap = 'round'; g.beginPath(); g.arc(ex, -12, 14, Math.PI * .15, Math.PI * .85); g.stroke(); continue; }
+    g.fillStyle = WH; g.beginPath(); g.ellipse(ex, -8, shock ? 19 : 15, (shock ? 22 : 17) * blink, 0, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = BEARD; g.lineWidth = 4; g.beginPath(); g.ellipse(ex, -8, shock ? 19 : 15, (shock ? 22 : 17) * blink, 0, Math.PI * 1.08, Math.PI * 1.92); g.stroke();  // upper lid
+    if (blink > .5) { g.fillStyle = '#2a1408'; g.beginPath(); g.arc(ex + 5, -6, shock ? 7 : 8.5, 0, Math.PI * 2); g.fill();
+      g.fillStyle = WH; g.beginPath(); g.arc(ex + 8, -10, 2.6, 0, Math.PI * 2); g.fill(); }
+  }
+  g.strokeStyle = BEARD; g.lineWidth = 8; g.lineCap = 'round';
+  const by = shock ? -10 : 0;
+  g.beginPath(); g.moveTo(-46, (wb ? -30 : -36) + by); g.quadraticCurveTo(-32, (wb ? -44 : -44) + by, -16, (wb ? -42 : -38) + by); g.stroke();
+  g.beginPath(); g.moveTo(12, (wb ? -42 : -38) + by); g.quadraticCurveTo(28, (wb ? -44 : -44) + by, 44, (wb ? -30 : -36) + by); g.stroke();
+  // nose: shadow + light on the bridge
+  g.strokeStyle = SKIN_D; g.lineWidth = 6; g.beginPath(); g.arc(4, 16, 13, Math.PI * .1, Math.PI * .9); g.stroke();
+  g.strokeStyle = SKIN_HI; g.lineWidth = 5; g.beginPath(); g.moveTo(-2, -4); g.lineTo(-2, 10); g.stroke();
+  const open = st.talk ? (.35 + .65 * Math.abs(Math.sin(t * 17) * Math.sin(t * 7.3))) : 0;
+  g.fillStyle = LIPS;
+  if (shock) { g.beginPath(); g.ellipse(4, 56, 16, 20, 0, 0, Math.PI * 2); g.fill(); }
+  else if (st.mood === 'worried') { g.beginPath(); g.ellipse(4, 52, 11, 12, 0, 0, Math.PI * 2); g.fill(); }
+  else if (open > .05) { g.beginPath(); g.ellipse(4, 52, 22, 5 + 14 * open, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = WH; g.fillRect(-12, 47 - 14 * open * .6, 32, 6); }
+  else if (st.mood === 'grin') {
+    g.beginPath(); g.moveTo(-28, 45); g.quadraticCurveTo(4, 84, 36, 45); g.closePath(); g.fill();
+    g.fillStyle = WH; g.beginPath(); g.moveTo(-24, 47); g.quadraticCurveTo(4, 60, 32, 47); g.closePath(); g.fill();
+  } else {                          // his big smile
+    g.beginPath(); g.moveTo(-22, 46); g.quadraticCurveTo(4, 72, 30, 46); g.quadraticCurveTo(4, 54, -22, 46); g.fill();
+    g.fillStyle = WH; g.beginPath(); g.moveTo(-18, 48); g.quadraticCurveTo(4, 62, 26, 48); g.quadraticCurveTo(4, 54, -18, 48); g.fill();
+  }
+  // sport sunglasses pushed up on the head (his signature)
+  g.save(); g.translate(0, -74); g.rotate(-.04);
+  g.strokeStyle = GLASS; g.lineWidth = 8; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(-44, 0); g.quadraticCurveTo(-74, -2, -84, 20); g.moveTo(48, 0); g.quadraticCurveTo(76, -2, 84, 20); g.stroke();
+  g.beginPath(); g.moveTo(-10, -4); g.quadraticCurveTo(2, -12, 14, -4); g.stroke();
+  for (const lx of [-27, 31]) {
+    g.fillStyle = GLASS; g.beginPath(); g.roundRect(lx - 27, -16, 54, 34, [10, 10, 18, 18]); g.fill();
+    const lg = g.createLinearGradient(0, -12, 0, 14); lg.addColorStop(0, '#2c4a73'); lg.addColorStop(1, '#0b1322');
+    g.fillStyle = lg; g.beginPath(); g.roundRect(lx - 22, -11, 44, 25, [7, 7, 14, 14]); g.fill();
+    g.strokeStyle = '#7d8fa8'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(lx - 22, -13); g.lineTo(lx + 22, -13); g.stroke();   // rim light on the frame
+    g.fillStyle = 'rgba(255,255,255,.75)'; g.beginPath(); g.ellipse(lx - 9, -3, 8, 3.5, -.5, 0, Math.PI * 2); g.fill();
+  }
+  g.restore();
+  if (wb && !shock) { g.fillStyle = '#7fc4ff'; g.beginPath(); g.moveTo(80, -40); g.quadraticCurveTo(96, -14, 80, -8); g.quadraticCurveTo(64, -14, 80, -40); g.fill(); }
+  if (shock) { g.strokeStyle = onBlue(sceneOf(t)) ? WH : RED; g.lineWidth = 7; for (const a of [-2.4, -1.9, -1.4]) { g.beginPath(); g.moveTo(Math.cos(a) * 140, Math.sin(a) * 140 - 30); g.lineTo(Math.cos(a) * 175, Math.sin(a) * 175 - 30); g.stroke(); } }
+  g.restore();
+  // right arm in front — does the work
+  const Rr = st.r || { x: 150, y: 330, bend: -1, hand: 'fist' };
+  arm(100, 40, Rr.x, Rr.y, Rr.bend, Rr.hand, Rr.prop);
+  if (st.lFront) { WAVES = st.waves ? t : -1; arm(-100, 40, L.x, L.y, L.bend, L.hand, L.prop); WAVES = -1; }
+  g.restore();
+}
+
+// white cut-out outline + shadow around the character (sticker look, visible on blue)
+const OC = document.createElement('canvas'), OW = document.createElement('canvas');
+OC.width = OW.width = W; OC.height = OW.height = H;
+function sticker(fn, maskOnly) {
+  const main = g, oc = OC.getContext('2d'), ow = OW.getContext('2d');
+  oc.setTransform(1, 0, 0, 1, 0, 0); oc.clearRect(0, 0, W, H);
+  g = oc; fn(); g = main;
+  ow.setTransform(1, 0, 0, 1, 0, 0); ow.globalCompositeOperation = 'source-over'; ow.clearRect(0, 0, W, H);
+  ow.drawImage(OC, 0, 0); ow.globalCompositeOperation = 'source-in'; ow.fillStyle = WH; ow.fillRect(0, 0, W, H);
+  if (maskOnly) return;            // only prepare the white silhouette (OW) for the sketch effect
+  g.save(); g.shadowColor = 'rgba(0,20,60,.3)'; g.shadowBlur = 26; g.shadowOffsetY = 12; g.drawImage(OW, 0, 0); g.restore();
+  for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; g.drawImage(OW, Math.cos(a) * 9, Math.sin(a) * 9); }
+  g.drawImage(OC, 0, 0);
+}
+
+// speech bubble, typed on; tail from the edge facing the speaker
+function bubble(lines, x, y, maxW, tail, p, typed, big) {
+  if (p <= 0) return;
+  const F = big ? 64 : 52, wt = big ? 800 : 700;
+  g.save(); g.font = `${wt} ${F}px Montserrat`; const tw = Math.max(...lines.map(l => g.measureText(l).width)); g.restore();
+  const fs = Math.min(F, Math.floor(F * (maxW - 72) / tw)), lh = fs * 1.25, w = tw * fs / F + 72, h = 50 + lines.length * lh;
+  g.save(); g.translate(x + w / 2, y + h / 2); g.scale(p, p); g.translate(-(x + w / 2), -(y + h / 2));
+  g.shadowColor = 'rgba(0,20,60,.25)'; g.shadowBlur = 28; g.shadowOffsetY = 10;
+  g.fillStyle = WH; g.strokeStyle = BLUE; g.lineWidth = 6;
+  g.beginPath(); g.roundRect(x, y, w, h, 34); g.fill(); g.shadowColor = 'transparent'; g.stroke();
+  let a, b;  // tail base points
+  if (tail[0] > x + 30 && tail[0] < x + w - 30) { const by = tail[1] > y + h / 2 ? y + h : y, bx = clamp(tail[0], x + 60, x + w - 60); a = [bx - 24, by]; b = [bx + 20, by]; }  // speaker below/above: tail from the bottom/top edge
+  else { const sx = tail[0] < x + w / 2 ? x : x + w, ty = clamp(tail[1], y + 40, y + h - 40); a = [sx, ty - 22]; b = [sx, ty + 18]; }
+  g.beginPath(); g.moveTo(...a); g.lineTo(...tail); g.lineTo(...b); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(...a); g.lineTo(...tail); g.lineTo(...b); g.stroke();
+  g.fillStyle = WH; g.beginPath(); g.moveTo(a[0] + (b[0] - a[0]) * .1, a[1] + (b[1] - a[1]) * .1 - (a[1] === b[1] ? 4 : 0));
+  g.lineTo(b[0] - (b[0] - a[0]) * .1, b[1] - (b[1] - a[1]) * .1 - (a[1] === b[1] ? 4 : 0)); g.lineWidth = 8; g.strokeStyle = WH; g.stroke();
+  const words = lines.map(l => l.split(' ')), nW = words.flat().length; let left = Math.ceil(nW * typed - 1e-6);
+  lines.forEach((l, i) => {
+    const s = words[i].slice(0, Math.max(0, left)).join(' '); left -= words[i].length;
+    text(s, x + 36, y + h / 2 + (i - (lines.length - 1) / 2) * lh, { f: 'Montserrat', w: wt, s: fs, col: INK, align: 'left' });
+  });
+  g.restore();
+}
+
+
+
+// ---------------------------------------------------------------- walking legs for the analogy
+function legs(st, t) {
+  const bent = st.walk === 'bent', ph = t * (bent ? 6.2 : 5.5);
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  for (const side of [-1, 1]) {
+    const lift = st.walk ? Math.max(0, Math.sin(ph + (side > 0 ? Math.PI : 0))) * (bent ? 46 : 34) : 0;
+    const hx = side * 55, fx = side * (bent ? 30 : 55), fy = 760 - lift, kx = side * (55 + (bent ? 95 : 0)), ky = 580 - lift * .5;
+    const leg = () => { g.beginPath(); g.moveTo(hx, 420); g.quadraticCurveTo(kx, ky, fx, fy); g.stroke(); };
+    g.strokeStyle = INKL; g.lineWidth = 104; leg();
+    g.strokeStyle = PANTS; g.lineWidth = 92; leg();
+    g.strokeStyle = '#2f3c69'; g.lineWidth = 4; g.beginPath(); g.moveTo(hx - side * 6, 460); g.quadraticCurveTo(kx - side * 6, ky, fx - side * 6, fy - 20); g.stroke();  // trouser crease
+    if (LOOK === 'atelier') {         // cargo trousers: side pocket with flap on each thigh
+      const px = side * (bent ? 92 : 74), py = 560;
+      g.save(); g.translate(px, py); g.rotate(side * (bent ? .25 : .03));
+      if (side < 0) {                // red shop rag hanging out of the pocket
+        const fl = Math.sin(t * 6) * 4;   // tucked in the pocket, the top flops out over the flap
+        g.fillStyle = INKL; g.beginPath(); g.moveTo(-24, -40); g.quadraticCurveTo(-30 + fl, -86, -4 + fl, -90); g.quadraticCurveTo(22 + fl, -84, 20, -40); g.closePath(); g.fill();
+        g.fillStyle = RED; g.beginPath(); g.moveTo(-20, -40); g.quadraticCurveTo(-25 + fl, -82, -4 + fl, -85); g.quadraticCurveTo(17 + fl, -80, 16, -40); g.closePath(); g.fill();
+        g.strokeStyle = '#a5060f'; g.lineWidth = 3; g.beginPath(); g.moveTo(-6 + fl, -78); g.quadraticCurveTo(-2, -60, -6, -44); g.stroke();
+      }
+      g.fillStyle = INKL; rrect(-37, -50, 74, 104, 12); g.fill();
+      g.fillStyle = '#2e3b70'; rrect(-33, -46, 66, 96, 10); g.fill();
+      g.strokeStyle = '#5465a0'; g.lineWidth = 3; g.setLineDash([7, 6]); rrect(-26, -14, 52, 56, 7); g.stroke(); g.setLineDash([]);   // stitching
+      g.fillStyle = INKL; rrect(-37, -50, 74, 34, 11); g.fill(); g.fillStyle = '#222c5a'; rrect(-33, -46, 66, 26, 9); g.fill();     // flap
+      g.fillStyle = '#d3d8df'; g.beginPath(); g.arc(0, -31, 5.5, 0, Math.PI * 2); g.fill();
+      g.restore();
+    }
+    g.save(); g.translate(fx, fy + 30); g.rotate(bent ? -side * .4 : 0);
+    if (LOOK === 'atelier') {         // work shoes: black upper, light rubber sole, laces
+      g.fillStyle = INKL; rrect(-64, -32, 128, 62, 24); g.fill();
+      g.fillStyle = '#17191e'; rrect(-59, -27, 118, 44, 20); g.fill();
+      g.fillStyle = '#c3c9d2'; rrect(-59, 12, 118, 13, 6); g.fill();
+      g.strokeStyle = '#e9edf2'; g.lineWidth = 3; for (const o of [-14, -4, 6]) { g.beginPath(); g.moveTo(side * 6 + o, -22); g.lineTo(side * 6 + o + 8, -8); g.stroke(); }
+    } else {                          // black patent loafers with a tassel (as in the photos)
+      g.fillStyle = INKL; rrect(-62, -27, 124, 56, 24); g.fill();
+      g.fillStyle = '#0a0a0c'; rrect(-57, -22, 114, 46, 20); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.ellipse(side * 22, -10, 20, 5, 0, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#3a3d45'; g.lineWidth = 3; g.beginPath(); g.moveTo(side * 2 - 6, -18); g.lineTo(side * 2 - 8, -4); g.moveTo(side * 2 + 6, -18); g.lineTo(side * 2 + 8, -4); g.stroke();
+      g.fillStyle = '#3a3d45'; for (const o of [-8, 8]) { g.beginPath(); g.arc(side * 2 + o, -2, 4, 0, Math.PI * 2); g.fill(); }
+    }
+    g.restore();
+  }
+}
+
+
+function revealLine(str, y, r, at, s, col) {
+  const p = eOut(lin(r, at, at + .4)); if (p <= 0) return;
+  g.save(); g.beginPath(); g.rect(0, y - s * .8, W, s * 1.6); g.clip(); text(str, W / 2, y + (1 - p) * s, { s, col, a: p }); g.restore();
+}
+
+// film grain
+const GRAIN = Array.from({ length: 4 }, () => {
+  const cv = document.createElement('canvas'); cv.width = 270; cv.height = 480; const x = cv.getContext('2d');
+  const im = x.createImageData(270, 480);
+  for (let i = 0; i < im.data.length; i += 4) { const v = Math.random() * 255; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; }
+  x.putImageData(im, 0, 0); return cv;
+});
+function grain(t) { g.save(); g.globalAlpha = .05; g.globalCompositeOperation = 'overlay'; g.drawImage(GRAIN[Math.floor(t * 12) % 4], 0, 0, W, H); g.restore(); }
+
+// ---------------------------------------------------------------- beat grid
+// Alpajo, 143.6 BPM. 11 bars of 4 beats = 18.38 s, a downbeat at 0 s (lay the track so a downbeat starts the video).
+// M1 hook · M2 jingle · M3 the name · M4 « Ça va passer… » / « Pas avec moi ! » · M5–6 idea 1 · M7–8 idea 2 · M9 result · M10 question · M11 teaser
+const BEAT = 60 / 143.6, bt = n => n * BEAT;
+const NAME = 'TITINE';             // MAQUETTE — replace with the name the audience chose (Épisode 0 vote)
+const HOME = { x: 280, y: 800, sc: 1 }, CARX = 664, CARY = 1290, CSC = .95;
+const DIAL = { x: 720, y: 820 };
+
+// ---------------------------------------------------------------- the garage (same set as Épisode 0)
+function cartoonBg(t) {
+  g.fillStyle = '#eef3f9'; g.fillRect(0, 0, W, H);
+  swooshBg(BLUE, .06, t);
+  // brand band kept high (fascia) so it never runs behind his dark head; facade stays light for contrast
+  g.fillStyle = BLUE; g.fillRect(0, 0, W, 150); g.fillStyle = RED; g.fillRect(0, 156, W, 12);
+  g.fillStyle = '#9aa5b4'; g.fillRect(96, 756, 888, 14);
+  g.fillStyle = '#c9d0d9'; g.fillRect(110, 770, 860, 710);
+  g.strokeStyle = '#b3bcc8'; g.lineWidth = 4; for (let yy = 800; yy < 1480; yy += 34) { g.beginPath(); g.moveTo(110, yy); g.lineTo(970, yy); g.stroke(); }
+  g.fillStyle = '#5b6470'; g.fillRect(0, 1480, W, 440);
+  g.fillStyle = '#e9edf2'; for (let xx = -60; xx < W; xx += 220) g.fillRect(xx + ((t * 0) % 220), 1600, 110, 14);
+}
+
+// ---------------------------------------------------------------- the car (side view, facing left) — she has a face and a name
+const CAR = '#F2B33D', CAR_D = '#cf8f22';
+function car(x, y, t, st) {
+  const f = st.flat || 0;
+  g.save(); g.translate(x, y); g.scale(CSC, CSC);
+  g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(0, 172 + (st.hop || 0) / CSC, 300 * (1 - (st.hop || 0) / 400), 18, 0, 0, Math.PI * 2); g.fill();   // shadow stays on the road
+  g.translate(170, 172); g.rotate(-.045 * f); g.translate(-170, -172);   // sags onto the flat front tyre
+  g.fillStyle = CAR; rrect(-290, -30, 580, 150, 50); g.fill();
+  g.beginPath(); g.moveTo(-170, -28); g.quadraticCurveTo(-120, -170, 30, -168); g.lineTo(150, -165); g.quadraticCurveTo(220, -160, 235, -28); g.closePath(); g.fill();
+  g.fillStyle = CAR_D; g.fillRect(-290, 70, 580, 14);
+  g.fillStyle = '#BFE3F5';
+  g.beginPath(); g.moveTo(-135, -38); g.quadraticCurveTo(-100, -140, 10, -142); g.lineTo(10, -38); g.closePath(); g.fill();
+  rrect(30, -142, 175, 104, 18); g.fill();
+  if (st.splash > 0) {               // the raindrop bursts on the windscreen
+    const p = st.splash; g.save(); g.globalAlpha = 1 - lin(p, .5, 1); g.strokeStyle = '#7fc4ff'; g.lineWidth = 6;
+    g.beginPath(); g.ellipse(-70, -95, 20 + 50 * p, 8 + 18 * p, -.5, 0, Math.PI * 2); g.stroke();
+    g.fillStyle = '#7fc4ff'; for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; g.beginPath(); g.arc(-70 + Math.cos(a) * 60 * p, -95 + Math.sin(a) * 30 * p, 6, 0, Math.PI * 2); g.fill(); }
+    g.restore();
+  }
+  // the name plate on the door: « ??? » flips over to her name
+  { const fl = st.plate || 0, k = Math.abs(Math.cos(Math.PI * fl));
+    g.save(); g.translate(118, 34); g.scale(1, k);
+    g.fillStyle = WH; g.strokeStyle = BLUE; g.lineWidth = 5; rrect(-92, -30, 184, 60, 14); g.fill(); g.stroke();
+    text(fl < .5 ? '???' : NAME, 0, 3, { s: fit(fl < .5 ? '???' : NAME, 50, 160), col: fl < .5 ? GREY : RED });
+    g.restore(); }
+  // the client at the wheel
+  const pop = st.pop || 0;
+  g.save(); g.translate(-55 - pop * 70, -80 - pop * 60);
+  g.fillStyle = '#8a5a3c'; g.beginPath(); g.ellipse(0, 0, 44, 50, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#E8692B'; g.beginPath(); g.moveTo(-46, -14); g.quadraticCurveTo(-42, -62, 0, -62); g.quadraticCurveTo(42, -62, 46, -14); g.closePath(); g.fill();
+  g.fillRect(-82, -20, 50, 12);
+  g.fillStyle = WH; for (const ex of [-18, 10]) { g.beginPath(); g.ellipse(ex, 0, 9, 10, 0, 0, Math.PI * 2); g.fill(); }
+  g.fillStyle = '#1a1110'; for (const ex of [-21, 7]) { g.beginPath(); g.arc(ex, 1, 5, 0, Math.PI * 2); g.fill(); }
+  if (st.bof) { g.fillStyle = '#8a5a3c'; for (const ex of [-18, 10]) g.fillRect(ex - 11, -12, 22, 11); g.strokeStyle = '#3a1712'; g.lineWidth = 3; for (const ex of [-18, 10]) { g.beginPath(); g.moveTo(ex - 10, -1); g.lineTo(ex + 10, -1); g.stroke(); } }  // half-lidded: « bof »
+  g.strokeStyle = '#3a1712'; g.lineWidth = 5; g.lineCap = 'round'; g.beginPath();
+  if (st.bof) { g.moveTo(-12, 28); g.lineTo(12, 26); } else { g.moveTo(-14, 26); g.quadraticCurveTo(0, 32, 14, 24); } g.stroke();
+  if (st.thumb > 0) {                // a half-hearted thumbs-up out of the window
+    g.save(); g.translate(-70, 40); g.rotate(Math.sin(t * 7) * .25); g.scale(st.thumb, st.thumb);
+    g.fillStyle = '#8a5a3c'; g.beginPath(); g.arc(0, 0, 20, 0, Math.PI * 2); g.fill(); rrect(-8, -44, 16, 36, 8); g.fill(); g.restore();
+  }
+  g.restore();
+  // her face: headlight eye, brow, mouth on the bumper
+  const happy = st.mood === 'happy';
+  g.fillStyle = WH; g.beginPath(); g.ellipse(-262, 18, 22, happy ? 28 : 26, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#1a1110'; g.beginPath(); g.arc(-266, happy ? 14 : 24, happy ? 12 : 10, 0, Math.PI * 2); g.fill();
+  if (happy) { g.fillStyle = WH; g.beginPath(); g.arc(-261, 9, 4, 0, Math.PI * 2); g.fill(); }
+  else { g.fillStyle = CAR_D; g.beginPath(); g.ellipse(-262, 6, 26, 16, 0, Math.PI, Math.PI * 2); g.fill(); }
+  g.strokeStyle = '#3a2a10'; g.lineCap = 'round';
+  if (happy) {
+    g.lineWidth = 6; g.beginPath(); g.moveTo(-292, -24); g.quadraticCurveTo(-266, -40, -238, -26); g.stroke();
+    g.lineWidth = 10; g.beginPath(); g.moveTo(-300, 82); g.quadraticCurveTo(-270, 112, -236, 84); g.stroke();
+  } else {
+    g.lineWidth = 6; g.beginPath(); g.moveTo(-290, -16); g.lineTo(-240, -30); g.stroke();
+    g.lineWidth = 10; g.beginPath(); g.moveTo(-300, 100); g.quadraticCurveTo(-272, 70, -238, 98); g.stroke();
+  }
+  if (st.blush > 0) { g.fillStyle = `rgba(232,90,110,${.55 * st.blush})`; for (const bx of [-226, -196]) { g.beginPath(); g.ellipse(bx, 50, 20, 11, 0, 0, Math.PI * 2); g.fill(); } }
+  // wheels: the front one goes from flat (squashed, bulging, rim low) to round when inflated
+  for (const [wx, fw] of [[-170, f], [170, 0]]) {
+    g.save(); g.translate(wx, 110 + 7 * fw);
+    g.fillStyle = '#16181c'; g.beginPath(); g.ellipse(0, 0, 62 + 14 * fw, 62 - 22 * fw, 0, 0, Math.PI * 2); g.fill();
+    if (fw > .05) { g.beginPath(); g.ellipse(0, 30 * fw, 62 + 28 * fw, 13 * fw, 0, 0, Math.PI * 2); g.fill(); }
+    g.scale(1, 1 - .14 * fw);
+    g.fillStyle = '#aeb6c2'; g.beginPath(); g.arc(0, 0, 30 - 3 * fw, 0, Math.PI * 2); g.fill();
+    g.rotate(st.spin || 0); g.fillStyle = '#5b6470'; for (let i = 0; i < 4; i++) { g.rotate(Math.PI / 2); g.fillRect(-4, 6, 8, 22); }
+    g.restore();
+  }
+  g.restore();
+  if (st.hiss > 0) {                 // air hissing out of the flat
+    g.save(); g.strokeStyle = `rgba(150,165,185,${st.hiss})`; g.lineWidth = 7; g.lineCap = 'round';
+    const hx = x + (-170 - 95) * CSC, hy = y + 150 * CSC;
+    for (let i = 0; i < 3; i++) { const k = (t * 1.6 + i / 3) % 1; g.beginPath(); g.arc(hx - k * 70, hy - 10 - i * 18, 18 + k * 22, Math.PI * .6, Math.PI * 1.25); g.stroke(); }
+    g.restore();
+  }
+}
+
+function carState(t) {
+  const e = eOut(lin(t, 0, bt(3.5))), x = 1450 + (CARX - 1450) * e;
+  const roll = 1 - e, limp = roll > .01 ? -Math.abs(Math.sin(t * 9)) * 16 * roll : 0;   // hobbles on the flat
+  const hop = Math.sin(Math.PI * lin(t, bt(34), bt(35))) * 90;
+  const happy = (t >= bt(8) && t < bt(12)) || (t >= bt(33) && t < bt(40));
+  const pop = eBack(lin(t, bt(12), bt(12.5))) * (1 - lin(t, bt(15), bt(15.5))) + eBack(lin(t, bt(35), bt(35.5))) * (1 - lin(t, bt(36.5), bt(37)));
+  return {
+    x, y: CARY + limp - hop, hop, spin: (x - CARX) / 60 - eInOut(lin(t, bt(34), bt(35))) * 1.5, flat: 1 - eInOut(lin(t, bt(32), bt(33))),
+    mood: happy ? 'happy' : 'sad', blush: lin(t, bt(8), bt(8.5)) * (1 - lin(t, bt(11.5), bt(12))),
+    plate: lin(t, bt(7.5), bt(8)), pop, thumb: eBack(lin(t, bt(35.3), bt(35.7))) * (1 - lin(t, bt(36.4), bt(36.7))), bof: t > bt(35.2) && t < bt(36.7),
+    hiss: 1 - lin(t, bt(3.5), bt(4.5)), splash: lin(t, bt(42), bt(43)),
+  };
+}
+
+// ---------------------------------------------------------------- Alonzo: poses, entrance, the mic that turns into a pressure gauge
+const MIC_CHEST = { x: -28, y: 64, bend: 1, hand: 'fist', prop: 'mic' }, MIC_MOUTH = { x: -40, y: 6, bend: 1, hand: 'fist', prop: 'mic' };
+const MIC_UP = { x: -200, y: -190, bend: -1, hand: 'fist', prop: 'mic' }, CATCH = { x: -215, y: -150, bend: -1, hand: 'open' };
+const GAUGE = { x: -190, y: -50, bend: -1, hand: 'fist', prop: 'gauge' };
+const SWAP = [bt(15), bt(16)];
+const TALK = [[bt(14), bt(15)], [bt(36), bt(37.6)]];
+function alonzoPos(t) {
+  const p = eOut(lin(t, bt(4), bt(5)));
+  return { x: -260 + (HOME.x + 260) * p, y: HOME.y - Math.sin(Math.PI * p) * 120, sc: 1 };
+}
+function poseAt(t) {
+  const st = { mood: 'happy', dress: 1, lFront: true, l: t < SWAP[0] ? MIC_CHEST : GAUGE };
+  if (t < bt(5)) { st.mood = 'grin'; st.l = MIC_UP; }
+  else if (t < bt(8)) st.mood = 'happy';
+  else if (t < bt(12)) { st.mood = 'grin'; st.r = { x: 195, y: -30, bend: 1, hand: 'thumb' }; }        // her name!
+  else if (t < bt(13)) st.mood = 'happy';
+  else if (t < bt(14)) { st.mood = 'worried'; st.r = { x: 10, y: -170, bend: 1, hand: 'open' }; }      // facepalm
+  else if (t < SWAP[0]) { st.l = MIC_MOUTH; st.waves = true; }                                          // « Pas avec moi ! »
+  else if (t < SWAP[1]) { st.mood = 'grin'; st.l = CATCH; }                                             // mic in the air…
+  else if (t < bt(24)) { st.mood = t > bt(18) && t < bt(20.5) ? 'worried' : 'happy'; st.r = { x: 200, y: -40, bend: 1, hand: 'point' }; }   // the dial: too low
+  else if (t < bt(32)) { st.mood = 'grin'; st.r = { x: 200, y: -10, bend: 1, hand: 'point' }; }        // where the right value is written
+  else if (t < bt(36)) { st.mood = 'grin'; st.r = { x: 195, y: -30, bend: 1, hand: 'thumb' }; }       // tyre's back up
+  else if (t < bt(40)) { st.mood = 'happy'; st.r = { x: 200, y: 90, bend: 1, hand: 'open' }; }         // your turn
+  else st.mood = 'worried';                                                                             // a cloud…
+  st.talk = TALK.some(([a, b]) => t >= a && t < b);
+  if (st.talk && st.mood === 'happy') st.mood = 'talk';
+  return st;
+}
+function gaugeShape() {              // pencil pressure gauge, in flight
+  g.fillStyle = INKL; rrect(-14, -50, 28, 100, 10); g.fill(); g.fillStyle = '#20242b'; rrect(-10, -46, 20, 92, 8); g.fill();
+  g.fillStyle = '#c9d0d9'; rrect(-14, -74, 28, 28, 6); g.fill();
+}
+
+// ---------------------------------------------------------------- inserts
+function dial(cx, cy, t, t0, t1) {   // round pressure dial: the needle sits low, in the red
+  const a = eOut(lin(t, t0, t0 + BEAT)) * (1 - lin(t, t1 - .25, t1)); if (a <= 0) return;
+  const r = 230, a0 = Math.PI * .75, a1 = Math.PI * 2.25, sc = .74 * (.6 + .4 * eBack(lin(t, t0, t0 + BEAT)));
+  g.save(); g.translate(cx, cy); g.scale(sc, sc); g.globalAlpha *= a;
+  g.shadowColor = 'rgba(8,40,90,.2)'; g.shadowBlur = 40; g.shadowOffsetY = 14;
+  g.fillStyle = WH; g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill(); g.shadowColor = 'transparent';
+  g.strokeStyle = BLUE; g.lineWidth = 18; g.stroke();
+  g.lineWidth = 26; g.lineCap = 'butt';
+  const zone = (f0, f1, col) => { g.strokeStyle = col; g.beginPath(); g.arc(0, 0, r * .76, a0 + (a1 - a0) * f0, a0 + (a1 - a0) * f1); g.stroke(); };
+  zone(0, .4, RED); zone(.4, .56, '#f2a3a8'); zone(.56, .82, BLUE); zone(.82, 1, RED);
+  for (let i = 0; i <= 10; i++) { const an = a0 + (a1 - a0) * i / 10; g.strokeStyle = INK; g.lineWidth = i % 5 ? 4 : 7;
+    g.beginPath(); g.moveTo(Math.cos(an) * r * .58, Math.sin(an) * r * .58); g.lineTo(Math.cos(an) * r * .5, Math.sin(an) * r * .5); g.stroke(); }
+  const np = lin(t, t0 + BEAT, t0 + 2 * BEAT), na = a0 + (a1 - a0) * (.05 + .17 * eBack(np) + Math.sin(t * 22) * .006 * np);
+  g.strokeStyle = RED; g.lineWidth = 12; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(-Math.cos(na) * 30, -Math.sin(na) * 30); g.lineTo(Math.cos(na) * r * .66, Math.sin(na) * r * .66); g.stroke();
+  g.fillStyle = BLUE; g.beginPath(); g.arc(0, 0, 26, 0, Math.PI * 2); g.fill();
+  text('BAR', 0, r * .45, { f: 'Montserrat', w: 800, s: 34, col: GREY });
+  warning(r * .82, -r * .78, eBack(lin(t, t0 + 2 * BEAT, t0 + 2.5 * BEAT)));
+  g.restore();
+}
+function card(x, y, t, t0, t1, icon, l1, l2) {   // where the right pressure is written
+  const p = eBack(lin(t, t0, t0 + .3)) * (1 - eIn(lin(t, t1 - .25, t1))); if (p <= 0) return;
+  const w = 470, h = 150;
+  g.save(); g.translate(x + w / 2, y + h / 2); g.scale(p, p); g.translate(-(x + w / 2), -(y + h / 2));
+  g.shadowColor = 'rgba(8,40,90,.22)'; g.shadowBlur = 26; g.shadowOffsetY = 10; g.fillStyle = WH; rrect(x, y, w, h, 28); g.fill();
+  g.shadowColor = 'transparent'; g.strokeStyle = BLUE; g.lineWidth = 6; g.stroke();
+  const ix = x + 85, iy = y + h / 2;
+  g.strokeStyle = INK; g.lineWidth = 7; g.lineJoin = 'round';
+  if (icon === 'door') {             // open driver's door, label on the edge
+    g.beginPath(); g.moveTo(ix - 40, iy - 50); g.lineTo(ix + 30, iy - 50); g.lineTo(ix + 40, iy + 50); g.lineTo(ix - 40, iy + 50); g.closePath(); g.stroke();
+    g.beginPath(); g.moveTo(ix - 40, iy - 8); g.lineTo(ix + 34, iy - 8); g.stroke();
+    g.fillStyle = '#ffd34d'; g.strokeStyle = RED; g.lineWidth = 4; rrect(ix + 8, iy + 4, 26, 34, 5); g.fill(); g.stroke();
+  } else {                           // fuel flap, label inside
+    g.beginPath(); g.arc(ix, iy, 50, 0, Math.PI * 2); g.stroke();
+    g.fillStyle = '#ffd34d'; g.strokeStyle = RED; g.lineWidth = 4; rrect(ix - 20, iy - 16, 40, 32, 5); g.fill(); g.stroke();
+  }
+  text(l1, x + 160, iy - 25, { f: 'Montserrat', w: 800, s: 40, col: INK, align: 'left' });
+  text(l2, x + 160, iy + 25, { f: 'Montserrat', w: 800, s: 40, col: INK, align: 'left' });
+  g.restore();
+}
+function chip(str, x, y, t, t0, col) {
+  const p = eBack(lin(t, t0, t0 + .3)); if (p <= 0) return;
+  g.save(); g.translate(x, y); g.scale(p, p);
+  g.shadowColor = 'rgba(8,40,90,.22)'; g.shadowBlur = 20; g.shadowOffsetY = 8; g.fillStyle = col; rrect(-210, -40, 420, 80, 40); g.fill();
+  g.shadowColor = 'transparent'; text(str, 0, 3, { s: 56, col: WH }); g.restore();
+}
+function cloud(x, y, t, angry) {     // the Kashkazi cloud: grey, frowning, blowing rain
+  g.save(); g.translate(x, y);
+  g.fillStyle = '#9aa6b6'; for (const [cx, cy, r] of [[-120, 20, 70], [-40, -30, 95], [70, -10, 85], [140, 30, 60], [10, 40, 80]]) { g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill(); }
+  g.fillStyle = '#7d8a9c'; g.fillRect(-180, 40, 380, 60);
+  g.fillStyle = WH; for (const ex of [-40, 40]) { g.beginPath(); g.ellipse(ex, 10, 16, 18, 0, 0, Math.PI * 2); g.fill(); }
+  g.fillStyle = '#1a1110'; for (const ex of [-44, 36]) { g.beginPath(); g.arc(ex, 16, 8, 0, Math.PI * 2); g.fill(); }
+  g.strokeStyle = '#2b3442'; g.lineWidth = 10; g.lineCap = 'round';
+  const k = angry ? 14 : 4; g.beginPath(); g.moveTo(-70, -20 - k); g.lineTo(-18, -8); g.moveTo(70, -20 - k); g.lineTo(18, -8); g.stroke();
+  g.restore();
+  g.save(); g.strokeStyle = 'rgba(127,196,255,.7)'; g.lineWidth = 5; g.lineCap = 'round';   // rain streaks under it
+  for (let i = 0; i < 9; i++) { const rx = x - 160 + i * 40, ry = y + 110 + ((t * 900 + i * 57) % 160); g.beginPath(); g.moveTo(rx, ry); g.lineTo(rx - 10, ry + 34); g.stroke(); }
+  g.restore();
+}
+
+// ---------------------------------------------------------------- bubbles: [start, end, typing, lines, x, y, maxW, who, big]
+const LINES1 = [
+  [bt(12), bt(15.2), 0, ['Ça va passer…'], 400, 900, 540, 'c', 1],
+  [bt(14), bt(17), 0, ['Ah non.', 'Pas avec moi !'], 400, 545, 540, 'm'],
+  [bt(36), bt(40), .5, ['Vous vérifiez', 'tous les combien ?'], 400, 545, 540, 'm'],
+];
+
+function render(t) {
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  // camera: the hook is framed tight on the limping car, then opens on the garage as the jingle lands
+  const z = 1 - eInOut(lin(t, bt(2.5), bt(4))), k = 1 + .45 * z;
+  g.fillStyle = '#5b6470'; g.fillRect(0, 0, W, H);   // road colour under the zoomed frame
+  g.save(); g.translate(CARX, 1300 - 300 * z); g.scale(k, k); g.translate(-CARX, -1300);
+  cartoonBg(t);
+  const cs = carState(t);
+  if (t >= bt(8) && t < bt(10)) confetti(CARX, 1120, t, bt(8));
+  car(cs.x, cs.y, t, cs);
+  if (t >= bt(34)) confetti(CARX, 1150, t, bt(34));
+  // Alonzo
+  if (t >= bt(4)) {
+    const m = alonzoPos(t), st = poseAt(t); st.sc = m.sc;
+    const air = clamp((HOME.y - m.y) / 120);
+    g.fillStyle = `rgba(10,25,60,${.22 * (1 - air * .5)})`; g.beginPath(); g.ellipse(m.x, HOME.y + 830, 190 * (1 - air * .35), 22, 0, 0, Math.PI * 2); g.fill();
+    sticker(() => mechanic(m.x, m.y, t, st));
+    const fp = lin(t, SWAP[0], SWAP[1]);   // the mic goes up, « pouf », a pressure gauge comes down
+    if (fp > 0 && fp < 1) {
+      const fx = m.x - 215, fy = m.y - 230 - Math.sin(Math.PI * fp) * 120;
+      g.save(); g.translate(fx, fy); g.rotate(fp * Math.PI * 4);
+      if (fp > .5) gaugeShape(); else { g.fillStyle = INKL; rrect(-14, -30, 28, 80, 11); g.fill(); g.fillStyle = '#25282e'; rrect(-10, -26, 20, 72, 8); g.fill(); foam(0, -52); }
+      g.restore();
+      const pf = 1 - Math.abs(fp - .5) / .12;
+      if (pf > 0) { g.save(); g.translate(fx, fy); g.globalAlpha = pf; g.strokeStyle = WH; g.lineWidth = 8; g.lineCap = 'round';
+        for (let i = 0; i < 8; i++) { const an = i / 8 * Math.PI * 2, r0 = 40 + (1 - pf) * 40; g.beginPath(); g.moveTo(Math.cos(an) * r0, Math.sin(an) * r0); g.lineTo(Math.cos(an) * (r0 + 34), Math.sin(an) * (r0 + 34)); g.stroke(); }
+        g.fillStyle = '#ffd34d'; g.beginPath(); g.arc(0, 0, 30 * pf, 0, Math.PI * 2); g.fill(); g.restore(); }
+    }
+  }
+  g.restore();   // camera
+
+  // M3 — her name
+  if (t >= bt(8) && t < bt(12)) {
+    g.save(); g.globalAlpha = 1 - lin(t, bt(11.5), bt(12));
+    punch(NAME + ' !', 660, 470, bt(8), t, fit(NAME + ' !', 170, 500), RED);
+    marker('VOUS L’AVEZ BAPTISÉE !', 660, 590, bt(8.5), t, fit('VOUS L’AVEZ BAPTISÉE !', 64, 470), BLUE, WH);
+    g.restore();
+  }
+  // M5–6 — idea 1: check the pressure every month, tyres cold
+  if (t >= bt(16) && t < bt(24)) {
+    g.save(); g.globalAlpha = 1 - lin(t, bt(23.4), bt(24));
+    marker('VÉRIFIEZ LA PRESSION', 540, 470, bt(16), t, fit('VÉRIFIEZ LA PRESSION', 96, 820), BLUE, WH);
+    marker('CHAQUE MOIS · À FROID', 700, 1060, bt(20), t, fit('CHAQUE MOIS · À FROID', 70, 420), RED, WH);
+    g.restore();
+  }
+  dial(DIAL.x, DIAL.y, t, bt(17), bt(24));
+  // M7–8 — idea 2: the right value is written on the car
+  if (t >= bt(24) && t < bt(32)) {
+    g.save(); g.globalAlpha = 1 - lin(t, bt(31.4), bt(32));
+    marker('LA BONNE VALEUR ?', 540, 470, bt(24), t, fit('LA BONNE VALEUR ?', 96, 820), BLUE, WH);
+    if (t >= bt(27)) text('ou', 695, 812, { f: 'Montserrat', w: 800, s: 38, col: GREY, a: eOut(lin(t, bt(27), bt(27.4))) });
+    g.restore();
+  }
+  card(460, 640, t, bt(25), bt(32), 'door', 'Portière', 'conducteur');
+  card(460, 845, t, bt(27), bt(32), 'flap', 'Trappe à', 'carburant');
+  // M9 — result
+  if (t >= bt(33) && t < bt(36)) {
+    g.save(); g.globalAlpha = 1 - lin(t, bt(35.5), bt(36));
+    marker('PNEU AU TOP !', 540, 470, bt(33), t, 100, BLUE, WH);
+    text('Moins de conso,', 730, 620, { f: 'Montserrat', w: 800, s: 46, col: INK, a: eOut(lin(t, bt(34), bt(34.4))) });
+    text('plus de sécurité', 730, 680, { f: 'Montserrat', w: 800, s: 46, col: INK, a: eOut(lin(t, bt(34.5), bt(34.9))) });
+    g.restore();
+  }
+  // M10 — question + contact
+  if (t >= bt(36) && t < bt(40.5)) {
+    g.save(); g.globalAlpha = 1 - lin(t, bt(40), bt(40.5));
+    chip('CHAQUE MOIS', 725, 800, t, bt(37), BLUE);
+    chip('JAMAIS…', 725, 900, t, bt(38), RED);
+    text('Répondez en commentaire', 725, 990, { f: 'Montserrat', w: 800, s: 32, col: INK, a: eOut(lin(t, bt(38.5), bt(39))) });
+    g.restore();
+  }
+  const ep = eBack(lin(t, bt(36), bt(36.4)));
+  if (ep > 0) {
+    g.save(); g.translate(195, 452); g.scale(ep * 1.1, ep * 1.1);
+    g.shadowColor = 'rgba(8,40,90,.25)'; g.shadowBlur = 24; g.fillStyle = WH; g.beginPath(); g.ellipse(0, 0, 100, 86, -.1, 0, Math.PI * 2); g.fill(); g.shadowColor = 'transparent';
+    const lw = 165, lh = lw * LOGO.height / LOGO.width; g.drawImage(LOGO, -lw / 2, -lh / 2, lw, lh);
+    g.restore();
+    if (t < bt(40)) { text('Combani', 640, 432, { f: 'Montserrat', w: 800, s: 44, col: BLUE, a: clamp(ep) }); text('+262 639 29 17 02', 640, 496, { f: 'Montserrat', w: 800, s: 52, col: BLUE, a: clamp(ep) * (1 - lin(t, bt(39.6), bt(40))) }); }
+  }
+  // bubbles
+  for (const [a, b, d, lines, bx, by, bw, who, big] of LINES1) {
+    if (t < a || t > b) continue;
+    const p = eBack(lin(t, a, a + .3)) * (1 - eIn(lin(t, b - .25, b))), typed = d ? lin(t, a + .1, a + .1 + d) : 1;
+    const tail = who === 'c' ? [cs.x + (-55 - cs.pop * 70) * CSC, cs.y + (-140 - cs.pop * 60) * CSC] : [alonzoPos(t).x + 110, alonzoPos(t).y - 140];
+    g.save(); if (big) g.translate(Math.sin(t * 38) * 4 * (1 - lin(t, a + .3, a + .9)) + Math.sin(t * 9) * 1.5, 0);
+    bubble(lines, bx, by, bw, tail, p, typed, big); g.restore();
+  }
+  // M11 — teaser: the sky turns, the Kashkazi cloud rolls in, a drop bursts on her windscreen
+  if (t >= bt(40)) {
+    const dk = eOut(lin(t, bt(40), bt(40.7)));
+    g.fillStyle = `rgba(8,20,45,${.62 * dk})`; g.fillRect(0, 0, W, H);
+    const fl = t >= bt(41) ? 1 - lin(t, bt(41), bt(41.5)) : 0; if (fl > 0) { g.fillStyle = `rgba(255,255,255,${.35 * fl})`; g.fillRect(0, 0, W, H); }
+    cloud(1300 + (700 - 1300) * eOut(lin(t, bt(40), bt(41))), 560, t, t >= bt(41));
+    const dp = lin(t, bt(41.4), bt(42));
+    if (dp > 0 && dp < 1) { const dx = 650 + (cs.x - 70 * CSC - 650) * dp, dy = 650 + (cs.y - 95 * CSC - 650) * eIn(dp);
+      g.fillStyle = '#7fc4ff'; g.beginPath(); g.moveTo(dx, dy - 34); g.quadraticCurveTo(dx + 20, dy, dx, dy + 10); g.quadraticCurveTo(dx - 20, dy, dx, dy - 34); g.fill(); }
+    marker('PROCHAIN ÉPISODE', 540, 790, bt(42), t, 80, RED, WH);
+    revealLine('VENDREDI 18 DÉCEMBRE', 890, t, bt(42.5), 84, WH);
+  }
+  if (t >= bt(4)) punch('GARDE LE CAP !', W / 2, 300, bt(4), t, 150, t >= bt(40) ? WH : BLUE);   // the jingle, then the series header
+  grain(t);
+}
+
+// ---------------------------------------------------------------- sound, on the beat grid
+const BAB = (b, n, base) => BABBLE(bt(b), n, base);
+window.SFX = [
+  [0, 'roll', { d: 1.5 }], [bt(.5), 'hiss'], [bt(1), 'stumble'], [bt(2), 'stumble'], [bt(3), 'stumble'],
+  [bt(4), 'jingle'], [bt(4), 'impact'], [bt(4), 'whoosh'], [bt(5), 'step'],
+  [bt(7.5), 'swoosh'], [bt(8), 'impact'], [bt(8), 'ding'], [bt(8.5), 'pop', { pitch: 1.2 }], [bt(9), 'pop', { pitch: 1.35 }],
+  [bt(12), 'pop', { pitch: .8 }], ...BAB(12.2, 6, .62), [bt(13), 'tick'], ...BAB(14, 7, .85),
+  [bt(15), 'whoosh'], [bt(15.5), 'pop', { pitch: .8 }], [bt(16), 'ding'],
+  [bt(16), 'swoosh'], [bt(17), 'pop'], [bt(18), 'tick'], [bt(18.5), 'tick'], [bt(19), 'error'], [bt(20), 'swoosh'], [bt(20.2), 'tick'],
+  [bt(24), 'swoosh'], [bt(25), 'pop', { pitch: 1.1 }], [bt(27), 'pop', { pitch: 1.25 }],
+  [bt(32), 'hiss'], [bt(33), 'pop', { pitch: 1.3 }], [bt(33), 'swoosh'], [bt(34), 'ding'], [bt(34), 'impact'], ...BAB(35.2, 3, .55),
+  [bt(36), 'pop', { pitch: 1.1 }], ...BAB(36.2, 9, .85), [bt(37), 'pop', { pitch: 1.2 }], [bt(38), 'pop', { pitch: 1.35 }],
+  [bt(40), 'riser', { d: .9 }], [bt(41), 'thunder'], [bt(42), 'drip'], [bt(42), 'swoosh'], [bt(42.5), 'swoosh'],
+].map(([at, ...r]) => [+at.toFixed(3), ...r]);
+Promise.all([
+  document.fonts.load('900 40px Barlow'), document.fonts.load('700 40px Montserrat'), document.fonts.load('800 40px Montserrat'),
+  img('../video/assets/logo.png').then(i => LOGO = i),
+]).then(() => { render(0); window.ready = true; });
+</script>
+</body></html>
