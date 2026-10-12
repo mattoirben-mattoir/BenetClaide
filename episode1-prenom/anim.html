@@ -447,15 +447,15 @@ const DIAL = { x: 720, y: 820 };
 
 // ---------------------------------------------------------------- the garage (same set as Épisode 0)
 function cartoonBg(t) {
-  g.fillStyle = '#eef3f9'; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#eef3f9'; g.fillRect(-700, -700, W + 1400, H + 1400);
   swooshBg(BLUE, .06, t);
   // brand band kept high (fascia) so it never runs behind his dark head; facade stays light for contrast
-  g.fillStyle = BLUE; g.fillRect(0, 0, W, 150); g.fillStyle = RED; g.fillRect(0, 156, W, 12);
+  g.fillStyle = BLUE; g.fillRect(-700, -700, W + 1400, 850); g.fillStyle = RED; g.fillRect(-700, 156, W + 1400, 12);
   g.fillStyle = '#9aa5b4'; g.fillRect(96, 756, 888, 14);
   g.fillStyle = '#c9d0d9'; g.fillRect(110, 770, 860, 710);
   g.strokeStyle = '#b3bcc8'; g.lineWidth = 4; for (let yy = 800; yy < 1480; yy += 34) { g.beginPath(); g.moveTo(110, yy); g.lineTo(970, yy); g.stroke(); }
-  g.fillStyle = '#5b6470'; g.fillRect(0, 1480, W, 440);
-  g.fillStyle = '#e9edf2'; for (let xx = -60; xx < W; xx += 220) g.fillRect(xx + ((t * 0) % 220), 1600, 110, 14);
+  g.fillStyle = '#5b6470'; g.fillRect(-700, 1480, W + 1400, 1140);
+  g.fillStyle = '#e9edf2'; for (let xx = -720; xx < W + 700; xx += 220) g.fillRect(xx + ((t * 0) % 220), 1600, 110, 14);
 }
 
 // ---------------------------------------------------------------- the car (side view, facing left) — she has a face and a name
@@ -552,7 +552,7 @@ const MIC_CHEST = { x: -28, y: 64, bend: 1, hand: 'fist', prop: 'mic' }, MIC_MOU
 const MIC_UP = { x: -200, y: -190, bend: -1, hand: 'fist', prop: 'mic' }, CATCH = { x: -215, y: -150, bend: -1, hand: 'open' };
 const GAUGE = { x: -190, y: -50, bend: -1, hand: 'fist', prop: 'gauge' };
 const SWAP = [bt(15), bt(16)];
-const TALK = [[bt(14), bt(15)], [bt(36), bt(37.6)]];
+const TALK = [[bt(14.6), bt(15)], [bt(36), bt(37.6)]];
 function alonzoPos(t) {
   const p = eOut(lin(t, bt(4), bt(5)));
   return { x: -260 + (HOME.x + 260) * p, y: HOME.y - Math.sin(Math.PI * p) * 120, sc: 1 };
@@ -562,8 +562,8 @@ function poseAt(t) {
   if (t < bt(5)) { st.mood = 'grin'; st.l = MIC_UP; }
   else if (t < bt(8)) st.mood = 'happy';
   else if (t < bt(12)) { st.mood = 'grin'; st.r = { x: 195, y: -30, bend: 1, hand: 'thumb' }; }        // her name!
-  else if (t < bt(13)) st.mood = 'happy';
-  else if (t < bt(14)) { st.mood = 'worried'; st.r = { x: 10, y: -170, bend: 1, hand: 'open' }; }      // facepalm
+  else if (t < bt(14)) st.mood = 'happy';
+  else if (t < bt(14.6)) { st.mood = 'worried'; st.r = { x: 10, y: -170, bend: 1, hand: 'open' }; }    // facepalm
   else if (t < SWAP[0]) { st.l = MIC_MOUTH; st.waves = true; }                                          // « Pas avec moi ! »
   else if (t < SWAP[1]) { st.mood = 'grin'; st.l = CATCH; }                                             // mic in the air…
   else if (t < bt(24)) { st.mood = t > bt(18) && t < bt(20.5) ? 'worried' : 'happy'; st.r = { x: 200, y: -40, bend: 1, hand: 'point' }; }   // the dial: too low
@@ -643,19 +643,51 @@ function cloud(x, y, t, angry) {     // the Kashkazi cloud: grey, frowning, blow
 
 // ---------------------------------------------------------------- bubbles: [start, end, typing, lines, x, y, maxW, who, big]
 const LINES1 = [
-  [bt(12), bt(15.2), 0, ['Ça va passer…'], 400, 900, 540, 'c', 1],
-  [bt(14), bt(17), 0, ['Ah non.', 'Pas avec moi !'], 400, 545, 540, 'm'],
+  [bt(12), bt(14), 0, ['Ça va passer…'], 230, 620, 620, 'c', 1],          // in the client's close-up
+  [bt(14.6), bt(17), 0, ['Ah non.', 'Pas avec moi !'], 520, 545, 420, 'm'],   // in Alonzo's close-up, held as the camera pulls back
   [bt(36), bt(40), .5, ['Vous vérifiez', 'tous les combien ?'], 400, 545, 540, 'm'],
 ];
 
-function render(t) {
-  g.setTransform(1, 0, 0, 1, 0, 0);
-  // camera: the hook is framed tight on the limping car, then opens on the garage as the jingle lands
-  const z = 1 - eInOut(lin(t, bt(2.5), bt(4))), k = 1 + .45 * z;
-  g.fillStyle = '#5b6470'; g.fillRect(0, 0, W, H);   // road colour under the zoomed frame
-  g.save(); g.translate(CARX, 1300 - 300 * z); g.scale(k, k); g.translate(-CARX, -1300);
+// ---------------------------------------------------------------- camera: one framing per story beat
+// A shot = the world point at the centre of the frame, zoom, roll. Snaps ease out fast on the beat, pushes are slow and linear.
+const SHOT = {
+  wide: { x: 540, y: 960, z: 1, r: 0 },
+  plate: { x: 776, y: 1290, z: 2.0, r: .03 },       // the name plate, for the reveal
+  client: { x: 560, y: 1150, z: 1.9, r: -.03 },     // « Ça va passer… »
+  alonzo: { x: 380, y: 720, z: 1.7, r: .02 },       // facepalm, « Pas avec moi ! »
+  idea1: { x: 600, y: 930, z: 1.09, r: 0 }, idea2: { x: 640, y: 930, z: 1.08, r: 0 },
+  tyre: { x: 470, y: 1330, z: 2.1, r: -.04 },       // the tyre comes back up
+  ask: { x: 540, y: 960, z: 1.05, r: 0 }, teaser: { x: 600, y: 1000, z: 1.12, r: 0 },
+};
+const hookShot = t => ({ x: carState(t).x - 140, y: 1280, z: 1.9, r: -.045 });   // tracks the limping car
+const LIN = x => x;
+const KEYS = [                       // [beat, shot, easing into it]
+  [0, 'hook'], [3.6, 'hook'], [4.15, 'wide', eOut], [7.4, 'wide'], [7.9, 'plate'], [9.6, 'plate'], [10.4, 'wide'],
+  [11.9, 'wide'], [12.1, 'client', eOut], [13.9, 'client'], [14.05, 'alonzo', eOut], [14.95, 'alonzo'], [15.6, 'wide'],
+  [16, 'wide'], [24, 'idea1', LIN], [24.01, 'wide'], [31.85, 'idea2', LIN], [32.1, 'tyre', eOut], [33.7, 'tyre'], [34.1, 'wide', eOut],
+  [36, 'wide'], [40, 'ask', LIN], [40.3, 'ask'], [44, 'teaser', LIN],
+];
+const WB = document.createElement('canvas'); WB.width = W; WB.height = H; const WBX = WB.getContext('2d');
+const shotAt = (n, t) => n === 'hook' ? hookShot(t) : SHOT[n];
+function cam(t, still) {
+  const b = Math.max(0, t / BEAT); let i = 1; while (i < KEYS.length - 1 && KEYS[i][0] < b) i++;
+  const [b0, n0] = KEYS[i - 1], [b1, n1, ease] = KEYS[i];
+  const p = (ease || eInOut)(clamp((b - b0) / (b1 - b0))), A = shotAt(n0, t), B = shotAt(n1, t);
+  const c = { x: A.x + (B.x - A.x) * p, y: A.y + (B.y - A.y) * p, z: A.z * Math.pow(B.z / A.z, p), r: A.r + (B.r - A.r) * p };
+  c.sx = c.sy = 0; if (still) return c;   // base move only (used to measure camera speed)
+  c.z *= 1 + .022 * Math.exp(-(b % 4) * 3);   // small zoom punch on every downbeat
+  let sh = 0; for (const hb of [4, 8, 34, 41]) { const d = t - bt(hb); if (d >= 0 && d < .35) sh += 1 - d / .35; }   // shake on the big hits
+  c.sx = Math.sin(t * 71) * 16 * sh; c.sy = Math.cos(t * 53) * 12 * sh;
+  return c;
+}
+function applyCam(c) { g.translate(W / 2 + c.sx, H / 2 + c.sy); g.rotate(c.r); g.scale(c.z, c.z); g.translate(-c.x, -c.y); }
+function project(c, [x, y]) {        // world point -> screen (bubble tails, the raindrop)
+  const dx = (x - c.x) * c.z, dy = (y - c.y) * c.z, co = Math.cos(c.r), si = Math.sin(c.r);
+  return [W / 2 + c.sx + dx * co - dy * si, H / 2 + c.sy + dx * si + dy * co];
+}
+function world(t, c, cs) {
+  g.save(); applyCam(c);
   cartoonBg(t);
-  const cs = carState(t);
   if (t >= bt(8) && t < bt(10)) confetti(CARX, 1120, t, bt(8));
   car(cs.x, cs.y, t, cs);
   if (t >= bt(34)) confetti(CARX, 1150, t, bt(34));
@@ -677,7 +709,17 @@ function render(t) {
         g.fillStyle = '#ffd34d'; g.beginPath(); g.arc(0, 0, 30 * pf, 0, Math.PI * 2); g.fill(); g.restore(); }
     }
   }
-  g.restore();   // camera
+  g.restore();
+}
+
+function render(t) {
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  const c = cam(t), cs = carState(t);
+  // motion blur on fast camera moves (snaps, the tracking shot): each pass is drawn whole off screen, then the passes are blended
+  const a0 = cam(t, 1), a1 = cam(t - 1 / 60, 1), v = Math.hypot(a0.x - a1.x, a0.y - a1.y) * a0.z + Math.abs(Math.log(a0.z / a1.z)) * 1500;
+  const pass = (cc, alpha) => { const m = g; g = WBX; g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#5b6470'; g.fillRect(0, 0, W, H); world(t, cc, cs); g = m;
+    g.globalAlpha = alpha; g.drawImage(WB, 0, 0); g.globalAlpha = 1; };
+  if (v > 12) { for (let k = 0; k < 4; k++) pass(k < 3 ? cam(t - (3 - k) / 160) : c, 1 / (k + 1)); } else pass(c, 1);   // running average of 4 passes
 
   // M3 — her name
   if (t >= bt(8) && t < bt(12)) {
@@ -731,7 +773,7 @@ function render(t) {
   for (const [a, b, d, lines, bx, by, bw, who, big] of LINES1) {
     if (t < a || t > b) continue;
     const p = eBack(lin(t, a, a + .3)) * (1 - eIn(lin(t, b - .25, b))), typed = d ? lin(t, a + .1, a + .1 + d) : 1;
-    const tail = who === 'c' ? [cs.x + (-55 - cs.pop * 70) * CSC, cs.y + (-140 - cs.pop * 60) * CSC] : [alonzoPos(t).x + 110, alonzoPos(t).y - 140];
+    const tail = project(c, who === 'c' ? [cs.x + (-55 - cs.pop * 70) * CSC, cs.y + (-140 - cs.pop * 60) * CSC] : [alonzoPos(t).x + 110, alonzoPos(t).y - 140]);
     g.save(); if (big) g.translate(Math.sin(t * 38) * 4 * (1 - lin(t, a + .3, a + .9)) + Math.sin(t * 9) * 1.5, 0);
     bubble(lines, bx, by, bw, tail, p, typed, big); g.restore();
   }
@@ -742,7 +784,8 @@ function render(t) {
     const fl = t >= bt(41) ? 1 - lin(t, bt(41), bt(41.5)) : 0; if (fl > 0) { g.fillStyle = `rgba(255,255,255,${.35 * fl})`; g.fillRect(0, 0, W, H); }
     cloud(1300 + (700 - 1300) * eOut(lin(t, bt(40), bt(41))), 560, t, t >= bt(41));
     const dp = lin(t, bt(41.4), bt(42));
-    if (dp > 0 && dp < 1) { const dx = 650 + (cs.x - 70 * CSC - 650) * dp, dy = 650 + (cs.y - 95 * CSC - 650) * eIn(dp);
+    const ws = project(c, [cs.x - 70 * CSC, cs.y - 95 * CSC]);
+    if (dp > 0 && dp < 1) { const dx = 650 + (ws[0] - 650) * dp, dy = 650 + (ws[1] - 650) * eIn(dp);
       g.fillStyle = '#7fc4ff'; g.beginPath(); g.moveTo(dx, dy - 34); g.quadraticCurveTo(dx + 20, dy, dx, dy + 10); g.quadraticCurveTo(dx - 20, dy, dx, dy - 34); g.fill(); }
     marker('PROCHAIN ÉPISODE', 540, 790, bt(42), t, 80, RED, WH);
     revealLine('VENDREDI 18 DÉCEMBRE', 890, t, bt(42.5), 84, WH);
@@ -757,11 +800,11 @@ window.SFX = [
   [0, 'roll', { d: 1.5 }], [bt(.5), 'hiss'], [bt(1), 'stumble'], [bt(2), 'stumble'], [bt(3), 'stumble'],
   [bt(4), 'jingle'], [bt(4), 'impact'], [bt(4), 'whoosh'], [bt(5), 'step'],
   [bt(7.5), 'swoosh'], [bt(8), 'impact'], [bt(8), 'ding'], [bt(8.5), 'pop', { pitch: 1.2 }], [bt(9), 'pop', { pitch: 1.35 }],
-  [bt(12), 'pop', { pitch: .8 }], ...BAB(12.2, 6, .62), [bt(13), 'tick'], ...BAB(14, 7, .85),
+  [bt(12), 'pop', { pitch: .8 }], ...BAB(12.2, 6, .62), [bt(12), 'whoosh'], [bt(14), 'swoosh'], [bt(14), 'tick'], ...BAB(14.6, 4, .85),
   [bt(15), 'whoosh'], [bt(15.5), 'pop', { pitch: .8 }], [bt(16), 'ding'],
   [bt(16), 'swoosh'], [bt(17), 'pop'], [bt(18), 'tick'], [bt(18.5), 'tick'], [bt(19), 'error'], [bt(20), 'swoosh'], [bt(20.2), 'tick'],
   [bt(24), 'swoosh'], [bt(25), 'pop', { pitch: 1.1 }], [bt(27), 'pop', { pitch: 1.25 }],
-  [bt(32), 'hiss'], [bt(33), 'pop', { pitch: 1.3 }], [bt(33), 'swoosh'], [bt(34), 'ding'], [bt(34), 'impact'], ...BAB(35.2, 3, .55),
+  [bt(32), 'whoosh'], [bt(32), 'hiss'], [bt(7.9), 'whoosh'], [bt(33), 'pop', { pitch: 1.3 }], [bt(33), 'swoosh'], [bt(34), 'ding'], [bt(34), 'impact'], ...BAB(35.2, 3, .55),
   [bt(36), 'pop', { pitch: 1.1 }], ...BAB(36.2, 9, .85), [bt(37), 'pop', { pitch: 1.2 }], [bt(38), 'pop', { pitch: 1.35 }],
   [bt(40), 'riser', { d: .9 }], [bt(41), 'thunder'], [bt(42), 'drip'], [bt(42), 'swoosh'], [bt(42.5), 'swoosh'],
 ].map(([at, ...r]) => [+at.toFixed(3), ...r]);

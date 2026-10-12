@@ -18,6 +18,7 @@
 | M11 | 16,7–18,4 s | Teaser : le ciel s'assombrit, le nuage du Kashkazi arrive (sourcils froncés, tonnerre), une goutte éclate sur le pare-brise. « PROCHAIN ÉPISODE · VENDREDI 18 DÉCEMBRE » |
 
 - **Écart avec le script V1** (`serie/scripts-saison1.md`) : une seule thématique, la pression, en 2 idées (règle « 2 idées max »). L'usure (Ép. 2) et le parallélisme (Ép. 4) ne sont plus dévoilés ici. La V3 « 3 conseils pneus » reste un post hors série.
+- **Découpage caméra** (V2, plus dynamique) : un cadre par temps fort, calé sur la musique (`SHOT` / `KEYS` dans `anim.html`). Gros plan qui suit la voiture (accroche) → dézoom brutal + secousse sur le jingle → gros plan sur la plaque pour le prénom → champ-contrechamp client / Alonzo → lents travellings avant sur les idées, coupe franche entre les deux → gros plan sur le pneu qui se regonfle → plan large + secousse au saut → poussée lente jusqu'au teaser. Petit « punch » de zoom sur chaque premier temps de mesure, flou de mouvement sur les mouvements rapides. Bulles et textes restent à l'écran (hors caméra), les queues de bulles suivent les personnages.
 - Zones de sécurité Facebook respectées après l'accroche (rien d'important au-delà de x 940, ni dans les 450 px du bas).
 
 Re-rendu : `SFX_BPM=143.6 video/build.sh episode1-prenom 18.4 centre-auto-alonzo-episode1-prenom-maquette.mp4` depuis la racine. Bruitages seuls : `SFX_MUSIC=0 python3 ../video/sfx.py sfx-events.json 18.4 audio-bruitages.wav` depuis ce dossier.
