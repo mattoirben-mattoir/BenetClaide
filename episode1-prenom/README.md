@@ -3,7 +3,7 @@
 - `centre-auto-alonzo-episode1-prenom-maquette.mp4` : 18,4 s, 1080×1920, sans voix off, musique de synthèse + bruitages. Piste bruitages seule : `audio-bruitages.wav` (pour poser Alpajo).
 - **Écrit directement sur la grille musicale** : Alpajo, 143,6 BPM, 11 mesures de 4 temps (18,38 s), un premier temps à 0 s. Pour la version Alpajo, caler la piste pour qu'un premier temps tombe à 0 s.
 - **Le prénom est une constante** : `NAME` en haut de la partie épisode de `anim.html` (maquette : « TITINE »). On remplace par le prénom gagnant du vote de l'Épisode 0, puis on refait le rendu.
-- Personnage, bulles, décor : repris de l'Épisode 0 (Alonzo en tenue de travail dès le début).
+- Personnage et bulles repris de l'Épisode 0 (Alonzo en tenue de travail dès le début). **Décor** : le vrai garage de Combani, dessiné d'après la photo de la façade (`video/set-garage.js`, partagé entre les épisodes) : façade grise, bandeau bleu « ENTRETIEN & RÉPARATION · TOUTES MARQUES », panneau blanc « CENTRE AUTO ALONZO », baie d'atelier avec pont et néons, tonnelle blanche à gauche, bordure jaune et noire, parvis en béton. Pas de logos de réseau (Top Garage, Groupauto).
 
 | Mesure | Temps | Contenu |
 |---|---|---|
