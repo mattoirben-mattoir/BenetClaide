@@ -1,11 +1,11 @@
 <!doctype html>
 <html><head><meta charset="utf-8">
 <style>
-@font-face{font-family:Inter;src:url(file:///usr/share/fonts/opentype/inter/Inter-Black.otf);font-weight:900}
-@font-face{font-family:Inter;src:url(file:///usr/share/fonts/opentype/inter/Inter-ExtraBold.otf);font-weight:800}
-@font-face{font-family:Inter;src:url(file:///usr/share/fonts/opentype/inter/Inter-Bold.otf);font-weight:700}
-@font-face{font-family:Inter;src:url(file:///usr/share/fonts/opentype/inter/Inter-Medium.otf);font-weight:500}
-html,body{margin:0;background:#000}
+@font-face{font-family:Barlow;src:url(assets/BarlowCondensed-BlackItalic.ttf);font-weight:900}
+@font-face{font-family:Barlow;src:url(assets/BarlowCondensed-ExtraBoldItalic.ttf);font-weight:800}
+@font-face{font-family:BarlowUp;src:url(assets/BarlowCondensed-SemiBold.ttf);font-weight:600}
+@font-face{font-family:Montserrat;src:url(assets/Montserrat.ttf);font-weight:100 900}
+html,body{margin:0;background:#fff}
 canvas{display:block}
 </style></head>
 <body>
@@ -13,7 +13,8 @@ canvas{display:block}
 <script>
 const W = 1080, H = 1920;
 const c = document.getElementById('c'), g = c.getContext('2d');
-const BG = '#0f1216', BG2 = '#1a1f26', Y = '#FFC21A', T = '#14B8A6', WH = '#ffffff', MUTED = '#AEB6C2';
+// Centre Auto Alonzo charter (sampled from the logo)
+const BLUE = '#084990', BLUE_D = '#05336a', RED = '#E20816', WH = '#ffffff', INK = '#1d2a3f', GREY = '#5b6b82', TIRE = '#1c2026';
 
 // Scene boundaries (seconds), aligned with the voice-over
 const S = [0, 2.2, 4.3, 6.5, 9.25, 12];
@@ -25,352 +26,344 @@ const eIn = x => x * x * x;
 const eInOut = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 const eBack = x => { const c1 = 1.7, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
 
-function font(w, s) { g.font = `${w} ${s}px Inter`; }
-function text(str, x, y, { w = 800, s = 60, col = WH, align = 'center', a = 1, ls = 0 } = {}) {
-  g.save(); g.globalAlpha *= a; font(w, s); g.fillStyle = col; g.textAlign = align; g.textBaseline = 'middle';
+const img = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
+let LOGO, PHOTO;
+
+function text(str, x, y, { f = 'Barlow', w = 900, s = 60, col = INK, align = 'center', a = 1, ls = 0 } = {}) {
+  g.save(); g.globalAlpha *= a; g.font = `${w} ${s}px ${f}`; g.fillStyle = col; g.textAlign = align; g.textBaseline = 'middle';
   if (ls) g.letterSpacing = ls + 'px';
   g.fillText(str, x, y); g.restore();
 }
 function rrect(x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
 
-// Text that rises in from a mask
+// Text rising from a mask
 function revealText(str, x, y, t0, t, opts) {
   const p = eOut(lin(t, t0, t0 + .45));
   if (p <= 0) return;
   const s = opts.s || 60;
-  g.save();
-  g.beginPath(); g.rect(0, y - s * .75, W, s * 1.5); g.clip();
+  g.save(); g.beginPath(); g.rect(0, y - s * .8, W, s * 1.6); g.clip();
   text(str, x, y + (1 - p) * s * 1.2, { ...opts, a: p });
   g.restore();
 }
 
-// Tire drawing
-function tire(cx, cy, r, rot, opts = {}) {
+// The two swooshes of the logo (blue outer, red inner), drawn progressively
+function swoosh(cx, cy, r, rot, p, wBlue = 22, wRed = 22) {
+  g.save(); g.translate(cx, cy); g.rotate(rot); g.lineCap = 'round';
+  const a0 = Math.PI * .95, span = Math.PI * 1.15;
+  g.strokeStyle = BLUE; g.lineWidth = wBlue;
+  g.beginPath(); g.ellipse(0, 0, r * 1.08, r * .98, 0, a0, a0 + span * p); g.stroke();
+  g.strokeStyle = RED; g.lineWidth = wRed;
+  g.beginPath(); g.ellipse(r * .06, 0, r * .9, r * .8, 0, a0 + .15, a0 + .15 + span * .95 * p); g.stroke();
+  g.restore();
+}
+
+// Tire
+function tire(cx, cy, r, rot) {
   g.save(); g.translate(cx, cy); g.rotate(rot);
-  // shadow
-  g.fillStyle = '#05070a'; g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill();
-  // treads
+  g.fillStyle = '#0b0d10'; g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill();
   const n = 28;
   for (let i = 0; i < n; i++) {
-    g.save(); g.rotate(i / n * Math.PI * 2);
-    g.fillStyle = '#2a2f37';
+    g.save(); g.rotate(i / n * Math.PI * 2); g.fillStyle = '#30353e';
     g.beginPath(); g.moveTo(-r * .07, -r); g.lineTo(r * .07, -r); g.lineTo(r * .04, -r * .84); g.lineTo(-r * .1, -r * .84); g.closePath(); g.fill();
     g.restore();
   }
-  // sidewall
-  g.fillStyle = '#1b1f25'; g.beginPath(); g.arc(0, 0, r * .8, 0, Math.PI * 2); g.fill();
-  g.strokeStyle = '#2c323b'; g.lineWidth = r * .02; g.beginPath(); g.arc(0, 0, r * .74, 0, Math.PI * 2); g.stroke();
-  // rim
+  g.fillStyle = TIRE; g.beginPath(); g.arc(0, 0, r * .8, 0, Math.PI * 2); g.fill();
   const rg = g.createRadialGradient(0, 0, r * .05, 0, 0, r * .56);
-  rg.addColorStop(0, '#e9edf2'); rg.addColorStop(1, '#8a929e');
+  rg.addColorStop(0, '#f2f5f9'); rg.addColorStop(1, '#8d96a3');
   g.fillStyle = rg; g.beginPath(); g.arc(0, 0, r * .56, 0, Math.PI * 2); g.fill();
   g.fillStyle = '#3a414b'; g.beginPath(); g.arc(0, 0, r * .5, 0, Math.PI * 2); g.fill();
-  // spokes
   for (let i = 0; i < 5; i++) {
-    g.save(); g.rotate(i / 5 * Math.PI * 2);
-    g.fillStyle = '#cfd5dd';
+    g.save(); g.rotate(i / 5 * Math.PI * 2); g.fillStyle = '#d3d9e1';
     g.beginPath(); g.moveTo(-r * .06, -r * .1); g.lineTo(r * .06, -r * .1); g.lineTo(r * .11, -r * .5); g.lineTo(-r * .11, -r * .5); g.closePath(); g.fill();
     g.restore();
   }
-  g.fillStyle = opts.hub || Y; g.beginPath(); g.arc(0, 0, r * .12, 0, Math.PI * 2); g.fill();
-  g.fillStyle = '#1b1f25'; g.beginPath(); g.arc(0, 0, r * .05, 0, Math.PI * 2); g.fill();
+  g.fillStyle = RED; g.beginPath(); g.arc(0, 0, r * .12, 0, Math.PI * 2); g.fill();
+  g.fillStyle = TIRE; g.beginPath(); g.arc(0, 0, r * .05, 0, Math.PI * 2); g.fill();
   g.restore();
 }
 
-// Background: subtle gradient + moving diagonal stripes
+function check(x, y, s, col = BLUE) {
+  if (s <= 0) return;
+  g.save(); g.translate(x, y); g.scale(s, s);
+  g.fillStyle = col; g.beginPath(); g.arc(0, 0, 52, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = WH; g.lineWidth = 11; g.lineCap = 'round'; g.lineJoin = 'round';
+  g.beginPath(); g.moveTo(-20, 2); g.lineTo(-5, 17); g.lineTo(22, -14); g.stroke();
+  g.restore();
+}
+
+// White background with large, slowly turning logo swooshes
 function background(t) {
-  const gr = g.createLinearGradient(0, 0, 0, H);
-  gr.addColorStop(0, BG2); gr.addColorStop(1, BG);
-  g.fillStyle = gr; g.fillRect(0, 0, W, H);
-  g.save(); g.globalAlpha = .045; g.fillStyle = WH;
-  const off = (t * 60) % 160;
-  for (let x = -H; x < W + H; x += 160) {
-    g.beginPath(); g.moveTo(x + off, 0); g.lineTo(x + off + 50, 0); g.lineTo(x + off + 50 - H * .6, H); g.lineTo(x + off - H * .6, H); g.closePath(); g.fill();
-  }
+  g.fillStyle = WH; g.fillRect(0, 0, W, H);
+  g.save(); g.globalAlpha = .07;
+  swoosh(W * .5, H * .44, 620, -.25 + t * .05, 1, 60, 60);
   g.restore();
-  // soft glow
-  const rg = g.createRadialGradient(W * .5, H * .42, 50, W * .5, H * .42, 900);
-  rg.addColorStop(0, 'rgba(255,194,26,0.10)'); rg.addColorStop(1, 'rgba(255,194,26,0)');
-  g.fillStyle = rg; g.fillRect(0, 0, W, H);
 }
 
-// Persistent header + progress
+// Logo top center + step indicator + progress bar (tips only)
 function chrome(t) {
-  const a = eOut(lin(t, .1, .6));
-  g.save(); g.globalAlpha = a;
-  rrect(W / 2 - 250, 110 - 40 * (1 - a), 500, 72, 36); g.fillStyle = 'rgba(255,255,255,0.06)'; g.fill();
-  g.strokeStyle = 'rgba(255,255,255,0.12)'; g.lineWidth = 2; g.stroke();
-  g.fillStyle = Y; g.beginPath(); g.arc(W / 2 - 205, 146 - 40 * (1 - a), 9, 0, Math.PI * 2); g.fill();
-  text('CENTRE AUTO ALONZO', W / 2 + 14, 147 - 40 * (1 - a), { w: 800, s: 30, col: WH, ls: 3 });
-  g.restore();
-  // step dots for tips
-  const step = t < S[1] ? 0 : t < S[2] ? 1 : t < S[3] ? 2 : t < S[4] ? 3 : 4;
-  const da = eOut(lin(t, S[1], S[1] + .4)) * (1 - eOut(lin(t, S[4] - .2, S[4] + .2)));
-  if (da > 0) {
-    g.save(); g.globalAlpha = da;
+  const a = eOut(lin(t, S[1], S[1] + .4)) * (1 - eOut(lin(t, S[4] - .2, S[4] + .1)));
+  if (a > 0) {
+    const lw = 250, lh = lw * LOGO.height / LOGO.width;
+    g.save(); g.globalAlpha = a;
+    g.drawImage(LOGO, W / 2 - lw / 2, 70 - 30 * (1 - a), lw, lh);
+    const step = t < S[2] ? 1 : t < S[3] ? 2 : 3;
     for (let i = 1; i <= 3; i++) {
-      const on = i <= step;
-      const w = i === step ? 90 : 26;
-      const x = W / 2 + (i - 2) * 120 - w / 2;
-      rrect(x, 1700, w, 14, 7); g.fillStyle = on ? Y : 'rgba(255,255,255,0.18)'; g.fill();
+      const w = i === step ? 90 : 26, x = W / 2 + (i - 2) * 120 - w / 2;
+      g.save(); g.transform(1, 0, -.3, 1, 0, 0);
+      rrect(x + 1720 * .3, 1720, w, 16, 4); g.fillStyle = i < step ? BLUE : i === step ? RED : '#d6dce5'; g.fill();
+      g.restore();
     }
     g.restore();
   }
-  // bottom progress line
-  rrect(0, H - 10, W * (t / 12), 10, 0); g.fillStyle = Y; g.fill();
+  g.fillStyle = RED; g.fillRect(0, H - 12, W * (t / 12), 12);
 }
 
-// Diagonal wipe between scenes
+// Slanted blue/red wipe between scenes (italic angle of the logo)
 function wipe(t, at) {
   const d = .42, p = lin(t, at - d / 2, at + d / 2);
   if (p <= 0 || p >= 1) return;
   const x = -W * 1.2 + eInOut(p) * W * 3.0;
-  g.save(); g.translate(x, 0); g.transform(1, 0, -.35, 1, 0, 0);
-  g.fillStyle = Y; g.fillRect(0, 0, 220, H * 1.2);
-  g.fillStyle = T; g.fillRect(-90, 0, 60, H * 1.2);
+  g.save(); g.translate(x, 0); g.transform(1, 0, -.3, 1, 0, 0);
+  g.fillStyle = BLUE; g.fillRect(0, 0, 260, H * 1.2);
+  g.fillStyle = RED; g.fillRect(-110, 0, 70, H * 1.2);
   g.restore();
 }
 
-// Scene local alpha (fade/slide out)
 function sceneOut(t, end) { return 1 - eIn(lin(t, end - .22, end)); }
 
-// ---------- Scenes ----------
+// ---------- Intro: workshop photo + "3 CONSEILS" card, as on the Facebook visual ----------
 function intro(t) {
   const out = sceneOut(t, S[1]);
   g.save(); g.globalAlpha = out;
-  // rolling tire
-  const p = eOut(lin(t, 0, .9));
-  const r = 270, cx = -r + p * (W / 2 + r), cy = 690;
-  const rot = (cx + r) / r;
-  // speed lines while rolling
-  if (p < .99) {
-    g.save(); g.globalAlpha *= (1 - p);
-    g.strokeStyle = Y; g.lineCap = 'round';
-    for (let i = 0; i < 4; i++) { g.lineWidth = 10; g.beginPath(); g.moveTo(cx - r - 40 - i * 30, cy - 120 + i * 80); g.lineTo(cx - r - 260 - i * 30, cy - 120 + i * 80); g.stroke(); }
+  // photo, Ken Burns zoom
+  const ph = 1340, z = 1.04 + .06 * lin(t, 0, 2.2);
+  const pw = W * z, phh = pw * PHOTO.height / PHOTO.width;
+  g.save(); g.beginPath(); g.rect(0, 0, W, ph); g.clip();
+  g.drawImage(PHOTO, W / 2 - pw / 2, -20 * lin(t, 0, 2.2), pw, phh);
+  const gr = g.createLinearGradient(0, ph - 400, 0, ph);
+  gr.addColorStop(0, 'rgba(8,73,144,0)'); gr.addColorStop(1, 'rgba(8,73,144,0.55)');
+  g.fillStyle = gr; g.fillRect(0, ph - 400, W, 400);
+  g.restore();
+  // white base with a curved top edge
+  g.fillStyle = WH; g.beginPath(); g.moveTo(0, ph); g.quadraticCurveTo(W / 2, ph - 120, W, ph - 40); g.lineTo(W, H); g.lineTo(0, H); g.closePath(); g.fill();
+  // blue + red edge lines on the curve
+  const lp = eOut(lin(t, .2, .9));
+  g.save(); g.beginPath(); g.rect(0, 0, W * lp, H); g.clip(); g.lineCap = 'round';
+  g.strokeStyle = RED; g.lineWidth = 12; g.beginPath(); g.moveTo(-10, ph - 22); g.quadraticCurveTo(W / 2, ph - 142, W + 10, ph - 62); g.stroke();
+  g.strokeStyle = BLUE; g.lineWidth = 12; g.beginPath(); g.moveTo(-10, ph - 2); g.quadraticCurveTo(W / 2, ph - 122, W + 10, ph - 42); g.stroke();
+  g.restore();
+  // title card
+  const cp = eBack(lin(t, .15, .6));
+  if (cp > 0) {
+    g.save(); g.translate(W - 60, 1440); g.scale(cp, cp);
+    g.shadowColor = 'rgba(8,40,90,.25)'; g.shadowBlur = 40; g.shadowOffsetY = 12;
+    rrect(-860, -250, 860, 430, 48); g.fillStyle = WH; g.fill();
     g.restore();
   }
-  const bob = Math.sin(t * 6) * 4 * lin(t, .9, 1.3);
-  tire(cx, cy + bob, r, rot + t * .6);
-  // badge "3"
-  const bp = eBack(lin(t, .55, .95));
-  if (bp > 0) {
-    g.save(); g.translate(W / 2 + 200, 500); g.scale(bp, bp); g.rotate(-.12);
-    g.fillStyle = Y; g.beginPath(); g.arc(0, 0, 105, 0, Math.PI * 2); g.fill();
-    text('3', 0, 8, { w: 900, s: 150, col: '#111' });
-    g.restore();
+  revealText('3 CONSEILS,', W - 490, 1270, .35, t, { s: 150, col: BLUE });
+  revealText('POUR FAIRE DURER', W - 490, 1410, .5, t, { s: 104, col: RED });
+  revealText('VOS PNEUS', W - 490, 1520, .62, t, { s: 104, col: RED });
+  // logo
+  const lo = eBack(lin(t, .8, 1.2));
+  if (lo > 0) {
+    const lw = 360 * lo, lh = lw * LOGO.height / LOGO.width;
+    g.drawImage(LOGO, W / 2 - lw / 2, 1760 - lh / 2, lw, lh);
   }
-  revealText('CONSEILS', W / 2, 1110, .45, t, { w: 900, s: 150, col: WH, ls: 4 });
-  revealText('pour faire durer', W / 2, 1250, .65, t, { w: 700, s: 68, col: MUTED });
-  revealText('vos pneus', W / 2, 1350, .8, t, { w: 900, s: 96, col: Y });
   g.restore();
 }
 
-// Pressure gauge icon
+// ---------- Tip icons ----------
 function gauge(cx, cy, t, t0) {
   const r = 230, a0 = Math.PI * .75, a1 = Math.PI * 2.25;
-  const p = eOut(lin(t, t0, t0 + .5));
-  g.save(); g.translate(cx, cy); g.scale(.6 + .4 * eBack(lin(t, t0, t0 + .5)), .6 + .4 * eBack(lin(t, t0, t0 + .5))); g.globalAlpha *= p;
-  g.fillStyle = '#1d232b'; g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill();
-  g.strokeStyle = 'rgba(255,255,255,.12)'; g.lineWidth = 6; g.stroke();
-  // zones
+  const sc = .6 + .4 * eBack(lin(t, t0, t0 + .5));
+  g.save(); g.translate(cx, cy); g.scale(sc, sc); g.globalAlpha *= eOut(lin(t, t0, t0 + .4));
+  g.shadowColor = 'rgba(8,40,90,.2)'; g.shadowBlur = 40; g.shadowOffsetY = 14;
+  g.fillStyle = WH; g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill();
+  g.shadowColor = 'transparent';
+  g.strokeStyle = BLUE; g.lineWidth = 18; g.stroke();
   g.lineWidth = 26; g.lineCap = 'butt';
-  const zone = (f0, f1, col) => { g.strokeStyle = col; g.beginPath(); g.arc(0, 0, r * .78, a0 + (a1 - a0) * f0, a0 + (a1 - a0) * f1); g.stroke(); };
-  zone(0, .4, '#E5484D'); zone(.4, .58, '#F5A524'); zone(.58, .82, T); zone(.82, 1, '#E5484D');
-  // ticks
+  const zone = (f0, f1, col) => { g.strokeStyle = col; g.beginPath(); g.arc(0, 0, r * .76, a0 + (a1 - a0) * f0, a0 + (a1 - a0) * f1); g.stroke(); };
+  zone(0, .4, RED); zone(.4, .56, '#f2a3a8'); zone(.56, .82, BLUE); zone(.82, 1, RED);
   for (let i = 0; i <= 10; i++) {
     const a = a0 + (a1 - a0) * i / 10;
-    g.strokeStyle = WH; g.lineWidth = i % 5 ? 4 : 7;
+    g.strokeStyle = INK; g.lineWidth = i % 5 ? 4 : 7;
     g.beginPath(); g.moveTo(Math.cos(a) * r * .58, Math.sin(a) * r * .58); g.lineTo(Math.cos(a) * r * .5, Math.sin(a) * r * .5); g.stroke();
   }
-  // needle sweeps to the OK zone, with a small overshoot
   const np = lin(t, t0 + .3, t0 + 1.2);
-  const f = .1 + .6 * eBack(np) + Math.sin(t * 20) * .004 * np;
-  const na = a0 + (a1 - a0) * f;
-  g.strokeStyle = Y; g.lineWidth = 12; g.lineCap = 'round';
+  const na = a0 + (a1 - a0) * (.1 + .6 * eBack(np) + Math.sin(t * 20) * .004 * np);
+  g.strokeStyle = RED; g.lineWidth = 12; g.lineCap = 'round';
   g.beginPath(); g.moveTo(-Math.cos(na) * 30, -Math.sin(na) * 30); g.lineTo(Math.cos(na) * r * .66, Math.sin(na) * r * .66); g.stroke();
-  g.fillStyle = Y; g.beginPath(); g.arc(0, 0, 24, 0, Math.PI * 2); g.fill();
-  text('BAR', 0, r * .45, { w: 800, s: 34, col: MUTED, ls: 4 });
-  // OK check
-  const ck = eBack(lin(t, t0 + 1.1, t0 + 1.4));
-  if (ck > 0) {
-    g.save(); g.translate(r * .78, -r * .72); g.scale(ck, ck);
-    g.fillStyle = T; g.beginPath(); g.arc(0, 0, 52, 0, Math.PI * 2); g.fill();
-    g.strokeStyle = WH; g.lineWidth = 11; g.lineCap = 'round'; g.lineJoin = 'round';
-    g.beginPath(); g.moveTo(-20, 2); g.lineTo(-5, 17); g.lineTo(22, -14); g.stroke();
-    g.restore();
-  }
+  g.fillStyle = BLUE; g.beginPath(); g.arc(0, 0, 26, 0, Math.PI * 2); g.fill();
+  text('BAR', 0, r * .45, { f: 'Montserrat', w: 800, s: 34, col: GREY, ls: 4 });
+  check(r * .8, -r * .74, eBack(lin(t, t0 + 1.1, t0 + 1.4)));
   g.restore();
 }
 
-// Tread wear + vibration icon
 function wear(cx, cy, t, t0) {
-  const p = eOut(lin(t, t0, t0 + .5));
   const shake = lin(t, t0 + .7, t0 + 1.0) * (1 - lin(t, t0 + 1.6, t0 + 1.9));
-  const sx = Math.sin(t * 70) * 10 * shake;
-  g.save(); g.translate(cx + sx, cy); g.globalAlpha *= p; g.scale(.7 + .3 * eBack(lin(t, t0, t0 + .5)), .7 + .3 * eBack(lin(t, t0, t0 + .5)));
-  // tread block (front view of a tire)
+  const sx = Math.sin(t * 70) * 10 * shake, sc = .7 + .3 * eBack(lin(t, t0, t0 + .5));
+  g.save(); g.translate(cx + sx, cy); g.globalAlpha *= eOut(lin(t, t0, t0 + .4)); g.scale(sc, sc);
   const w = 300, h = 440;
-  rrect(-w / 2, -h / 2, w, h, 60); g.fillStyle = '#1b1f25'; g.fill();
+  g.shadowColor = 'rgba(8,40,90,.25)'; g.shadowBlur = 40; g.shadowOffsetY = 14;
+  rrect(-w / 2, -h / 2, w, h, 60); g.fillStyle = TIRE; g.fill();
+  g.shadowColor = 'transparent';
   g.save(); rrect(-w / 2, -h / 2, w, h, 60); g.clip();
-  // grooves
   g.fillStyle = '#0b0d10';
   for (const gx of [-70, 0, 70]) g.fillRect(gx - 9, -h / 2, 18, h);
-  // tread blocks, right side worn (uneven wear reveal)
   const wp = eOut(lin(t, t0 + .35, t0 + 1.1));
   for (let row = 0; row < 8; row++) {
     const y = -h / 2 + 18 + row * 54;
     [-115, -35, 35, 115].forEach((bx, i) => {
       const worn = i >= 2 ? wp * (i === 3 ? .85 : .45) : 0;
-      g.fillStyle = worn > .5 ? '#3a2e1d' : '#2e343d';
-      g.globalAlpha = 1 - worn * .7;
+      g.fillStyle = '#353b45'; g.globalAlpha = 1 - worn * .75;
       g.beginPath(); g.moveTo(bx - 28, y); g.lineTo(bx + 28, y + 10); g.lineTo(bx + 28, y + 40); g.lineTo(bx - 28, y + 30); g.closePath(); g.fill();
     });
   }
   g.globalAlpha = 1;
-  // worn-zone highlight
-  g.fillStyle = `rgba(229,72,77,${.28 * wp})`; g.fillRect(40, -h / 2, w / 2, h);
+  g.fillStyle = `rgba(226,8,22,${.35 * wp})`; g.fillRect(40, -h / 2, w / 2, h);
   g.restore();
-  g.strokeStyle = 'rgba(255,255,255,.14)'; g.lineWidth = 5; rrect(-w / 2, -h / 2, w, h, 60); g.stroke();
   g.restore();
-  // vibration arcs
   if (shake > 0) {
-    g.save(); g.globalAlpha *= shake; g.strokeStyle = Y; g.lineWidth = 10; g.lineCap = 'round';
+    g.save(); g.globalAlpha *= shake; g.strokeStyle = BLUE; g.lineWidth = 10; g.lineCap = 'round';
     for (const side of [-1, 1]) for (let i = 0; i < 3; i++) {
       const rr = 200 + i * 45 + (t * 120 % 45);
       g.beginPath(); g.arc(cx, cy, rr, side > 0 ? -.35 : Math.PI - .35, side > 0 ? .35 : Math.PI + .35); g.stroke();
     }
     g.restore();
   }
-  // warning badge
   const wb = eBack(lin(t, t0 + 1.0, t0 + 1.3));
   if (wb > 0) {
     g.save(); g.translate(cx + 190, cy - 220); g.scale(wb, wb);
-    g.fillStyle = Y; g.beginPath(); g.moveTo(0, -62); g.lineTo(62, 50); g.lineTo(-62, 50); g.closePath(); g.lineJoin = 'round'; g.lineWidth = 16; g.strokeStyle = Y; g.stroke(); g.fill();
-    text('!', 0, 12, { w: 900, s: 80, col: '#111' });
+    g.fillStyle = RED; g.strokeStyle = RED; g.lineJoin = 'round'; g.lineWidth = 16;
+    g.beginPath(); g.moveTo(0, -62); g.lineTo(62, 50); g.lineTo(-62, 50); g.closePath(); g.stroke(); g.fill();
+    text('!', 0, 12, { f: 'Montserrat', w: 900, s: 76, col: WH });
     g.restore();
   }
 }
 
-// Balance + alignment icon: two wheels with parallel guide lines
 function align(cx, cy, t, t0) {
-  const p = eOut(lin(t, t0, t0 + .5));
-  g.save(); g.globalAlpha *= p;
-  const ap = eInOut(lin(t, t0 + .5, t0 + 1.3));
-  const skew = (1 - ap) * .22;
-  const r = 130;
-  // axle
-  g.strokeStyle = '#3a414b'; g.lineWidth = 16; g.beginPath(); g.moveTo(cx - 200, cy); g.lineTo(cx + 200, cy); g.stroke();
-  // wheels seen from above (rounded rects), toe corrected over time
+  g.save(); g.globalAlpha *= eOut(lin(t, t0, t0 + .5));
+  const ap = eInOut(lin(t, t0 + .5, t0 + 1.3)), skew = (1 - ap) * .22, r = 130;
+  g.strokeStyle = '#9aa5b5'; g.lineWidth = 16; g.beginPath(); g.moveTo(cx - 200, cy); g.lineTo(cx + 200, cy); g.stroke();
   [[-1, skew], [1, -skew]].forEach(([s, a]) => {
     g.save(); g.translate(cx + s * 230, cy); g.rotate(a * s);
-    rrect(-48, -r * 1.25, 96, r * 2.5, 30); g.fillStyle = '#1b1f25'; g.fill();
-    g.strokeStyle = 'rgba(255,255,255,.18)'; g.lineWidth = 4; g.stroke();
-    g.fillStyle = '#2e343d';
-    for (let i = 0; i < 7; i++) g.fillRect(-40, -r * 1.15 + i * 44 + ((t * 200) % 44), 80, 22);
-    g.restore();
+    rrect(-48, -r * 1.25, 96, r * 2.5, 30); g.fillStyle = TIRE; g.fill();
+    g.save(); rrect(-48, -r * 1.25, 96, r * 2.5, 30); g.clip();
+    g.fillStyle = '#3a414b';
+    for (let i = -1; i < 8; i++) g.fillRect(-40, -r * 1.15 + i * 44 + ((t * 200) % 44), 80, 22);
+    g.restore(); g.restore();
   });
-  // guide lines go teal when parallel
   const ok = lin(t, t0 + 1.2, t0 + 1.4);
   g.setLineDash([26, 20]); g.lineDashOffset = -t * 120;
-  g.strokeStyle = ok > .5 ? T : Y; g.lineWidth = 6;
+  g.strokeStyle = ok > .5 ? BLUE : RED; g.lineWidth = 6;
   for (const s of [-1, 1]) {
-    const a = (s < 0 ? skew : -skew) * s;
-    g.save(); g.translate(cx + s * 230, cy); g.rotate(a);
-    g.beginPath(); g.moveTo(0, -420); g.lineTo(0, 420); g.stroke();
+    g.save(); g.translate(cx + s * 230, cy); g.rotate((s < 0 ? skew : -skew) * s);
+    g.beginPath(); g.moveTo(0, -400); g.lineTo(0, 400); g.stroke();
     g.restore();
   }
   g.setLineDash([]);
-  // balance weight bouncing on the left wheel
   const wb = eBack(lin(t, t0 + .25, t0 + .6));
   if (wb > 0) {
     g.save(); g.translate(cx, cy - 300); g.scale(wb, wb);
-    rrect(-80, -30, 160, 60, 14); g.fillStyle = Y; g.fill();
-    g.fillStyle = '#111'; for (const dx of [-40, 0, 40]) g.fillRect(dx - 3, -18, 6, 36);
+    rrect(-80, -30, 160, 60, 14); g.fillStyle = BLUE; g.fill();
+    g.fillStyle = WH; for (const dx of [-40, 0, 40]) g.fillRect(dx - 3, -18, 6, 36);
     g.restore();
   }
-  const ck = eBack(lin(t, t0 + 1.35, t0 + 1.65));
-  if (ck > 0) {
-    g.save(); g.translate(cx, cy + 300); g.scale(ck, ck);
-    g.fillStyle = T; g.beginPath(); g.arc(0, 0, 52, 0, Math.PI * 2); g.fill();
-    g.strokeStyle = WH; g.lineWidth = 11; g.lineCap = 'round'; g.lineJoin = 'round';
-    g.beginPath(); g.moveTo(-20, 2); g.lineTo(-5, 17); g.lineTo(22, -14); g.stroke();
-    g.restore();
-  }
+  check(cx, cy + 300, eBack(lin(t, t0 + 1.35, t0 + 1.65)));
   g.restore();
 }
 
 function tipScene(t, t0, t1, num, title1, title2, sub1, sub2, icon) {
-  const out = sceneOut(t, t1);
-  g.save(); g.globalAlpha = out;
-  // big ghost number
+  g.save(); g.globalAlpha = sceneOut(t, t1);
+  // big outlined number
   const np = eOut(lin(t, t0, t0 + .5));
-  text(num, W / 2 + 330 - np * 40, 430, { w: 900, s: 360, col: 'rgba(255,255,255,0.06)', a: np });
-  // number pill
+  g.save(); g.globalAlpha *= np * .12; g.font = '900 420px Barlow'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = BLUE; g.fillText(num, W / 2 + 320 - np * 40, 520); g.restore();
+  // slanted "CONSEIL 0X" tag
   const pp = eBack(lin(t, t0 + .05, t0 + .4));
   if (pp > 0) {
-    g.save(); g.translate(130, 330); g.scale(pp, pp);
-    rrect(0, -50, 300, 100, 50); g.fillStyle = Y; g.fill();
-    text('CONSEIL ' + num, 150, 3, { w: 900, s: 36, col: '#111', ls: 2 });
+    g.save(); g.translate(90, 380); g.scale(pp, pp); g.transform(1, 0, -.25, 1, 0, 0);
+    g.fillStyle = RED; g.fillRect(0, -48, 300, 96);
+    g.restore();
+    g.save(); g.translate(90, 380); g.scale(pp, pp);
+    text('CONSEIL ' + num, 138, 2, { s: 60, col: WH, ls: 1 });
     g.restore();
   }
-  icon(W / 2, 760, t, t0 + .1);
-  revealText(title1, W / 2, 1195, t0 + .2, t, { w: 900, s: 86, col: WH });
-  if (title2) revealText(title2, W / 2, 1295, t0 + .3, t, { w: 900, s: 86, col: Y });
-  revealText(sub1, W / 2, 1440, t0 + .45, t, { w: 500, s: 46, col: MUTED });
-  revealText(sub2, W / 2, 1505, t0 + .55, t, { w: 500, s: 46, col: MUTED });
+  icon(W / 2, 800, t, t0 + .1);
+  revealText(title1, W / 2, 1220, t0 + .2, t, { s: 118, col: BLUE });
+  if (title2) revealText(title2, W / 2, 1335, t0 + .3, t, { s: 118, col: RED });
+  revealText(sub1, W / 2, 1480, t0 + .45, t, { f: 'Montserrat', w: 600, s: 44, col: GREY });
+  revealText(sub2, W / 2, 1545, t0 + .55, t, { f: 'Montserrat', w: 600, s: 44, col: GREY });
   g.restore();
 }
 
+// ---------- Outro: logo, slogan, phone & address ----------
 function outro(t) {
   const t0 = S[4];
-  // wrench + tire combo
-  const p = eBack(lin(t, t0 + .05, t0 + .55));
-  tire(W / 2, 640, 230 * Math.max(p, 0.001), t * 1.2);
-  // rotating highlight ring
-  g.save(); g.globalAlpha = eOut(lin(t, t0 + .3, t0 + .7));
-  g.strokeStyle = Y; g.lineWidth = 12; g.lineCap = 'round';
-  g.beginPath(); g.arc(W / 2, 640, 280, t * 2.5, t * 2.5 + Math.PI * 1.3); g.stroke();
-  g.strokeStyle = T; g.beginPath(); g.arc(W / 2, 640, 280, t * 2.5 + Math.PI * 1.45, t * 2.5 + Math.PI * 1.85); g.stroke();
-  g.restore();
-  revealText('Besoin d’un check-up ?', W / 2, 1020, t0 + .15, t, { w: 700, s: 64, col: MUTED });
-  // brand block
-  const bp = eOut(lin(t, t0 + .35, t0 + .8));
-  if (bp > 0) {
-    g.save(); g.globalAlpha = bp;
-    const bw = 900 * bp;
-    rrect(W / 2 - bw / 2, 1100, bw, 290, 40); g.fillStyle = Y; g.fill();
+  // blue top block with the logo on a white disc
+  const bp = eOut(lin(t, t0, t0 + .4));
+  g.fillStyle = BLUE; g.beginPath(); g.moveTo(0, 0); g.lineTo(W, 0); g.lineTo(W, 900 * bp); g.quadraticCurveTo(W / 2, 1060 * bp, 0, 900 * bp); g.closePath(); g.fill();
+  g.fillStyle = RED; g.fillRect(0, 0, W, 0);
+  const lp = eBack(lin(t, t0 + .15, t0 + .6));
+  if (lp > 0) {
+    g.save(); g.translate(W / 2, 640); g.scale(lp, lp); g.rotate((1 - lp) * -.2);
+    g.shadowColor = 'rgba(0,20,60,.35)'; g.shadowBlur = 50; g.shadowOffsetY = 16;
+    g.fillStyle = WH; g.beginPath(); g.ellipse(0, 0, 420, 370, -.12, 0, Math.PI * 2); g.fill();
+    g.shadowColor = 'transparent';
+    const lw = 720, lh = lw * LOGO.height / LOGO.width;
+    g.drawImage(LOGO, -lw / 2, -lh / 2, lw, lh);
     g.restore();
-    revealText('CENTRE AUTO', W / 2, 1185, t0 + .55, t, { w: 900, s: 92, col: '#111', ls: 2 });
-    revealText('ALONZO', W / 2, 1300, t0 + .65, t, { w: 900, s: 120, col: '#111', ls: 8 });
   }
-  revealText('Diagnostic précis · Mayotte', W / 2, 1480, t0 + .85, t, { w: 700, s: 50, col: WH });
-  // CTA pulse
-  const cp = eBack(lin(t, t0 + 1.1, t0 + 1.45));
-  if (cp > 0) {
-    const pulse = 1 + Math.sin((t - t0) * 6) * .025 * lin(t, t0 + 1.5, t0 + 1.8);
-    g.save(); g.translate(W / 2, 1610); g.scale(cp * pulse, cp * pulse);
-    rrect(-300, -52, 600, 104, 52); g.strokeStyle = T; g.lineWidth = 5; g.stroke();
-    g.fillStyle = 'rgba(20,184,166,.15)'; g.fill();
-    text('🔧  Prenez rendez-vous', 0, 2, { w: 800, s: 42, col: WH });
+  revealText('BESOIN D’UN CHECK-UP ?', W / 2, 240, t0 + .25, t, { s: 92, col: WH });
+  revealText('POUR UN DIAGNOSTIC PRÉCIS', W / 2, 1170, t0 + .6, t, { s: 76, col: RED });
+  // phone row
+  const pr = eOut(lin(t, t0 + .8, t0 + 1.2));
+  if (pr > 0) {
+    g.save(); g.globalAlpha = pr; g.translate(-60 * (1 - pr), 0);
+    const pulse = 1 + Math.sin((t - t0) * 7) * .04 * lin(t, t0 + 1.3, t0 + 1.6);
+    g.save(); g.translate(190, 1370); g.scale(pulse, pulse);
+    g.fillStyle = BLUE; g.beginPath(); g.arc(0, 0, 92, 0, Math.PI * 2); g.fill();
+    // handset glyph
+    g.rotate(.8); g.strokeStyle = WH; g.fillStyle = WH; g.lineCap = 'round';
+    g.lineWidth = 20; g.beginPath(); g.arc(22, 0, 44, Math.PI * .62, Math.PI * 1.38); g.stroke();
+    for (const sy of [-1, 1]) { g.save(); g.translate(22 + Math.cos(Math.PI * (1 + .38 * sy)) * 44, Math.sin(Math.PI * (1 + .38 * sy)) * 44); g.rotate(sy * .3); rrect(-10, -16, 40, 32, 10); g.fill(); g.restore(); }
+    g.restore();
+    text('APPELEZ-NOUS', 320, 1325, { f: 'Montserrat', w: 600, s: 46, col: BLUE, align: 'left' });
+    text('+262 639 291702', 318, 1410, { f: 'Montserrat', w: 800, s: 68, col: BLUE, align: 'left' });
+    g.restore();
+  }
+  // address row
+  const ar = eOut(lin(t, t0 + 1.05, t0 + 1.45));
+  if (ar > 0) {
+    g.save(); g.globalAlpha = ar; g.translate(-60 * (1 - ar), 0);
+    g.save(); g.translate(190, 1590 - 14 * Math.abs(Math.sin((t - t0) * 5)) * lin(t, t0 + 1.4, t0 + 1.6));
+    g.fillStyle = RED; g.beginPath(); g.arc(0, -20, 46, Math.PI * .85, Math.PI * 2.15); g.lineTo(0, 62); g.closePath(); g.fill();
+    g.fillStyle = WH; g.beginPath(); g.arc(0, -20, 18, 0, Math.PI * 2); g.fill();
+    g.restore();
+    text('32 Route de Coconi', 320, 1550, { f: 'Montserrat', w: 500, s: 46, col: INK, align: 'left' });
+    text('COMBANI', 320, 1620, { f: 'Montserrat', w: 800, s: 54, col: BLUE, align: 'left' });
     g.restore();
   }
 }
 
 function render(t) {
-  g.clearRect(0, 0, W, H);
+  g.setTransform(1, 0, 0, 1, 0, 0);
   background(t);
   if (t < S[1]) intro(t);
-  else if (t < S[2]) tipScene(t, S[1], S[2], '01', 'Vérifiez la pression', 'chaque mois', 'malgré la chaleur', 'et les routes abîmées', gauge);
-  else if (t < S[3]) tipScene(t, S[2], S[3], '02', 'Surveillez l’usure', 'et les vibrations', 'usure inégale ou vibrations ?', 'un problème peut se cacher', wear);
-  else if (t < S[4]) tipScene(t, S[3], S[4], '03', 'Équilibrage', '& parallélisme', 'des pneus bien alignés =', 'une conduite stable', align);
+  else if (t < S[2]) tipScene(t, S[1], S[2], '01', 'VÉRIFIEZ LA PRESSION', 'CHAQUE MOIS', 'malgré la chaleur', 'et les routes abîmées', gauge);
+  else if (t < S[3]) tipScene(t, S[2], S[3], '02', 'SURVEILLEZ L’USURE', 'ET LES VIBRATIONS', 'usure inégale ou vibrations ?', 'un problème peut se cacher', wear);
+  else if (t < S[4]) tipScene(t, S[3], S[4], '03', 'ÉQUILIBRAGE', '& PARALLÉLISME', 'des pneus bien alignés =', 'une conduite stable', align);
   else outro(t);
   chrome(t);
   for (let i = 1; i < 5; i++) wipe(t, S[i]);
-  // fade from/to black
   const fb = 1 - lin(t, 0, .15);
-  if (fb > 0) { g.fillStyle = `rgba(0,0,0,${fb})`; g.fillRect(0, 0, W, H); }
+  if (fb > 0) { g.fillStyle = `rgba(255,255,255,${fb})`; g.fillRect(0, 0, W, H); }
 }
 window.render = render;
-document.fonts.load('900 40px Inter').then(() => document.fonts.load('500 40px Inter')).then(() => document.fonts.load('700 40px Inter')).then(() => document.fonts.load('800 40px Inter')).then(() => { render(0); window.ready = true; });
+Promise.all([
+  document.fonts.load('900 40px Barlow'), document.fonts.load('800 40px Barlow'),
+  document.fonts.load('600 40px Montserrat'), document.fonts.load('800 40px Montserrat'),
+  img('assets/logo.png').then(i => LOGO = i), img('assets/photo.jpg').then(i => PHOTO = i),
+]).then(() => { render(0); window.ready = true; });
 </script>
 </body></html>
