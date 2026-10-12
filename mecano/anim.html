@@ -12,20 +12,21 @@ canvas{display:block}
 <canvas id="c" width="1080" height="1920"></canvas>
 <script>
 const W = 1080, H = 1920;
-const c = document.getElementById('c'), g = c.getContext('2d');
+const c = document.getElementById('c'); let g = c.getContext('2d');
 // Centre Auto Alonzo charter (sampled from the logo)
 const BLUE = '#084990', BLUE_D = '#05336a', RED = '#E20816', WH = '#ffffff', INK = '#1d2a3f', GREY = '#5b6b82', TIRE = '#1c2026';
 
 // Scenes: intro, 3 tips, end card. ~3.5 s per tip: title + the mechanic's line.
-const S = [0, 2.8, 6.3, 9.8, 13.3, 17];
+const S = [0, 3.4, 6.9, 10.4, 13.9, 17.6];  // intro opens on a question hook
 
 // Sound effects, each placed on the frame where its element moves (see ../video/sfx.py).
 // The mechanic's speech bubbles get a wordless "blip" babble while the text types on.
 const BABBLE = (at, n) => Array.from({ length: n }, (_, i) => [at + i * .11, 'blip', { pitch: .85 + ((i * 7) % 5) * .09 }]);
 window.SFX = [
-  [0.02, 'impact'], [0.1, 'swoosh'], [0.3, 'pop', { pitch: .8 }], [0.45, 'roll', { d: .8 }], ...BABBLE(.65, 9),
-  ...[1, 2, 3].flatMap(k => [[S[k], 'whoosh'], [S[k] + .15, 'pop'], [S[k] + .3, 'tick'], ...BABBLE(S[k] + .65, 9)]),
-  [S[1] + .45, 'hiss'], [S[1] + 1.3, 'ding'],
+  [0.05, 'pop', { pitch: .9 }], [0.35, 'pop', { pitch: 1.05 }], [0.65, 'pop', { pitch: 1.2 }],   // hook question, word by word
+  [1.6, 'impact'], [1.85, 'swoosh'], [2.0, 'roll', { d: .8 }], ...BABBLE(2.05, 9),
+  ...[1, 2, 3].flatMap(k => [[S[k], 'whoosh'], [S[k] + .15, 'pop'], [S[k] + .35, 'swoosh'], ...BABBLE(S[k] + .65, 9)]),
+  [S[1] + .45, 'hiss'], [S[1] + 1.3, 'ding'], [S[1] + 1.4, 'riser', { d: .2 }],
   [S[2] + .8, 'rattle', { d: 1.1 }], [S[2] + 1.25, 'error'],
   [S[3] + .5, 'pop', { pitch: .8 }], [S[3] + 1.4, 'snap'], [S[3] + 1.6, 'ding'],
   [S[4] - .1, 'swoosh'], [S[4], 'whoosh'], [S[4] + .45, 'impact'], [S[4] + .65, 'pop'], [S[4] + .85, 'pop', { pitch: 1.2 }], ...BABBLE(S[4] + .8, 7),
@@ -363,7 +364,7 @@ function bubble(lines, x, y, w, h, tail, p, typed) {
 
 // What the mechanic does, scene by scene (times relative to the scene start)
 const LINES = {
-  intro: { at: .55, dur: 1.0, lines: ['Salut ! Voici mes', '3 conseils pneus !'] },
+  intro: { at: 1.9, dur: 1.0, lines: ['Pas de panique !', 'Voici mes 3 conseils.'] },
   1: { at: .55, dur: 1.1, lines: ['Une fois par mois,', 'même s’il fait chaud !'] },
   2: { at: .55, dur: 1.2, lines: ['Ça vibre ?', 'Usure d’un seul côté ?', 'On vérifie ensemble !'] },
   3: { at: .55, dur: 1.1, lines: ['Bien réglés : ils durent', 'et ça roule droit !'] },
@@ -375,7 +376,7 @@ function presenter(t) {
   const k = sceneIndex(t), t0 = S[k], L = LINES[k === 0 ? 'intro' : k], r = t - t0;
   const typed = lin(r, L.at + .1, L.at + .1 + L.dur), talking = typed > 0 && typed < 1 ? 1 : 0;
   let st = { arm: 'idle', mood: 'happy', talk: talking, look: 1 };
-  if (k === 0) st.arm = r > .4 && r < 2.2 ? 'wave' : 'idle';
+  if (k === 0) { st.arm = r > 1.6 && r < 3.0 ? 'wave' : 'idle'; if (r > .3 && r < 1.5) st.mood = 'worried'; }
   if (k === 1) { st.arm = r > .3 ? 'point' : 'idle'; if (r > 1.35) { st.arm = 'idle'; st.left = 'thumb'; st.mood = 'grin'; } }
   if (k === 2) { st.arm = r > .3 && r < .9 ? 'point' : 'idle'; if (r > .85 && r < 2.1) st.mood = 'worried'; if (r > 2.1) st.arm = 'point'; }
   if (k === 3) { st.arm = r > .3 ? 'point' : 'idle'; if (r > 1.65) { st.arm = 'idle'; st.left = 'thumb'; st.mood = 'grin'; } }
@@ -389,22 +390,86 @@ function presenter(t) {
     if (r > .5) st.arm = 'wave';
     st.look = -1;
   }
+  // little hop of joy on each success (squash & stretch feel)
+  const joy = k === 1 ? 1.35 : k === 3 ? 1.65 : -9;
+  y -= Math.sin(Math.PI * lin(r, joy, joy + .35)) * 45;
   st.flip = flip;
-  mechanic(x, y, 1, t, st);
+  sticker(() => mechanic(x, y, 1, t, st));
   // speech bubble next to the head
   const bp = eBack(lin(r, L.at, L.at + .3)) * (1 - eIn(lin(t, S[k + 1] - .25, S[k + 1] - .05)));
   if (flip) bubble(L.lines, 110, 0, 540, 0, [x - 100, y - 95], bp, typed);
   else bubble(L.lines, 400, 0, 540, 0, [x + 100, y - 95], bp, typed);
 }
 
+// Draws fn() with a white cut-out outline and a soft shadow (sticker / collage look)
+const OC = document.createElement('canvas'), OW = document.createElement('canvas');
+OC.width = OW.width = W; OC.height = OW.height = H;
+function sticker(fn) {
+  const main = g, oc = OC.getContext('2d'), ow = OW.getContext('2d');
+  oc.setTransform(1, 0, 0, 1, 0, 0); oc.clearRect(0, 0, W, H);
+  g = oc; fn(); g = main;
+  ow.setTransform(1, 0, 0, 1, 0, 0); ow.globalCompositeOperation = 'source-over'; ow.clearRect(0, 0, W, H);
+  ow.drawImage(OC, 0, 0); ow.globalCompositeOperation = 'source-in'; ow.fillStyle = WH; ow.fillRect(0, 0, W, H);
+  g.save(); g.shadowColor = 'rgba(8,40,90,.28)'; g.shadowBlur = 24; g.shadowOffsetY = 10; g.drawImage(OW, 0, 0); g.restore();
+  for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; g.drawImage(OW, Math.cos(a) * 9, Math.sin(a) * 9); }
+  g.drawImage(OC, 0, 0);
+}
+
+// Brand-coloured confetti burst (reward moment)
+function confetti(x, y, t, t0) {
+  const r = t - t0; if (r < 0 || r > 1.4) return;
+  const cols = [BLUE, RED, '#7fb2ff', '#ffb3b8'];
+  g.save(); g.globalAlpha = 1 - lin(r, .9, 1.4);
+  for (let i = 0; i < 34; i++) {
+    const a = (i * 137.5) * Math.PI / 180, sp = 380 + (i * 53 % 7) * 70;
+    const px = x + Math.cos(a) * sp * r, py = y + Math.sin(a) * sp * r * .8 + 900 * r * r;
+    g.save(); g.translate(px, py); g.rotate(r * (6 + i % 5)); g.fillStyle = cols[i % 4];
+    g.fillRect(-9, -5, 18, 10); g.restore();
+  }
+  g.restore();
+}
+
+// Light film grain: crafted, less "template" look
+const GRAIN = Array.from({ length: 4 }, () => {
+  const cv = document.createElement('canvas'); cv.width = 270; cv.height = 480; const x = cv.getContext('2d');
+  const im = x.createImageData(270, 480);
+  for (let i = 0; i < im.data.length; i += 4) { const v = Math.random() * 255; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; }
+  x.putImageData(im, 0, 0); return cv;
+});
+function grain(t) { g.save(); g.globalAlpha = .05; g.globalCompositeOperation = 'overlay'; g.drawImage(GRAIN[Math.floor(t * 12) % 4], 0, 0, W, H); g.restore(); }
+
 // ---------- Scenes ----------
+// Word that lands with a scale punch (kinetic typography)
+function punch(str, x, y, t0, t, s, col) {
+  const p = lin(t, t0, t0 + .28); if (p <= 0) return;
+  const k = 1 + .7 * (1 - eBack(p));
+  g.save(); g.translate(x, y); g.scale(k, k); text(str, 0, 0, { s, col, a: clamp(p * 3) }); g.restore();
+}
+// Key phrase revealed on a slanted marker band
+function marker(str, x, y, t0, t, s, bg, fg) {
+  const p = eOut(lin(t, t0, t0 + .35)); if (p <= 0) return;
+  g.save(); g.font = `900 ${s}px Barlow`; const w = g.measureText(str).width + 60; g.restore();
+  g.save(); g.translate(x - w / 2, y); g.transform(1, 0, -.25, 1, 0, 0);
+  g.beginPath(); g.rect(0, -s * .62, w * p, s * 1.2); g.fillStyle = bg; g.fill(); g.clip();
+  g.setTransform(1, 0, 0, 1, 0, 0); text(str, x, y + 4, { s, col: fg });
+  g.restore();
+}
 function intro(t) {
   g.save(); g.globalAlpha = sceneOut(t, S[1]);
-  revealText('3 CONSEILS', W / 2, 520, -.15, t, { s: 190, col: BLUE });
-  revealText('POUR FAIRE DURER', W / 2, 680, .1, t, { s: 104, col: RED });
-  revealText('VOS PNEUS', W / 2, 785, .2, t, { s: 104, col: RED });
-  const p = eOut(lin(t, .2, 1.0));
-  tire(W / 2 + (1 - p) * 700, 980, 120, -(1 - p) * 8);
+  // 1) the problem, as a question
+  const qOut = eIn(lin(t, 1.35, 1.6));
+  if (qOut < 1) {
+    g.save(); g.globalAlpha *= 1 - qOut; g.translate(0, -120 * qOut);
+    punch('VOS PNEUS', W / 2, 560, .05, t, 170, BLUE);
+    punch('S’USENT', W / 2, 720, .35, t, 170, BLUE);
+    punch('TROP VITE ?', W / 2, 880, .65, t, 170, RED);
+    g.restore();
+  }
+  // 2) the promise
+  punch('3 CONSEILS', W / 2, 560, 1.55, t, 200, BLUE);
+  marker('POUR LES FAIRE DURER', W / 2, 730, 1.85, t, 96, RED, WH);
+  const p = eOut(lin(t, 2.0, 2.7));
+  if (p > 0) tire(W / 2 + (1 - p) * 700, 960, 120, -(1 - p) * 8);
   g.restore();
 }
 
@@ -421,7 +486,7 @@ function tipScene(t, t0, t1, num, title1, title2, icon) {
   }
   g.save(); g.translate(W / 2, 700); g.scale(.78, .78); icon(0, 0, t, t0 + .1); g.restore();
   revealText(title1, W / 2, 980, t0 + .2, t, { s: fit(title1, 96, 860), col: BLUE });
-  revealText(title2, W / 2, 1075, t0 + .3, t, { s: fit(title2, 96, 860), col: RED });
+  marker(title2, W / 2, 1075, t0 + .35, t, fit(title2, 88, 780), RED, WH);
   g.restore();
 }
 
@@ -478,7 +543,10 @@ function render(t) {
   else outro(t);
   chrome(t);
   for (let i = 1; i < S.length - 1; i++) wipe(t, S[i]);
+  confetti(683, 567, t, S[1] + 1.35);   // pressure OK
+  confetti(540, 907, t, S[3] + 1.6);    // wheels aligned
   presenter(t);  // the presenter stays on top of the transitions: one continuous host
+  grain(t);
 }
 window.render = render;
 Promise.all([
