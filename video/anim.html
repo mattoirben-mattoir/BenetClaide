@@ -17,7 +17,17 @@ const c = document.getElementById('c'), g = c.getContext('2d');
 const BLUE = '#084990', BLUE_D = '#05336a', RED = '#E20816', WH = '#ffffff', INK = '#1d2a3f', GREY = '#5b6b82', TIRE = '#1c2026';
 
 // Scene boundaries (seconds), aligned with the voice-over
-const S = [0, 2.2, 4.3, 6.5, 9.25, 12];
+const S = [0, 2.6, 5.6, 8.6, 11.8, 15];  // ~3 s per tip: time to read without voice-over
+
+// Sound effects, each placed on the frame where its element moves (see sfx.py)
+window.SFX = [
+  [0.02, 'impact'], [0.2, 'pop'], [0.35, 'swoosh'], [0.75, 'pop', { pitch: 1.3 }],
+  ...[1, 2, 3].flatMap(k => [[S[k], 'whoosh'], [S[k] + .15, 'pop'], [S[k] + .35, 'tick']]),
+  [S[1] + .45, 'hiss'], [S[1] + 1.3, 'ding'],                        // pressure: pump, then OK
+  [S[2] + .8, 'rattle', { d: 1.1 }], [S[2] + 1.25, 'error'],          // wear: vibration, then warning
+  [S[3] + .5, 'pop', { pitch: .8 }], [S[3] + 1.4, 'snap'], [S[3] + 1.6, 'ding'],  // alignment clicks into place
+  [S[4] - .05, 'riser', { d: .7 }], [S[4], 'whoosh'], [S[4] + .45, 'impact'], [S[4] + .75, 'pop'], [S[4] + .95, 'pop', { pitch: 1.2 }],
+];
 
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 const lin = (t, a, b) => clamp((t - a) / (b - a));
@@ -128,10 +138,10 @@ function intro(t) {
   const out = sceneOut(t, S[1]);
   g.save(); g.globalAlpha = out;
   // photo, Ken Burns zoom
-  const ph = 1200, z = 1.04 + .06 * lin(t, 0, 2.2);
+  const ph = 1200, z = 1.04 + .06 * lin(t, 0, S[1]);
   const pw = W * z, phh = pw * PHOTO.height / PHOTO.width;
   g.save(); g.beginPath(); g.rect(0, 0, W, ph); g.clip();
-  g.drawImage(PHOTO, W / 2 - pw / 2, -20 * lin(t, 0, 2.2), pw, phh);
+  g.drawImage(PHOTO, W / 2 - pw / 2, -20 * lin(t, 0, S[1]), pw, phh);
   const gr = g.createLinearGradient(0, ph - 400, 0, ph);
   gr.addColorStop(0, 'rgba(8,73,144,0)'); gr.addColorStop(1, 'rgba(8,73,144,0.55)');
   g.fillStyle = gr; g.fillRect(0, ph - 400, W, 400);

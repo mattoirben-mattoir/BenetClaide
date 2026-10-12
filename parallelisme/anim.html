@@ -9,14 +9,29 @@ canvas{display:block}
 <body>
 <canvas id="c" width="1080" height="1920"></canvas>
 <script>
-const W = 1080, H = 1920, DUR = 19;
+const W = 1080, H = 1920, DUR = 18.2;
 const c = document.getElementById('c'), g = c.getContext('2d');
 // Centre Auto Alonzo charter
 const BLUE = '#084990', RED = '#E20816', WH = '#ffffff', INK = '#1d2a3f', GREY = '#5b6b82', JOY = '#FFD200';
 
 // Scene boundaries (seconds), aligned with the voice-over
 // Scenes: hook, walking analogy, wheel geometry, benefits, end card
-const S = [0, 2.1, 6.8, 9.85, 15.05, DUR];
+const S = [0, 2.4, 6.4, 9.8, 14.6, DUR];
+
+// Footsteps follow the legs animation: a foot lands every PI / 5.5 s (see legs()).
+const STEP = Math.PI / 5.5;
+const steps = (a, b, kind) => { const out = []; for (let k = Math.ceil(a / STEP); k * STEP < b; k++) out.push([k * STEP, kind, kind === 'step' ? { h: .8 + (k % 2) * .2 } : {}]); return out; };
+// Sound effects, each placed on the frame where its element moves (see ../video/sfx.py)
+window.SFX = [
+  [0.02, 'impact'], [0.55, 'swoosh'], [0.8, 'pop'], [1.5, 'ding'],
+  [S[1], 'whoosh'], [S[1] + .15, 'tick'],
+  ...steps(S[1] + .35, S[1] + 1.8, 'step'), [S[1] + 1.0, 'ding'],      // straight legs: steady steps
+  ...steps(S[1] + 1.95, S[1] + 3.6, 'stumble'), [S[1] + 2.6, 'error'],  // bent legs: stumbling
+  [S[2], 'whoosh'], [S[2] + .1, 'tick'], [S[2] + .5, 'pop'], [S[2] + .9, 'ding'],
+  ...[0, 1, 2, 3].map(i => [S[2] + 1.35 + i * .3, 'pop', { pitch: .9 + i * .1 }]), [S[2] + 2.5, 'error'],
+  [S[3], 'whoosh'], [S[3] + .1, 'tick'], ...[0, 1, 2].map(i => [S[3] + .45 + i * 1.0, 'pop', { pitch: 1 + i * .15 }]), [S[3] + 2.75, 'ding'],
+  [S[4] - .05, 'riser', { d: .7 }], [S[4], 'whoosh'], [S[4] + .45, 'impact'], [S[4] + .75, 'pop'], [S[4] + .95, 'pop', { pitch: 1.2 }],
+];
 
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 const lin = (t, a, b) => clamp((t - a) / (b - a));
@@ -169,13 +184,13 @@ function walk(t) {
   g.save(); g.globalAlpha = sceneOut(t, S[2]);
   revealText('C’EST COMME', W / 2, 500, t0 + .05, t, { s: 92, col: BLUE });
   revealText('QUAND VOUS MARCHEZ', W / 2, 595, t0 + .15, t, { s: fit('QUAND VOUS MARCHEZ', 92, 860), col: BLUE });
-  const p1 = eBack(lin(t, 2.25, 2.7)), p2 = eBack(lin(t, 4.85, 5.3));
+  const p1 = eBack(lin(t, S[1] + .2, S[1] + .65)), p2 = eBack(lin(t, S[1] + 1.8, S[1] + 2.25));
   legs(300, 760, t, 0, p1);
   legs(780, 760, t, 1, p2);
-  if (p1 > 0) { text('DROITES', 300, 1230, { s: 80, col: BLUE, a: clamp(p1) }); check(300, 1340, eBack(lin(t, 3.2, 3.5))); }
-  if (p2 > 0) { text('TORDUES', 780, 1230, { s: 80, col: RED, a: clamp(p2) }); cross(780, 1340, eBack(lin(t, 5.6, 5.9))); }
-  text('On avance facilement', 300, 1420, { f: 'Montserrat', w: 600, s: 30, col: GREY, a: eOut(lin(t, 3.3, 3.7)) });
-  text('Démarche bancale', 780, 1420, { f: 'Montserrat', w: 600, s: 30, col: GREY, a: eOut(lin(t, 5.7, 6.1)) });
+  if (p1 > 0) { text('DROITES', 300, 1230, { s: 80, col: BLUE, a: clamp(p1) }); check(300, 1340, eBack(lin(t, S[1] + .8, S[1] + 1.1))); }
+  if (p2 > 0) { text('TORDUES', 780, 1230, { s: 80, col: RED, a: clamp(p2) }); cross(780, 1340, eBack(lin(t, S[1] + 2.4, S[1] + 2.7))); }
+  text('On avance facilement', 300, 1420, { f: 'Montserrat', w: 600, s: 36, col: GREY, a: eOut(lin(t, S[1] + .9, S[1] + 1.3)) });
+  text('Démarche bancale', 780, 1420, { f: 'Montserrat', w: 600, s: 36, col: GREY, a: eOut(lin(t, S[1] + 2.5, S[1] + 2.9)) });
   g.restore();
 }
 
@@ -192,7 +207,7 @@ function geometry(t) {
   const D = [['axle-contre', 'CONTRE-CARROSSAGE', 290, 1080], ['axle-carrossage', 'CARROSSAGE', 790, 1080],
              ['axle-pincement', 'PINCEMENT', 290, 1300], ['axle-ouverture', 'OUVERTURE', 790, 1300]];
   D.forEach(([k, label, x, y], i) => {
-    const at = t0 + 1.1 + i * .22, p = eBack(lin(t, at, at + .35));
+    const at = t0 + 1.1 + i * .3, p = eBack(lin(t, at, at + .35));
     axle(k, x, y, 360, p);
     tag(label, x, y + 92, eBack(lin(t, at + .1, at + .4)), { s: 32 });
     cross(x + 170, y - 60, eBack(lin(t, at + .25, at + .5)) * .7);
@@ -224,7 +239,7 @@ function benefits(t) {
   g.save(); g.globalAlpha = sceneOut(t, S[4]);
   revealText('UN BON', W / 2, 500, t0 + .05, t, { s: 96, col: BLUE });
   revealText('PARALLÉLISME, C’EST :', W / 2, 600, t0 + .15, t, { s: fit('PARALLÉLISME, C’EST :', 96, 880), col: RED });
-  const rows = [['DES PNEUS QUI DURENT', 'Comme des jambes bien alignées', 10.05], ['UNE VOITURE STABLE', 'Comme quand on marche droit', 12.35], ['DU CARBURANT ÉCONOMISÉ', 'Avancer sans effort en plus', 13.55]];
+  const rows = [['DES PNEUS QUI DURENT', 'Comme des jambes bien alignées', S[3] + .4], ['UNE VOITURE STABLE', 'Comme quand on marche droit', S[3] + 1.4], ['DU CARBURANT ÉCONOMISÉ', 'Avancer sans effort en plus', S[3] + 2.4]];
   rows.forEach(([a, b, at], i) => {
     const y = 820 + i * 210, p = eBack(lin(t, at, at + .35));
     benefitIcon(i, 190, y, p);

@@ -9,14 +9,26 @@ canvas{display:block}
 <body>
 <canvas id="c" width="1080" height="1920"></canvas>
 <script>
-const W = 1080, H = 1920, DUR = 16;
+const W = 1080, H = 1920, DUR = 16.4;
 const c = document.getElementById('c'), g = c.getContext('2d');
 // Centre Auto Alonzo charter
 const BLUE = '#084990', RED = '#E20816', WH = '#ffffff', INK = '#1d2a3f', GREY = '#5b6b82', JOY = '#FFD200';
 
 // Scene boundaries (seconds), aligned with the voice-over
 // Scenes: road photo (intro + camera moves), why us, end card
-const S = [0, 8.1, 10.9, DUR];
+const S = [0, 8.6, 12.8, DUR];  // longer "why us" scene: time to read without voice-over
+
+// Sound effects, each placed on the frame where its element moves (see ../video/sfx.py)
+window.SFX = [
+  [0.02, 'impact'], [0.25, 'swoosh'], [0.5, 'tick'],
+  [2.15, 'camera'], [2.35, 'pop'], [2.5, 'tick'],                   // dive on the city car
+  [3.75, 'camera'], [3.85, 'pop', { pitch: 1.15 }], [4.0, 'tick'],  // sedan
+  [5.15, 'camera'], [5.25, 'pop', { pitch: 1.3 }], [5.4, 'tick'],   // SUV / 4x4
+  [6.55, 'camera'], [6.75, 'swoosh'], [7.0, 'ding'],                // pull back: the right tire for each
+  [S[1], 'whoosh'], [S[1] + .1, 'tick'],
+  ...[0, 1, 2].map(i => [S[1] + .45 + i * .9, 'pop', { pitch: 1 + i * .15 }]),
+  [S[2] - .05, 'riser', { d: .7 }], [S[2], 'whoosh'], [S[2] + .45, 'impact'], [S[2] + .75, 'pop'], [S[2] + .95, 'pop', { pitch: 1.2 }],
+];
 
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 const lin = (t, a, b) => clamp((t - a) / (b - a));
@@ -103,17 +115,17 @@ function tag(label, x, y, p, { col = RED, txt = WH, s = 58, w = null } = {}) {
 // ---------- Road photo with camera moves ----------
 // Photo coordinates (route.jpg is 1000x615). Original labels are covered by ours.
 const LABELS = [
-  { txt: 'CITADINES', box: [20, 353, 265, 57], bg: BLUE, fg: WH, at: 2.2 },
-  { txt: 'BERLINES', box: [270, 62, 230, 56], bg: WH, fg: BLUE, border: BLUE, at: 3.5 },
-  { txt: 'SUV ET 4X4', box: [652, 35, 263, 53], bg: RED, fg: WH, at: 4.5 },
+  { txt: 'CITADINES', box: [20, 353, 265, 57], bg: BLUE, fg: WH, at: 2.3 },
+  { txt: 'BERLINES', box: [270, 62, 230, 56], bg: WH, fg: BLUE, border: BLUE, at: 3.8 },
+  { txt: 'SUV ET 4X4', box: [652, 35, 263, 53], bg: RED, fg: WH, at: 5.2 },
 ];
 // Camera keyframes: time, photo point at screen centre, scale, screen y of that point
 const CAM = [
-  [0, 500, 300, 1.08, 1010], [1.9, 500, 300, 1.13, 1010],
-  [2.35, 205, 330, 2.0, 790], [3.35, 220, 330, 2.06, 790],
-  [3.8, 500, 320, 2.0, 790], [4.45, 505, 320, 2.06, 790],
-  [4.9, 785, 290, 2.0, 790], [5.85, 770, 290, 2.06, 790],
-  [6.35, 500, 290, 1.08, 760], [8.1, 500, 290, 1.13, 760],
+  [0, 500, 300, 1.08, 1010], [2.0, 500, 300, 1.13, 1010],
+  [2.45, 205, 330, 2.0, 790], [3.55, 220, 330, 2.06, 790],
+  [4.0, 500, 320, 2.0, 790], [4.95, 505, 320, 2.06, 790],
+  [5.4, 785, 290, 2.0, 790], [6.35, 770, 290, 2.06, 790],
+  [6.85, 500, 290, 1.08, 760], [8.6, 500, 290, 1.13, 760],
 ];
 function cam(t) {
   let k = CAM.findIndex(c => c[0] > t);
@@ -163,20 +175,20 @@ function roadScene(t) {
   g.save(); g.globalAlpha = sceneOut(t, S[1]);
   road(t);
   // hook title, leaves when the camera dives in
-  const titleOut = eIn(lin(t, 1.85, 2.2));
+  const titleOut = eIn(lin(t, 1.95, 2.3));
   if (titleOut < 1) {
     g.save(); g.globalAlpha *= 1 - titleOut; g.translate(0, -80 * titleOut);
     revealText('DES PNEUS', W / 2, 400, -.2, t, { s: 170, col: BLUE });
     revealText('POUR TOUTES LES TAILLES !', W / 2, 545, .15, t, { s: fit('POUR TOUTES LES TAILLES !', 120, 880), col: RED });
     g.restore();
   }
-  caption('PETITE CITADINE', BLUE, t, 2.25, 3.55);
-  caption('BERLINE', BLUE, t, 3.55, 4.65);
-  caption('OU GROS 4X4', RED, t, 4.65, 6.05);
-  if (t > 6.0) {
-    revealText('LE PNEU', W / 2, 1210, 6.05, t, { s: 110, col: BLUE });
-    revealText('PARFAITEMENT ADAPTÉ', W / 2, 1320, 6.2, t, { s: fit('PARFAITEMENT ADAPTÉ', 110, 860), col: RED });
-    revealText('à votre véhicule', W / 2, 1420, 6.4, t, { f: 'Montserrat', w: 600, s: 46, col: GREY });
+  caption('PETITE CITADINE', BLUE, t, 2.35, 3.75);
+  caption('BERLINE', BLUE, t, 3.75, 5.15);
+  caption('OU GROS 4X4', RED, t, 5.15, 6.6);
+  if (t > 6.55) {
+    revealText('LE PNEU', W / 2, 1210, 6.6, t, { s: 110, col: BLUE });
+    revealText('PARFAITEMENT ADAPTÉ', W / 2, 1320, 6.75, t, { s: fit('PARFAITEMENT ADAPTÉ', 110, 860), col: RED });
+    revealText('à votre véhicule', W / 2, 1420, 6.95, t, { f: 'Montserrat', w: 600, s: 46, col: GREY });
   }
   g.restore();
 }
@@ -206,7 +218,7 @@ function why(t) {
   g.save(); g.globalAlpha = sceneOut(t, S[2]);
   revealText('POURQUOI NOUS', W / 2, 520, t0 + .05, t, { s: 96, col: BLUE });
   revealText('CHOISIR ?', W / 2, 615, t0 + .12, t, { s: 96, col: RED });
-  const rows = [['LARGE GAMME', 'Pneus pour toutes les tailles', 8.35], ['MONTAGE PRO', 'Par nos mécaniciens', 9.05], ['CONSEILS D’EXPERTS', 'Pour chaque type de voiture', 9.7]];
+  const rows = [['LARGE GAMME', 'Pneus pour toutes les tailles', S[1] + .45], ['MONTAGE PRO', 'Par nos mécaniciens', S[1] + 1.35], ['CONSEILS D’EXPERTS', 'Pour chaque type de voiture', S[1] + 2.25]];
   rows.forEach(([a, b, at], i) => {
     const y = 820 + i * 200, p = eBack(lin(t, at, at + .35));
     icon(i, 200, y, p);
