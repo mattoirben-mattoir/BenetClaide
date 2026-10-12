@@ -24,20 +24,22 @@ const INKL = '#121c36', LIPS = '#4a1712', GLASS = '#0b0d11', MIC = '#f2782a', LE
 let LOOK = 'ville', SHIRT = '#ffffff', SHIRT_D = '#e2e8f1';
 const BEARD = '#15100d', PANTS = '#1c2647';
 function setLook(l) { LOOK = l; SHIRT = l === 'ville' ? '#ffffff' : BLUE; SHIRT_D = l === 'ville' ? '#e2e8f1' : TEE_D; }
-const DRESS = [9.65, 9.95];      // the work tee slides down from the neck to the belt
+const DRESS = [9.6, 10.0];       // work outfit sweeps on, head to feet: tee, cargo trousers, work shoes
+const SWAP = [13.5, 14.0];       // last shot: he tosses the mic, it comes down as a wrench
 const DUR = 17.4;
 const S = [0, DUR];
 const sceneOf = () => 0, onBlue = () => false;   // single-scene episode (used by shared drawing code)
 
 // ---------------------------------------------------------------- sound
 const BABBLE = (at, n, base = .85) => Array.from({ length: n }, (_, i) => [at + i * .11, 'blip', { pitch: base + ((i * 7) % 5) * .09 }]);
-window.SFX = [
+const SFX0 = [
   [0.2, 'pop'], [3.2, 'swoosh'], [1.98, 'snap'], [2.0, 'impact'], [2.1, 'swoosh'], [2.2, 'riser', { d: .55 }], [2.75, 'ding'], [3.0, 'pop', { pitch: 1.2 }],
   ...BABBLE(3.7, 6), [5.6, 'swoosh'], [5.62, 'whoosh'], [6.13, 'tick'],
   [6.2, 'roll', { d: .9 }], [6.25, 'whoosh'], [6.9, 'screech', { d: .5 }], [7.2, 'honk'], [7.5, 'honk'], ...BABBLE(7.65, 6, .62),
-  [8.25, 'tick'], ...BABBLE(9.0, 7), [9.43, 'whoosh'], [9.66, 'swoosh'], [9.93, 'pop', { pitch: 1.25 }],
-  [10.0, 'jingle'], [15.3, 'pop', { pitch: .9 }], [10.02, 'impact'], [10.6, 'swoosh'],
-  [14.0, 'pop'], ...BABBLE(14.35, 10), [14.6, 'pop', { pitch: 1.3 }], [15.05, 'pop', { pitch: 1.1 }],
+  [8.25, 'tick'], ...BABBLE(9.0, 7), [9.38, 'whoosh'], [9.6, 'swoosh'], [9.98, 'pop', { pitch: 1.25 }],
+  [10.0, 'jingle'], [10.02, 'impact'], [10.6, 'swoosh'],
+  [13.5, 'whoosh'], [13.75, 'pop', { pitch: .8 }], [14.0, 'ding'],
+  ...BABBLE(14.35, 10), [14.6, 'pop', { pitch: 1.3 }], [15.05, 'pop', { pitch: 1.1 }],
 ];
 
 // ---------------------------------------------------------------- helpers
@@ -158,9 +160,7 @@ function arm(sx, sy, tx, ty, bend, hand, prop) {
     g.fillStyle = '#20242b'; rrect(10, -9, 90, 18, 8); g.fill();
     g.fillStyle = '#c9d0d9'; rrect(92, -12, 22, 24, 5); g.fill();
   } else if (prop === 'wrench') {
-    g.fillStyle = '#aeb6c2'; rrect(10, -10, 120, 20, 9); g.fill();
-    g.beginPath(); g.arc(138, 0, 26, 0, Math.PI * 2); g.fill();
-    g.save(); g.globalCompositeOperation = 'destination-out'; g.fillRect(140, -9, 30, 18); g.restore();
+    wrenchShape(0);
   } else if (prop === 'micLow') {   // mic held down along the leg, as in the photo
     g.fillStyle = INKL; rrect(4, -13, 76, 26, 10); g.fill(); g.fillStyle = '#25282e'; rrect(8, -9, 70, 18, 8); g.fill();
     foam(98, 0);
@@ -185,6 +185,18 @@ function arm(sx, sy, tx, ty, bend, hand, prop) {
   }
 }
 let WAVES = -1;
+// open-end wrench, along +x from x0 (handle) to the jaw; navy ink line, steel with a highlight
+function wrenchShape(x0) {
+  g.save(); g.translate(x0, 0);
+  for (const [c, k] of [[INKL, 4], ['#b9c2ce', 0]]) {
+    g.fillStyle = c; rrect(10 - k, -11 - k, 124 + 2 * k, 22 + 2 * k, 10 + k); g.fill();
+    g.beginPath(); g.arc(146, 0, 30 + k, 0, Math.PI * 2); g.fill();
+  }
+  g.fillStyle = '#e6ebf1'; rrect(22, -7, 96, 5, 3); g.fill();
+  g.fillStyle = INKL; g.beginPath(); g.moveTo(150, -12); g.lineTo(184, -16); g.lineTo(184, 16); g.lineTo(150, 12); g.closePath(); g.fill();
+  g.save(); g.globalCompositeOperation = 'destination-out'; g.beginPath(); g.moveTo(154, -9); g.lineTo(190, -13); g.lineTo(190, 13); g.lineTo(154, 9); g.closePath(); g.fill(); g.restore();
+  g.restore();
+}
 function foam(x, y) {
   g.fillStyle = INKL; g.beginPath(); g.arc(x, y, 31, 0, Math.PI * 2); g.fill();
   g.fillStyle = MIC; g.beginPath(); g.arc(x, y, 27, 0, Math.PI * 2); g.fill();
@@ -195,12 +207,16 @@ function foam(x, y) {
 function mechanic(x, y, t, st) {
   const d = st.dress || 0;
   if (d <= 0 || d >= 1) { setLook(d >= 1 ? 'atelier' : 'ville'); return mech0(x, y, t, st); }
-  const sc = st.sc || 1, edge = y + (-60 + 500 * d) * sc;
+  const sc = st.sc || 1, le = -60 + 900 * d, edge = y + le * sc;
   setLook('ville'); mech0(x, y, t, st);
   setLook('atelier'); g.save(); g.beginPath(); g.rect(0, 0, W, edge); g.clip(); mech0(x, y, t, st); g.restore();
-  // the hem, still rolled up as it comes down
-  g.fillStyle = INKL; rrect(x - 134 * sc, edge - 18 * sc, 268 * sc, 36 * sc, 18 * sc); g.fill();
-  g.fillStyle = TEE_D; rrect(x - 130 * sc, edge - 14 * sc, 260 * sc, 28 * sc, 14 * sc); g.fill();
+  if (le < 430) {                    // the tee's hem, still rolled up as it comes down
+    g.fillStyle = INKL; rrect(x - 134 * sc, edge - 18 * sc, 268 * sc, 36 * sc, 18 * sc); g.fill();
+    g.fillStyle = TEE_D; rrect(x - 130 * sc, edge - 14 * sc, 260 * sc, 28 * sc, 14 * sc); g.fill();
+  } else {                           // then a bright sweep line turns trousers + shoes into work gear
+    g.save(); g.strokeStyle = WH; g.lineWidth = 6 * sc; g.shadowColor = '#ffd34d'; g.shadowBlur = 18;
+    g.beginPath(); g.moveTo(x - 130 * sc, edge); g.lineTo(x + 130 * sc, edge); g.stroke(); g.restore();
+  }
 }
 
 // st: { r: {x,y,bend,hand,prop}, l: {...}, mood, talk }
@@ -382,13 +398,35 @@ function legs(st, t) {
     g.strokeStyle = INKL; g.lineWidth = 104; leg();
     g.strokeStyle = PANTS; g.lineWidth = 92; leg();
     g.strokeStyle = '#2f3c69'; g.lineWidth = 4; g.beginPath(); g.moveTo(hx - side * 6, 460); g.quadraticCurveTo(kx - side * 6, ky, fx - side * 6, fy - 20); g.stroke();  // trouser crease
+    if (LOOK === 'atelier') {         // cargo trousers: side pocket with flap on each thigh
+      const px = side * (bent ? 92 : 74), py = 560;
+      g.save(); g.translate(px, py); g.rotate(side * (bent ? .25 : .03));
+      if (side < 0) {                // red shop rag hanging out of the pocket
+        const fl = Math.sin(t * 6) * 4;   // tucked in the pocket, the top flops out over the flap
+        g.fillStyle = INKL; g.beginPath(); g.moveTo(-24, -40); g.quadraticCurveTo(-30 + fl, -86, -4 + fl, -90); g.quadraticCurveTo(22 + fl, -84, 20, -40); g.closePath(); g.fill();
+        g.fillStyle = RED; g.beginPath(); g.moveTo(-20, -40); g.quadraticCurveTo(-25 + fl, -82, -4 + fl, -85); g.quadraticCurveTo(17 + fl, -80, 16, -40); g.closePath(); g.fill();
+        g.strokeStyle = '#a5060f'; g.lineWidth = 3; g.beginPath(); g.moveTo(-6 + fl, -78); g.quadraticCurveTo(-2, -60, -6, -44); g.stroke();
+      }
+      g.fillStyle = INKL; rrect(-37, -50, 74, 104, 12); g.fill();
+      g.fillStyle = '#2e3b70'; rrect(-33, -46, 66, 96, 10); g.fill();
+      g.strokeStyle = '#5465a0'; g.lineWidth = 3; g.setLineDash([7, 6]); rrect(-26, -14, 52, 56, 7); g.stroke(); g.setLineDash([]);   // stitching
+      g.fillStyle = INKL; rrect(-37, -50, 74, 34, 11); g.fill(); g.fillStyle = '#222c5a'; rrect(-33, -46, 66, 26, 9); g.fill();     // flap
+      g.fillStyle = '#d3d8df'; g.beginPath(); g.arc(0, -31, 5.5, 0, Math.PI * 2); g.fill();
+      g.restore();
+    }
     g.save(); g.translate(fx, fy + 30); g.rotate(bent ? -side * .4 : 0);
-    // black patent loafers with a tassel (as in the photos)
-    g.fillStyle = INKL; rrect(-62, -27, 124, 56, 24); g.fill();
-    g.fillStyle = '#0a0a0c'; rrect(-57, -22, 114, 46, 20); g.fill();
-    g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.ellipse(side * 22, -10, 20, 5, 0, 0, Math.PI * 2); g.fill();
-    g.strokeStyle = '#3a3d45'; g.lineWidth = 3; g.beginPath(); g.moveTo(side * 2 - 6, -18); g.lineTo(side * 2 - 8, -4); g.moveTo(side * 2 + 6, -18); g.lineTo(side * 2 + 8, -4); g.stroke();
-    g.fillStyle = '#3a3d45'; for (const o of [-8, 8]) { g.beginPath(); g.arc(side * 2 + o, -2, 4, 0, Math.PI * 2); g.fill(); }
+    if (LOOK === 'atelier') {         // work shoes: black upper, light rubber sole, laces
+      g.fillStyle = INKL; rrect(-64, -32, 128, 62, 24); g.fill();
+      g.fillStyle = '#17191e'; rrect(-59, -27, 118, 44, 20); g.fill();
+      g.fillStyle = '#c3c9d2'; rrect(-59, 12, 118, 13, 6); g.fill();
+      g.strokeStyle = '#e9edf2'; g.lineWidth = 3; for (const o of [-14, -4, 6]) { g.beginPath(); g.moveTo(side * 6 + o, -22); g.lineTo(side * 6 + o + 8, -8); g.stroke(); }
+    } else {                          // black patent loafers with a tassel (as in the photos)
+      g.fillStyle = INKL; rrect(-62, -27, 124, 56, 24); g.fill();
+      g.fillStyle = '#0a0a0c'; rrect(-57, -22, 114, 46, 20); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.ellipse(side * 22, -10, 20, 5, 0, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#3a3d45'; g.lineWidth = 3; g.beginPath(); g.moveTo(side * 2 - 6, -18); g.lineTo(side * 2 - 8, -4); g.moveTo(side * 2 + 6, -18); g.lineTo(side * 2 + 8, -4); g.stroke();
+      g.fillStyle = '#3a3d45'; for (const o of [-8, 8]) { g.beginPath(); g.arc(side * 2 + o, -2, 4, 0, Math.PI * 2); g.fill(); }
+    }
     g.restore();
   }
 }
@@ -503,7 +541,8 @@ function transformation(t) {
 // the mic is his prop: held at the chest (as in the photo), to the mouth when he talks, tossed during the hop,
 // raised for the title, held out to the viewer for the closing question. Mic arm in front of the body.
 const MIC_CHEST = { x: -28, y: 64, bend: 1, hand: 'fist', prop: 'mic' }, MIC_MOUTH = { x: -40, y: 6, bend: 1, hand: 'fist', prop: 'mic', waves: true };
-const MIC_UP = { x: -200, y: -190, bend: -1, hand: 'fist', prop: 'mic' }, MIC_OUT = { x: -235, y: 120, bend: 1, hand: 'fist', prop: 'micOut' };
+const MIC_UP = { x: -200, y: -190, bend: -1, hand: 'fist', prop: 'mic' };
+const WRENCH = { x: -190, y: -50, bend: -1, hand: 'fist', prop: 'wrench' }, CATCH = { x: -215, y: -150, bend: -1, hand: 'open' };
 function poseAt(t) {
   const st = { mood: 'happy', sc: 1, dress: eOut(lin(t, DRESS[0], DRESS[1])), lFront: true, l: MIC_CHEST };
   const talking = LINES0.some(l => l[7] === 'm' && t >= l[0] && t < l[0] + l[2] + .25);
@@ -513,14 +552,15 @@ function poseAt(t) {
     if (t >= 3.6) st.l = MIC_MOUTH;
   }
   else if (t < FLIP[0]) { st.mood = 'grin'; st.r = { x: 210, y: -110, bend: 1, hand: 'thumb' }; }
-  else if (t < FLIP[1]) { st.mood = 'grin'; st.l = { x: -215, y: -150, bend: -1, hand: 'open' }; }            // mic in the air: open hand ready to catch
+  else if (t < FLIP[1]) { st.mood = 'grin'; st.l = CATCH; }            // mic in the air: open hand ready to catch
   else if (t < 8.2) st.mood = 'happy';
   else if (t < 9.3) { st.mood = 'worried'; st.r = { x: 10, y: -170, bend: 1, hand: 'open' }; }             // facepalm
   else if (t < 9.62) st.l = MIC_MOUTH;                                                                        // "Pas avec moi !"
   else if (t < 10.0) st.mood = 'grin';
   else if (t < 11.2) { st.mood = 'grin'; st.l = MIC_UP; }                                                     // presenter: mic up for the title
-  else if (t < 14.0) st.mood = 'grin';
-  else { st.mood = 'grin'; st.r = { x: 290, y: 200, bend: 1, hand: 'point' }; st.l = t < 15.3 ? MIC_MOUTH : MIC_OUT; }  // asks, then holds the mic out to you
+  else if (t < SWAP[0]) st.mood = 'grin';
+  else if (t < SWAP[1]) { st.mood = 'grin'; st.l = CATCH; }                                                 // mic in the air…
+  else { st.mood = 'grin'; st.r = { x: 290, y: 200, bend: 1, hand: 'point' }; st.l = WRENCH; }              // …back to work: wrench in hand, points at the car
   if (talking && st.l === MIC_MOUTH) st.waves = true;
   return st;
 }
@@ -535,8 +575,13 @@ const LINES0 = [
 function mascotPos(t) {
   if (t < SETTLE) return PH;
   if (t < 5.6) { const p = eInOut(lin(t, SETTLE, SETTLE + .5)); return { x: PH.x + (MASC.x - PH.x) * p, y: PH.y + (MASC.y - PH.y) * p, sc: PH.sc + (MASC.sc - PH.sc) * p }; }
-  const p = eInOut(lin(t, 5.6, 6.15)), hop = Math.sin(Math.PI * p) * 180;
-  return { x: MASC.x + (HOME.x - MASC.x) * p, y: MASC.y + (HOME.y - MASC.y) * p - hop, sc: MASC.sc + (HOME.sc - MASC.sc) * p };
+  const p = eInOut(lin(t, 5.6, 6.15)), hop = Math.sin(Math.PI * p) * 180, gp = groundPos(t);
+  return { x: gp.x, y: gp.y - hop, sc: gp.sc };
+}
+function groundPos(t) {              // mascot position without the hop
+  if (t < 5.6) return mascotPos(t);
+  const p = eInOut(lin(t, 5.6, 6.15));
+  return { x: MASC.x + (HOME.x - MASC.x) * p, y: MASC.y + (HOME.y - MASC.y) * p, sc: MASC.sc + (HOME.sc - MASC.sc) * p };
 }
 
 function carState(t) {
@@ -561,16 +606,16 @@ function render(t) {
     g.save(); g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 24; punch('KARIBU !', W / 2, 1330, .2, t, 190, WH); g.restore();
     g.restore();
   }
-  if (t < T0 + 1.0) { g.save(); g.globalAlpha = 1 - lin(t, T0 + .7, T0 + 1.0); rrect(40, 250, 470, 56, 28); g.fillStyle = 'rgba(0,0,0,.5)'; g.fill(); text('MAQUETTE · photo → vidéo Karibu', 275, 279, { f: 'Montserrat', w: 700, s: 26, col: WH }); g.restore(); }
+  if (t < T0 + 1.0) { g.save(); g.globalAlpha = 1 - lin(t, T0 + .3, T0 + .55); rrect(40, 250, 470, 56, 28); g.fillStyle = 'rgba(0,0,0,.5)'; g.fill(); text('MAQUETTE · photo → vidéo Karibu', 275, 279, { f: 'Montserrat', w: 700, s: 26, col: WH }); g.restore(); }
   // the wink: flash
   const fl = 1 - lin(t, T0, T0 + .12); if (t >= T0 && fl > 0) { g.fillStyle = `rgba(255,255,255,${fl * .8})`; g.fillRect(0, 0, W, H); }
-  if (t >= T0 && t < T0 + 1.1) { g.save(); g.globalAlpha = 1 - lin(t, T0 + .8, T0 + 1.1); punch('ATTENDEZ…', W / 2, 1330, T0 + .05, t, 150, WH); g.restore(); }
+  if (t >= T0 && t < T0 + 1.1) { g.save(); g.globalAlpha = 1 - lin(t, T0 + .55, T0 + .8); punch('ATTENDEZ…', W / 2, 1330, T0 + .05, t, 150, WH); g.restore(); }
   transformation(t);
   if (t >= 3.6 && t < 5.6) { g.save(); g.globalAlpha = 1 - lin(t, 5.3, 5.6); marker('ALONZO', MASC.x, 1400, 3.6, t, 90, RED, WH); g.restore(); }  // he introduces himself
   // D — series title
   if (t >= 10.0) {
     punch('GARDE LE CAP !', W / 2, 300, 10.0, t, 150, BLUE);
-    g.save(); g.globalAlpha = 1 - lin(t, 13.8, 14.0);
+    g.save(); g.globalAlpha = 1 - lin(t, 13.2, 13.45);   // cleared before the mic/wrench swap
     revealLine('Tous les 15 jours, un conseil pour votre voiture', 395, t, 10.3, 36, INK);
     marker('ÉPISODE 1 · VENDREDI 4 DÉCEMBRE', W / 2, 480, 10.6, t, fit('ÉPISODE 1 · VENDREDI 4 DÉCEMBRE', 60, 820), RED, WH);
     g.restore();
@@ -584,14 +629,23 @@ function render(t) {
     const say = LINES0.find(l => l[7] === 'm' && t >= l[0] && t < l[1]);
     if (say && t < say[0] + say[2] + .1) st.talk = true;
     if (st.talk && st.mood === 'happy') st.mood = 'talk';
-    if (t > T0 + .9) { g.fillStyle = 'rgba(10,25,60,.22)'; g.beginPath(); g.ellipse(m.x, m.y + 830 * m.sc, 190 * m.sc, 22 * m.sc, 0, 0, Math.PI * 2); g.fill(); }
+    if (t > T0 + .9) {               // ground shadow: stays on the floor and shrinks while he is in the air
+      const gp = groundPos(t), air = clamp((gp.y - m.y) / 180);
+      g.fillStyle = `rgba(10,25,60,${.22 * (1 - air * .5)})`; g.beginPath(); g.ellipse(m.x, gp.y + 830 * gp.sc, 190 * gp.sc * (1 - air * .35), 22 * gp.sc, 0, 0, Math.PI * 2); g.fill();
+    }
     g.save(); g.globalAlpha = mA; sticker(() => mechanic(m.x, m.y, t, st)); g.restore();
-    // mic flip: tossed up, two turns, caught again
-    const fp = lin(t, FLIP[0], FLIP[1]);
-    if (fp > 0 && fp < 1) {
-      g.save(); g.translate(m.x - 215 * m.sc, m.y - 230 * m.sc - Math.sin(Math.PI * fp) * 120); g.rotate(fp * Math.PI * 4); g.scale(m.sc, m.sc);
-      g.fillStyle = INKL; rrect(-14, -30, 28, 80, 11); g.fill(); g.fillStyle = '#25282e'; rrect(-10, -26, 20, 72, 8); g.fill();
-      foam(0, -52); g.restore();
+    // mic flip during the hop (caught again), and the last-shot swap: mic goes up, a wrench comes down
+    for (const [a, b, swap] of [[FLIP[0], FLIP[1], false], [SWAP[0], SWAP[1], true]]) {
+      const fp = lin(t, a, b); if (fp <= 0 || fp >= 1) continue;
+      const fx = m.x - 215 * m.sc, fy = m.y - 230 * m.sc - Math.sin(Math.PI * fp) * 120;
+      g.save(); g.translate(fx, fy); g.rotate(fp * Math.PI * 4); g.scale(m.sc, m.sc);
+      if (swap && fp > .5) { g.rotate(Math.PI / 2); wrenchShape(-70); }
+      else { g.fillStyle = INKL; rrect(-14, -30, 28, 80, 11); g.fill(); g.fillStyle = '#25282e'; rrect(-10, -26, 20, 72, 8); g.fill(); foam(0, -52); }
+      g.restore();
+      const pf = swap ? 1 - Math.abs(fp - .5) / .12 : 0;                 // poof at the apex
+      if (pf > 0) { g.save(); g.translate(fx, fy); g.globalAlpha = pf; g.strokeStyle = WH; g.lineWidth = 8; g.lineCap = 'round';
+        for (let i = 0; i < 8; i++) { const an = i / 8 * Math.PI * 2, r0 = 40 + (1 - pf) * 40; g.beginPath(); g.moveTo(Math.cos(an) * r0, Math.sin(an) * r0); g.lineTo(Math.cos(an) * (r0 + 34), Math.sin(an) * (r0 + 34)); g.stroke(); }
+        g.fillStyle = '#ffd34d'; g.beginPath(); g.arc(0, 0, 30 * pf, 0, Math.PI * 2); g.fill(); g.restore(); }
     }
   }
   // the work tee drops onto him, then slides on
@@ -630,7 +684,33 @@ function render(t) {
   grain(t);
 }
 
-window.render = render;
+// ---------------------------------------------------------------- beat sync (Alpajo, 143.6 BPM)
+// The track starts 0.76 s in, so its beats fall at 2.0 s + k × 0.4178 s in the video (the wink is on a beat).
+// The animation is written in "design time"; this piecewise-linear warp moves each key hit onto a beat
+// (or a half-beat for the quick ones) and stretches/squeezes the time between them. SFX follow the same warp.
+const BEAT = 60 / 143.6, B0 = 2.0, onBeat = (n, half) => B0 + n * BEAT / (half ? 2 : 1);
+const WARP = [                     // [design time, video time]
+  [0, 0], [2.0, onBeat(0)],         // wink
+  [3.6, onBeat(4)],                 // "Eh oui… c'est moi, Alonzo !" + name marker
+  [5.6, onBeat(9)], [6.15, onBeat(10)],   // hop + mic flip, caught on the beat as the car rolls in
+  [6.9, onBeat(23, 1)], [7.2, onBeat(12)],  // screech (half-beat), first honk
+  [8.2, onBeat(15)],                // facepalm
+  [8.9, onBeat(33, 1)], [9.6, onBeat(37, 1)],  // "Ah non. Pas avec moi !", work outfit sweeps on
+  [10.0, onBeat(20)],               // series title (lands as the outfit is complete)
+  [SWAP[0], onBeat(28)],            // mic tossed
+  [SWAP[1], onBeat(29)], [15.0, onBeat(31)],  // wrench caught + closing question, logo
+  [DUR, DUR],
+];
+function warp(t, from, to) {
+  for (let i = 1; i < WARP.length; i++) {
+    const [a0, b0] = [WARP[i - 1][from], WARP[i - 1][to]], [a1, b1] = [WARP[i][from], WARP[i][to]];
+    if (t <= a1 || i === WARP.length - 1) return b0 + (t - a0) * (b1 - b0) / (a1 - a0);
+  }
+}
+const toVideo = t => warp(t, 0, 1), toDesign = t => warp(t, 1, 0);
+window.SFX = SFX0.map(([t, ...rest]) => [+toVideo(t).toFixed(3), ...rest]);
+const renderDesign = render;      // (a global function declaration: keep the original before overriding window.render)
+window.render = t => renderDesign(toDesign(t));
 const IMG = {};
 Promise.all([
   document.fonts.load('900 40px Barlow'), document.fonts.load('600 40px Montserrat'), document.fonts.load('700 40px Montserrat'), document.fonts.load('800 40px Montserrat'),
