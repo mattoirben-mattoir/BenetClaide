@@ -27,3 +27,8 @@ Re-rendu : `video/build.sh episode0-karibu 17.4 centre-auto-alonzo-episode0-kari
 - **Fin** : logo et contact agrandis, appel à l'action « QUEL PRÉNOM ? » qui pulse sur le temps + « Répondez en commentaire », flèche qui rebondit sur la voiture ; la bulle se limite à « Et sa voiture ? ».
 - **Croquis de transformation** : il est maintenant dessiné à l'échelle de la photo (1,6) et la recouvre exactement (il était à l'échelle 1).
 - Aucun timing modifié : les bruitages et le calage Alpajo restent valables.
+
+## V3 (décor)
+- **Le vrai garage de Combani** comme décor (`video/set-garage.js`, partagé avec l'Épisode 1) à la place du rideau gris : façade, bandeau bleu, panneau « CENTRE AUTO ALONZO », baie d'atelier, tonnelle, parvis.
+- Alonzo se présente debout sur le parvis (MASC y 640, étiquette « ALONZO » sous ses pieds) ; sous-titre de la série, contact et appel à l'action posés sur des fonds blancs pour rester lisibles sur la façade.
+- Timings inchangés : l'aperçu Alpajo se refait en remplaçant simplement la piste son.

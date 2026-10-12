@@ -8,6 +8,7 @@ canvas{display:block}
 </style></head>
 <body>
 <canvas id="c" width="1080" height="1920"></canvas>
+<script src="../video/set-garage.js"></script>
 <script>
 // V3 — "3 conseils pneus" told as a short story: one hero tire, one mechanic who acts on it.
 // "Garde tes roues droites" told with the mechanic: he walks it, then fixes the wheels.
@@ -510,7 +511,7 @@ function car(x, y, t, st) {
 // assets/alonzo-reference.jpg: THE reference photo of Alonzo (1080x1920 crop). The drawing is traced on his pose:
 // centred at x 545, sunglasses at y ~180, feet at y ~1840, mic held at the chest in his right hand, left arm down.
 const PH = { x: 545, y: 538, sc: 1.6 };
-const MASC = { x: 720, y: 480, sc: 1.05 };                           // where he settles to introduce himself
+const MASC = { x: 720, y: 640, sc: 1.05 };                           // where he settles to introduce himself
 const HOME = { x: 280, y: 800, sc: 1.0 };
 const T0 = 2.0, SETTLE = T0 + 1.1;  // T0: the wink / transformation; SETTLE: he steps back to his place in the scene
 const FLIP = [5.6, 6.15];           // mic flip during the hop
@@ -523,17 +524,7 @@ function photo(t) {
   if (dark > 0) { g.fillStyle = `rgba(8,40,90,${.6 * dark})`; g.fillRect(0, 0, W, H); }
 }
 
-function cartoonBg(t) {
-  g.fillStyle = '#eef3f9'; g.fillRect(0, 0, W, H);
-  swooshBg(BLUE, .06, t);
-  // brand band kept high (fascia) so it never runs behind his dark head; facade stays light for contrast
-  g.fillStyle = BLUE; g.fillRect(0, 0, W, 150); g.fillStyle = RED; g.fillRect(0, 156, W, 12);
-  g.fillStyle = '#9aa5b4'; g.fillRect(96, 756, 888, 14);
-  g.fillStyle = '#c9d0d9'; g.fillRect(110, 770, 860, 710);
-  g.strokeStyle = '#b3bcc8'; g.lineWidth = 4; for (let yy = 800; yy < 1480; yy += 34) { g.beginPath(); g.moveTo(110, yy); g.lineTo(970, yy); g.stroke(); }
-  g.fillStyle = '#5b6470'; g.fillRect(0, 1480, W, 440);
-  g.fillStyle = '#e9edf2'; for (let xx = -60; xx < W; xx += 220) g.fillRect(xx + ((t * 0) % 220), 1600, 110, 14);
-}
+// cartoonBg(t): the garage set (the real Combani garage) lives in ../video/set-garage.js, shared by the episodes
 
 function transformation(t) {
   const p = lin(t, T0 + .05, T0 + .75);
@@ -623,11 +614,12 @@ function render(t) {
   const fl = 1 - lin(t, T0, T0 + .12); if (t >= T0 && fl > 0) { g.fillStyle = `rgba(255,255,255,${fl * .8})`; g.fillRect(0, 0, W, H); }
   if (t >= T0 && t < T0 + 1.1) { g.save(); g.globalAlpha = 1 - lin(t, T0 + .55, T0 + .8); punch('ATTENDEZ…', W / 2, 1330, T0 + .05, t, 150, WH); g.restore(); }
   transformation(t);
-  if (t >= 3.6 && t < 5.6) { g.save(); g.globalAlpha = 1 - lin(t, 5.3, 5.6); marker('ALONZO', MASC.x, 1400, 3.6, t, 90, RED, WH); g.restore(); }  // he introduces himself
+  if (t >= 3.6 && t < 5.6) { g.save(); g.globalAlpha = 1 - lin(t, 5.3, 5.6); marker('ALONZO', MASC.x, 1600, 3.6, t, 90, RED, WH); g.restore(); }  // he introduces himself
   // D — series title
   if (t >= 10.0) {
     punch('GARDE LE CAP !', W / 2, 300, 10.0, t, 150, BLUE);
     g.save(); g.globalAlpha = 1 - lin(t, 13.2, 13.45);   // cleared before the mic/wrench swap
+    { const a = eOut(lin(t, 10.3, 10.6)); g.save(); g.globalAlpha *= a; g.fillStyle = 'rgba(255,255,255,.94)'; rrect(70, 365, 940, 62, 31); g.fill(); g.restore(); }
     revealLine('Tous les 15 jours, un conseil pour votre voiture', 395, t, 10.3, fit('Tous les 15 jours, un conseil pour votre voiture', 50, 900), INK);
     marker('ÉPISODE 1 · VENDREDI 4 DÉCEMBRE', W / 2, 480, 10.6, t, fit('ÉPISODE 1 · VENDREDI 4 DÉCEMBRE', 60, 820), RED, WH);
     g.restore();
@@ -678,11 +670,13 @@ function render(t) {
     g.shadowColor = 'rgba(8,40,90,.25)'; g.shadowBlur = 24; g.fillStyle = WH; g.beginPath(); g.ellipse(0, 0, 100, 86, -.1, 0, Math.PI * 2); g.fill(); g.shadowColor = 'transparent';
     const lw = 165, lh = lw * LOGO.height / LOGO.width; g.drawImage(LOGO, -lw / 2, -lh / 2, lw, lh);
     g.restore();
+    g.save(); g.globalAlpha = clamp(ep); g.fillStyle = 'rgba(255,255,255,.94)'; rrect(400, 392, 480, 140, 34); g.fill(); g.restore();
     text('Combani', 640, 432, { f: 'Montserrat', w: 800, s: 44, col: BLUE, a: clamp(ep) });
     text('+262 639 29 17 02', 640, 496, { f: 'Montserrat', w: 800, s: 52, col: BLUE, a: clamp(ep) });
   }
   // the call to action: big marker that pulses on the beat, a line to say where, and an arrow bouncing onto the car
   if (t >= 14.6) {
+    { const a = eOut(lin(t, 14.6, 14.9)); g.save(); g.globalAlpha *= a; g.fillStyle = '#f4f6f9'; rrect(430, 730, 540, 190, 40); g.fill(); g.restore(); }   // over the name panel of the set
     const beat = Math.pow(Math.max(0, Math.cos(Math.PI * 2 * (t - 14.6) / BEAT)), 6), k = 1 + .05 * beat * lin(t, 15, 15.3);
     g.save(); g.translate(700, 790); g.scale(k, k); g.translate(-700, -790);
     marker('QUEL PRÉNOM ?', 700, 790, 14.6, t, fit('QUEL PRÉNOM ?', 112, 420), RED, WH); g.restore();
