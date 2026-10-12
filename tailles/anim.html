@@ -1,0 +1,283 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:Barlow;src:url(../video/assets/BarlowCondensed-BlackItalic.ttf);font-weight:900}
+@font-face{font-family:Montserrat;src:url(../video/assets/Montserrat.ttf);font-weight:100 900}
+html,body{margin:0;background:#fff}
+canvas{display:block}
+</style></head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script>
+const W = 1080, H = 1920, DUR = 16;
+const c = document.getElementById('c'), g = c.getContext('2d');
+// Centre Auto Alonzo charter
+const BLUE = '#084990', RED = '#E20816', WH = '#ffffff', INK = '#1d2a3f', GREY = '#5b6b82', JOY = '#FFD200';
+
+// Scene boundaries (seconds), aligned with the voice-over
+// Scenes: road photo (intro + camera moves), why us, end card
+const S = [0, 8.1, 10.9, DUR];
+
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lin = (t, a, b) => clamp((t - a) / (b - a));
+const eOut = x => 1 - Math.pow(1 - x, 3);
+const eIn = x => x * x * x;
+const eInOut = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const eBack = x => { const c1 = 1.7, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+
+const IMG = {};
+const load = (k, src) => new Promise(r => { const i = new Image(); i.onload = () => { IMG[k] = i; r(); }; i.src = src; });
+
+function text(str, x, y, { f = 'Barlow', w = 900, s = 60, col = INK, align = 'center', a = 1, ls = 0 } = {}) {
+  g.save(); g.globalAlpha *= a; g.font = `${w} ${s}px ${f}`; g.fillStyle = col; g.textAlign = align; g.textBaseline = 'middle';
+  if (ls) g.letterSpacing = ls + 'px';
+  g.fillText(str, x, y); g.restore();
+}
+// Largest Barlow size (<= s) that keeps str within maxW
+function fit(str, s, maxW) { g.save(); g.font = `900 ${s}px Barlow`; if (str.length) g.letterSpacing = '0px'; const w = g.measureText(str).width; g.restore(); return Math.min(s, Math.floor(s * maxW / w)); }
+function rrect(x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
+function revealText(str, x, y, t0, t, opts) {
+  const p = eOut(lin(t, t0, t0 + .45));
+  if (p <= 0) return;
+  const s = opts.s || 60;
+  g.save(); g.beginPath(); g.rect(0, y - s * .8, W, s * 1.6); g.clip();
+  text(str, x, y + (1 - p) * s * 1.2, { ...opts, a: p });
+  g.restore();
+}
+// Draw an image centred at (cx, cy) with a given width
+function pic(k, cx, cy, w, { a = 1, rot = 0, sc = 1, shadow = 0 } = {}) {
+  const i = IMG[k], h = w * i.height / i.width;
+  g.save(); g.globalAlpha *= a; g.translate(cx, cy); g.rotate(rot); g.scale(sc, sc);
+  if (shadow) { g.shadowColor = 'rgba(8,40,90,.28)'; g.shadowBlur = shadow; g.shadowOffsetY = shadow * .35; }
+  g.drawImage(i, -w / 2, -h / 2, w, h);
+  g.restore();
+}
+
+// Logo swooshes (blue outer, red inner)
+function swoosh(cx, cy, r, rot, p, wB = 22, wR = 22) {
+  g.save(); g.translate(cx, cy); g.rotate(rot); g.lineCap = 'round';
+  const a0 = Math.PI * .95, span = Math.PI * 1.15;
+  g.strokeStyle = BLUE; g.lineWidth = wB;
+  g.beginPath(); g.ellipse(0, 0, r * 1.08, r * .98, 0, a0, a0 + span * p); g.stroke();
+  g.strokeStyle = RED; g.lineWidth = wR;
+  g.beginPath(); g.ellipse(r * .06, 0, r * .9, r * .8, 0, a0 + .15, a0 + .15 + span * .95 * p); g.stroke();
+  g.restore();
+}
+
+function background(t) {
+  g.fillStyle = WH; g.fillRect(0, 0, W, H);
+  g.save(); g.globalAlpha = .07; swoosh(W * .5, H * .42, 620, -.25 + t * .05, 1, 60, 60); g.restore();
+}
+
+// Shop logo on top during the "why us" scene
+function chrome(t) {
+  const a = eOut(lin(t, S[1], S[1] + .4)) * (1 - eOut(lin(t, S[2] - .2, S[2] + .1)));
+  if (a <= 0) return;
+  g.save(); g.globalAlpha = a;
+  const lw = 210, lh = lw * IMG.logo.height / IMG.logo.width;
+  g.drawImage(IMG.logo, W / 2 - lw / 2, 235 - 30 * (1 - a), lw, lh);
+  g.restore();
+}
+
+function wipe(t, at) {
+  const d = .42, p = lin(t, at - d / 2, at + d / 2);
+  if (p <= 0 || p >= 1) return;
+  const x = -W * 1.2 + eInOut(p) * W * 3.0;
+  g.save(); g.translate(x, 0); g.transform(1, 0, -.3, 1, 0, 0);
+  g.fillStyle = BLUE; g.fillRect(0, 0, 260, H * 1.2);
+  g.fillStyle = RED; g.fillRect(-110, 0, 70, H * 1.2);
+  g.restore();
+}
+const sceneOut = (t, end) => 1 - eIn(lin(t, end - .22, end));
+
+// Slanted label (red by default)
+function tag(label, x, y, p, { col = RED, txt = WH, s = 58, w = null } = {}) {
+  if (p <= 0) return;
+  g.save(); g.font = `900 ${s}px Barlow`; const tw = w || g.measureText(label).width + 70; g.restore();
+  g.save(); g.translate(x, y); g.scale(p, p);
+  g.save(); g.transform(1, 0, -.25, 1, 0, 0); g.fillStyle = col; g.fillRect(-tw / 2, -s * .82, tw, s * 1.64); g.restore();
+  text(label, 0, 2, { s, col: txt, ls: 1 });
+  g.restore();
+}
+
+// ---------- Road photo with camera moves ----------
+// Photo coordinates (route.jpg is 1000x615). Original labels are covered by ours.
+const LABELS = [
+  { txt: 'CITADINES', box: [20, 353, 265, 57], bg: BLUE, fg: WH, at: 2.2 },
+  { txt: 'BERLINES', box: [270, 62, 230, 56], bg: WH, fg: BLUE, border: BLUE, at: 3.5 },
+  { txt: 'SUV ET 4X4', box: [652, 35, 263, 53], bg: RED, fg: WH, at: 4.5 },
+];
+// Camera keyframes: time, photo point at screen centre, scale, screen y of that point
+const CAM = [
+  [0, 500, 300, 1.08, 1010], [1.9, 500, 300, 1.13, 1010],
+  [2.35, 205, 330, 2.0, 790], [3.35, 220, 330, 2.06, 790],
+  [3.8, 500, 320, 2.0, 790], [4.45, 505, 320, 2.06, 790],
+  [4.9, 785, 290, 2.0, 790], [5.85, 770, 290, 2.06, 790],
+  [6.35, 500, 290, 1.08, 760], [8.1, 500, 290, 1.13, 760],
+];
+function cam(t) {
+  let k = CAM.findIndex(c => c[0] > t);
+  if (k === -1) return CAM[CAM.length - 1].slice(1);
+  if (k === 0) return CAM[0].slice(1);
+  const a = CAM[k - 1], b = CAM[k];
+  // moves (scale change) are eased, holds drift linearly
+  const moving = Math.abs(a[3] - b[3]) > .1 || Math.abs(a[1] - b[1]) > 50;
+  const p = moving ? eInOut(lin(t, a[0], b[0])) : lin(t, a[0], b[0]);
+  return a.slice(1).map((v, i) => v + (b[i + 1] - v) * p);
+}
+
+function road(t) {
+  const [px, py, sc, sy] = cam(t);
+  const appear = eOut(lin(t, -.35, .45));
+  g.save();
+  g.translate(W / 2, sy + (1 - appear) * 120); g.scale(sc, sc); g.translate(-px, -py);
+  g.globalAlpha = appear;
+  // photo clipped by a curved bottom edge that hides the logo of the original visual
+  const curve = () => { g.moveTo(-40, 575); g.quadraticCurveTo(500, 560, 1040, 462); };
+  g.save(); g.beginPath(); g.moveTo(-40, -40); g.lineTo(1040, -40); g.lineTo(1040, 462); g.quadraticCurveTo(500, 560, -40, 575); g.closePath(); g.clip();
+  g.drawImage(IMG.route, 0, 0, 1000, 615);
+  g.restore();
+  g.lineCap = 'round'; g.lineWidth = 7 / sc * 1.6;
+  g.strokeStyle = RED; g.beginPath(); g.moveTo(-40, 575 - 12); g.quadraticCurveTo(500, 560 - 12, 1040, 462 - 12); g.stroke();
+  g.strokeStyle = BLUE; g.beginPath(); curve(); g.stroke();
+  // labels (pop when their name is spoken)
+  for (const L of LABELS) {
+    const [x, y, w, h] = L.box, pop = 1 + .18 * Math.sin(Math.PI * lin(t, L.at, L.at + .45));
+    g.save(); g.translate(x + w / 2, y + h / 2); g.scale(pop, pop);
+    g.fillStyle = L.bg; g.fillRect(-w / 2 - 6, -h / 2 - 6, w + 12, h + 12);
+    if (L.border) { g.strokeStyle = L.border; g.lineWidth = 4; g.strokeRect(-w / 2 - 4, -h / 2 - 4, w + 8, h + 8); }
+    text(L.txt, 0, 2, { s: h * .82, col: L.fg, ls: 1 });
+    g.restore();
+  }
+  g.restore();
+}
+
+// Caption under the photo for each camera stop
+function caption(str, col, t, t0, t1, y = 1365, s = 104) {
+  const out = 1 - eIn(lin(t, t1 - .2, t1));
+  if (t < t0 || t > t1) return;
+  g.save(); g.globalAlpha = out; revealText(str, W / 2, y, t0, t, { s: fit(str, s, 860), col }); g.restore();
+}
+
+function roadScene(t) {
+  g.save(); g.globalAlpha = sceneOut(t, S[1]);
+  road(t);
+  // hook title, leaves when the camera dives in
+  const titleOut = eIn(lin(t, 1.85, 2.2));
+  if (titleOut < 1) {
+    g.save(); g.globalAlpha *= 1 - titleOut; g.translate(0, -80 * titleOut);
+    revealText('DES PNEUS', W / 2, 400, -.2, t, { s: 170, col: BLUE });
+    revealText('POUR TOUTES LES TAILLES !', W / 2, 545, .15, t, { s: fit('POUR TOUTES LES TAILLES !', 120, 880), col: RED });
+    g.restore();
+  }
+  caption('PETITE CITADINE', BLUE, t, 2.25, 3.55);
+  caption('BERLINE', BLUE, t, 3.55, 4.65);
+  caption('OU GROS 4X4', RED, t, 4.65, 6.05);
+  if (t > 6.0) {
+    revealText('LE PNEU', W / 2, 1210, 6.05, t, { s: 110, col: BLUE });
+    revealText('PARFAITEMENT ADAPTÉ', W / 2, 1320, 6.2, t, { s: fit('PARFAITEMENT ADAPTÉ', 110, 860), col: RED });
+    revealText('à votre véhicule', W / 2, 1420, 6.4, t, { f: 'Montserrat', w: 600, s: 46, col: GREY });
+  }
+  g.restore();
+}
+
+// ---------- Why us ----------
+function icon(kind, x, y, p) {
+  if (p <= 0) return;
+  g.save(); g.translate(x, y); g.scale(p, p);
+  g.fillStyle = kind === 1 ? RED : BLUE; g.beginPath(); g.arc(0, 0, 70, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = WH; g.fillStyle = WH; g.lineCap = 'round'; g.lineJoin = 'round';
+  if (kind === 0) { // tire
+    g.lineWidth = 12; g.beginPath(); g.arc(0, 0, 38, 0, Math.PI * 2); g.stroke();
+    g.lineWidth = 6; g.beginPath(); g.arc(0, 0, 16, 0, Math.PI * 2); g.stroke();
+    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; g.beginPath(); g.moveTo(Math.cos(a) * 44, Math.sin(a) * 44); g.lineTo(Math.cos(a) * 50, Math.sin(a) * 50); g.stroke(); }
+  } else if (kind === 1) { // wrench
+    g.rotate(-Math.PI / 4); g.lineWidth = 16; g.beginPath(); g.moveTo(0, -8); g.lineTo(0, 42); g.stroke();
+    g.beginPath(); g.arc(0, -24, 22, Math.PI * .1, Math.PI * .9, true); g.lineWidth = 14; g.stroke();
+  } else { // speech bubble
+    rrect(-40, -32, 80, 54, 16); g.fill();
+    g.beginPath(); g.moveTo(-18, 18); g.lineTo(-26, 40); g.lineTo(2, 20); g.fill();
+    g.fillStyle = BLUE; for (const dx of [-20, 0, 20]) { g.beginPath(); g.arc(dx, -5, 6, 0, Math.PI * 2); g.fill(); }
+  }
+  g.restore();
+}
+function why(t) {
+  const t0 = S[1];
+  g.save(); g.globalAlpha = sceneOut(t, S[2]);
+  revealText('POURQUOI NOUS', W / 2, 520, t0 + .05, t, { s: 96, col: BLUE });
+  revealText('CHOISIR ?', W / 2, 615, t0 + .12, t, { s: 96, col: RED });
+  const rows = [['LARGE GAMME', 'Pneus pour toutes les tailles', 8.35], ['MONTAGE PRO', 'Par nos mécaniciens', 9.05], ['CONSEILS D’EXPERTS', 'Pour chaque type de voiture', 9.7]];
+  rows.forEach(([a, b, at], i) => {
+    const y = 820 + i * 200, p = eBack(lin(t, at, at + .35));
+    icon(i, 200, y, p);
+    const tp = eOut(lin(t, at + .05, at + .4));
+    if (tp > 0) {
+      g.save(); g.globalAlpha *= tp; g.translate(-40 * (1 - tp), 0);
+      text(a, 300, y - 22, { s: fit(a, 80, 620), col: BLUE, align: 'left' });
+      text(b, 302, y + 42, { f: 'Montserrat', w: 600, s: 36, col: GREY, align: 'left' });
+      g.restore();
+    }
+  });
+  g.restore();
+}
+
+// ---------- Outro ----------
+function outro(t) {
+  const t0 = S[2];
+  const bp = eOut(lin(t, t0, t0 + .4));
+  g.fillStyle = BLUE; g.beginPath(); g.moveTo(0, 0); g.lineTo(W, 0); g.lineTo(W, 820 * bp); g.quadraticCurveTo(W / 2, 980 * bp, 0, 820 * bp); g.closePath(); g.fill();
+  const lp = eBack(lin(t, t0 + .15, t0 + .6));
+  if (lp > 0) {
+    g.save(); g.translate(W / 2, 650); g.scale(lp, lp); g.rotate((1 - lp) * -.2);
+    g.shadowColor = 'rgba(0,20,60,.35)'; g.shadowBlur = 50; g.shadowOffsetY = 16;
+    g.fillStyle = WH; g.beginPath(); g.ellipse(0, 0, 340, 300, -.12, 0, Math.PI * 2); g.fill();
+    g.shadowColor = 'transparent';
+    const lw = 580, lh = lw * IMG.logo.height / IMG.logo.width;
+    g.drawImage(IMG.logo, -lw / 2, -lh / 2, lw, lh);
+    g.restore();
+  }
+  revealText('ÉQUIPEZ VOTRE VOITURE', W / 2, 290, t0 + .15, t, { s: 86, col: WH });
+  revealText('DES PNEUS QU’ELLE MÉRITE !', W / 2, 1060, t0 + .4, t, { s: fit('DES PNEUS QU’ELLE MÉRITE !', 76, 880), col: RED });
+  const pr = eOut(lin(t, t0 + .55, t0 + .95));
+  if (pr > 0) {
+    g.save(); g.globalAlpha = pr; g.translate(-60 * (1 - pr), 0);
+    const pulse = 1 + Math.sin((t - t0) * 7) * .04 * lin(t, t0 + 1.3, t0 + 1.6);
+    g.save(); g.translate(190, 1210); g.scale(pulse * .87, pulse * .87);
+    g.fillStyle = BLUE; g.beginPath(); g.arc(0, 0, 92, 0, Math.PI * 2); g.fill();
+    g.rotate(.8); g.strokeStyle = WH; g.fillStyle = WH; g.lineCap = 'round';
+    g.lineWidth = 20; g.beginPath(); g.arc(22, 0, 44, Math.PI * .62, Math.PI * 1.38); g.stroke();
+    for (const sy of [-1, 1]) { g.save(); g.translate(22 + Math.cos(Math.PI * (1 + .38 * sy)) * 44, Math.sin(Math.PI * (1 + .38 * sy)) * 44); g.rotate(sy * .3); rrect(-10, -16, 40, 32, 10); g.fill(); g.restore(); }
+    g.restore();
+    text('APPELEZ-NOUS', 310, 1170, { f: 'Montserrat', w: 600, s: 46, col: BLUE, align: 'left' });
+    text('+262 639 291 702', 308, 1250, { f: 'Montserrat', w: 800, s: 64, col: BLUE, align: 'left' });
+    g.restore();
+  }
+  const ar = eOut(lin(t, t0 + .75, t0 + 1.15));
+  if (ar > 0) {
+    g.save(); g.globalAlpha = ar; g.translate(-60 * (1 - ar), 0);
+    g.save(); g.translate(190, 1385 - 14 * Math.abs(Math.sin((t - t0) * 5)) * lin(t, t0 + 1.4, t0 + 1.6));
+    g.fillStyle = RED; g.beginPath(); g.arc(0, -20, 46, Math.PI * .85, Math.PI * 2.15); g.lineTo(0, 62); g.closePath(); g.fill();
+    g.fillStyle = WH; g.beginPath(); g.arc(0, -20, 18, 0, Math.PI * 2); g.fill();
+    g.restore();
+    text('32 Route de Coconi', 310, 1345, { f: 'Montserrat', w: 500, s: 46, col: INK, align: 'left' });
+    text('COMBANI', 310, 1412, { f: 'Montserrat', w: 800, s: 54, col: BLUE, align: 'left' });
+    g.restore();
+  }
+}
+
+function render(t) {
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  background(t);
+  if (t < S[1]) roadScene(t);
+  else if (t < S[2]) why(t);
+  else outro(t);
+  chrome(t);
+  for (let i = 1; i < S.length - 1; i++) wipe(t, S[i]);
+}
+window.render = render;
+Promise.all([
+  document.fonts.load('900 40px Barlow'), document.fonts.load('600 40px Montserrat'), document.fonts.load('800 40px Montserrat'),
+  load('logo', '../video/assets/logo.png'), load('route', 'assets/route.jpg'),
+]).then(() => { render(0); window.ready = true; });
+</script>
+</body></html>
