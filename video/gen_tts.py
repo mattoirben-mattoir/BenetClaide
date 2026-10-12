@@ -7,7 +7,7 @@ segs = [
  "Un : vérifiez la pression chaque mois.",
  "Deux : surveillez l'usure et les vibrations.",
  "Trois : faites vérifier équilibrage et parallélisme.",
- "Besoin d'un diagnostic ? Centre Auto Alonzo !",
+ "Besoin d'un tchèk-eup ? Centre Auto Alonzo !",  # « check-up » en graphie phonétique
 ]
 for i,s in enumerate(segs):
     a, sr = k.create(s, voice="ff_siwis", speed=speed, lang="fr-fr")
