@@ -32,3 +32,9 @@ Re-rendu : `video/build.sh episode0-karibu 17.4 centre-auto-alonzo-episode0-kari
 - **Le vrai garage de Combani** comme décor (`video/set-garage.js`, partagé avec l'Épisode 1) à la place du rideau gris : façade, bandeau bleu, panneau « CENTRE AUTO ALONZO », baie d'atelier, tonnelle, parvis.
 - Alonzo se présente debout sur le parvis (MASC y 640, étiquette « ALONZO » sous ses pieds) ; sous-titre de la série, contact et appel à l'action posés sur des fonds blancs pour rester lisibles sur la façade.
 - Timings inchangés : l'aperçu Alpajo se refait en remplaçant simplement la piste son.
+
+## V4 (style « mécano », allégé)
+- Alonzo dessiné **à plat** comme dans l'Épisode 1. Deux tenues : « ville » (chemise blanche, fleur, lunettes relevées sur le crâne, ceinture et pantalon marine, comme sur la photo) puis « atelier » (tee-shirt et casquette marine avec le logo, lunettes au col) : le changement de tenue balaie de la tête à la taille, c'est la révélation du présentateur de la série.
+- La transformation photo → dessin est conservée (croquis blanc posé sur lui, iris vers le garage). Il se présente au centre, en grand, puis saute à sa place de présentateur (bas à gauche).
+- Allégé : une bulle « C'est moi, Alonzo ! » (plus d'étiquette), « Pas avec moi ! », « Et sa voiture ? » au-dessus de sa tête (la voiture et le client restent dégagés), titre + « ÉPISODE 1 · VENDREDI 4 DÉC. » seulement, appel à l'action « QUEL PRÉNOM ? » + flèche ; règle du vote, adresse et téléphone dans la légende (`serie/legendes-facebook.md`).
+- Bruitages et timings inchangés : l'aperçu Alpajo garde sa bande son (`…-apercu-alpajo-V4.mp4`, local).

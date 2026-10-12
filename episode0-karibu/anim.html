@@ -10,9 +10,8 @@ canvas{display:block}
 <canvas id="c" width="1080" height="1920"></canvas>
 <script src="../video/set-garage.js"></script>
 <script>
-// V3 — "3 conseils pneus" told as a short story: one hero tire, one mechanic who acts on it.
-// "Garde tes roues droites" told with the mechanic: he walks it, then fixes the wheels.
-// Épisode 0 « Karibu ! » — the manager's real greeting turns into the series mascot.
+// Épisode 0 « Karibu ! » — the manager's real greeting turns into the series host, drawn flat (the « mécano » style).
+// Shared rig (Alonzo, bubbles, sticker, garage) comes from Épisode 0. Written straight on the beat grid (no time warp).
 const W = 1080, H = 1920;
 const c = document.getElementById('c'); let g = c.getContext('2d');
 const BLUE = '#084990', RED = '#E20816', WH = '#ffffff', INK = '#1d2a3f', GREY = '#5b6b82';
@@ -25,23 +24,12 @@ const INKL = '#121c36', LIPS = '#4a1712', GLASS = '#0b0d11', MIC = '#f2782a', LE
 let LOOK = 'ville', SHIRT = '#ffffff', SHIRT_D = '#e2e8f1';
 const BEARD = '#15100d', PANTS = '#1c2647';
 function setLook(l) { LOOK = l; SHIRT = l === 'ville' ? '#ffffff' : BLUE; SHIRT_D = l === 'ville' ? '#e2e8f1' : TEE_D; }
-const DRESS = [9.6, 10.0];       // work outfit sweeps on, head to feet: tee, cargo trousers, work shoes
-const SWAP = [13.5, 14.0];       // last shot: he tosses the mic, it comes down as a wrench
 const DUR = 17.4;
-const S = [0, DUR];
 const sceneOf = () => 0, onBlue = () => false;   // single-scene episode (used by shared drawing code)
 
 // ---------------------------------------------------------------- sound
 const BABBLE = (at, n, base = .85) => Array.from({ length: n }, (_, i) => [at + i * .11, 'blip', { pitch: base + ((i * 7) % 5) * .09 }]);
-const SFX0 = [
-  [0.2, 'pop'], [3.2, 'swoosh'], [1.98, 'snap'], [2.0, 'impact'], [2.1, 'swoosh'], [2.2, 'riser', { d: .55 }], [2.75, 'ding'], [3.0, 'pop', { pitch: 1.2 }],
-  ...BABBLE(3.7, 6), [5.6, 'swoosh'], [5.62, 'whoosh'], [6.13, 'tick'],
-  [6.2, 'roll', { d: .9 }], [6.25, 'whoosh'], [6.9, 'screech', { d: .5 }], [7.2, 'honk'], [7.5, 'honk'], ...BABBLE(7.65, 6, .62),
-  [8.25, 'tick'], ...BABBLE(9.0, 7), [9.38, 'whoosh'], [9.6, 'swoosh'], [9.98, 'pop', { pitch: 1.25 }],
-  [10.0, 'jingle'], [10.02, 'impact'], [10.6, 'swoosh'],
-  [13.5, 'whoosh'], [13.75, 'pop', { pitch: .8 }], [14.0, 'ding'],
-  ...BABBLE(14.35, 10), [14.6, 'pop', { pitch: 1.3 }], [15.05, 'pop', { pitch: 1.1 }],
-];
+/* SFX: see the end of the file (written in beats) */
 
 // ---------------------------------------------------------------- helpers
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
@@ -128,7 +116,7 @@ function ik(sx, sy, tx, ty, a, b, bend) {
 // a stroked limb segment with its ink line
 function limb(pts, w, col) {
   g.lineCap = 'round'; g.lineJoin = 'round';
-  for (const [c, lw] of [[INKL, w + 9], [col, w]]) {
+  for (const [c, lw] of FLAT ? [[col, w]] : [[INKL, w + 9], [col, w]]) {
     g.strokeStyle = c; g.lineWidth = lw; g.beginPath(); g.moveTo(...pts[0]); for (const p of pts.slice(1)) g.lineTo(...p); g.stroke();
   }
 }
@@ -162,15 +150,20 @@ function arm(sx, sy, tx, ty, bend, hand, prop) {
     g.fillStyle = '#c9d0d9'; rrect(92, -12, 22, 24, 5); g.fill();
   } else if (prop === 'wrench') {
     wrenchShape(0);
+  } else if (prop === 'loupe') {     // magnifying glass: dark handle, steel ring, light glass
+    g.fillStyle = INKL; rrect(6, -12, 96, 24, 10); g.fill(); g.fillStyle = '#2a2f37'; rrect(10, -8, 88, 16, 8); g.fill();
+    g.fillStyle = 'rgba(191,227,245,.55)'; g.beginPath(); g.arc(140, 0, 36, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = INKL; g.lineWidth = 16; g.stroke(); g.strokeStyle = '#c9d0d9'; g.lineWidth = 9; g.stroke();
+    g.fillStyle = 'rgba(255,255,255,.7)'; g.beginPath(); g.ellipse(128, -12, 10, 5, -.6, 0, Math.PI * 2); g.fill();
   } else if (prop === 'micLow') {   // mic held down along the leg, as in the photo
     g.fillStyle = INKL; rrect(4, -13, 76, 26, 10); g.fill(); g.fillStyle = '#25282e'; rrect(8, -9, 70, 18, 8); g.fill();
     foam(98, 0);
   }
-  g.fillStyle = INKL; handShape(hand, 4.5);
+  if (!FLAT) { g.fillStyle = INKL; handShape(hand, 4.5); }
   g.fillStyle = SKIN; handShape(hand, 0);
   if (!hand || hand === 'fist') { g.strokeStyle = SKIN_D; g.lineWidth = 4; for (const fy of [-8, 6]) { g.beginPath(); g.moveTo(22, fy); g.lineTo(38, fy); g.stroke(); } }
   g.restore();
-  if (hand === 'thumb') { g.fillStyle = INKL; rrect(hx - 15, hy - 70, 32, 58, 16); g.fill(); g.fillStyle = SKIN; rrect(hx - 11, hy - 66, 24, 50, 12); g.fill(); }
+  if (hand === 'thumb') { if (!FLAT) { g.fillStyle = INKL; rrect(hx - 15, hy - 70, 32, 58, 16); g.fill(); } g.fillStyle = SKIN; rrect(hx - 11, hy - 66, 24, 50, 12); g.fill(); }
   if (prop === 'mic') {             // mic held upright, foam up
     g.fillStyle = INKL; rrect(hx - 14, hy - 82, 28, 74, 11); g.fill(); g.fillStyle = '#25282e'; rrect(hx - 10, hy - 78, 20, 66, 8); g.fill();
     foam(hx, hy - 102);
@@ -366,7 +359,7 @@ function sticker(fn, maskOnly) {
 // speech bubble, typed on; tail from the edge facing the speaker
 function bubble(lines, x, y, maxW, tail, p, typed, big) {
   if (p <= 0) return;
-  const F = big ? 64 : 52, wt = big ? 800 : 700;
+  const F = big === 1 ? 64 : big === 2 ? 58 : 52, wt = big === 1 ? 800 : 700;   // 1: the client's trembling line, 2: Alonzo's short lines
   g.save(); g.font = `${wt} ${F}px Montserrat`; const tw = Math.max(...lines.map(l => g.measureText(l).width)); g.restore();
   const fs = Math.min(F, Math.floor(F * (maxW - 72) / tw)), lh = fs * 1.25, w = tw * fs / F + 72, h = 50 + lines.length * lh;
   g.save(); g.translate(x + w / 2, y + h / 2); g.scale(p, p); g.translate(-(x + w / 2), -(y + h / 2));
@@ -449,22 +442,51 @@ const GRAIN = Array.from({ length: 4 }, () => {
 });
 function grain(t) { g.save(); g.globalAlpha = .05; g.globalCompositeOperation = 'overlay'; g.drawImage(GRAIN[Math.floor(t * 12) % 4], 0, 0, W, H); g.restore(); }
 
-// ---------------------------------------------------------------- the client's car (side view, facing left)
+// ---------------------------------------------------------------- Épisode 0, « mécano » style
+const CARX = 664, CARY = 1290, CSC = .95, NAME = '???';
+const TIRE = '#1c2026';
+const DRESS = [9.6, 10.0];           // the work tee + cap sweep on, head to waist
+const SWAP = [13.5, 14.0];           // he tosses the mic, it comes down as a wrench
+const T0 = 2.0, SETTLE = T0 + 1.1;   // the wink / the drawing takes over
+const FLIP = [5.6, 6.15];            // mic flip during the hop
+const BABBLE0 = (at, n, base = .85) => Array.from({ length: n }, (_, i) => [at + i * .11, 'blip', { pitch: base + ((i * 7) % 5) * .09 }]);
+// the sound design is unchanged (same events, same design times): the Alpajo preview keeps its soundtrack
+const SFX0 = [
+  [0.2, 'pop'], [3.2, 'swoosh'], [1.98, 'snap'], [2.0, 'impact'], [2.1, 'swoosh'], [2.2, 'riser', { d: .55 }], [2.75, 'ding'], [3.0, 'pop', { pitch: 1.2 }],
+  ...BABBLE0(3.7, 6), [5.6, 'swoosh'], [5.62, 'whoosh'], [6.13, 'tick'],
+  [6.2, 'roll', { d: .9 }], [6.25, 'whoosh'], [6.9, 'screech', { d: .5 }], [7.2, 'honk'], [7.5, 'honk'], ...BABBLE0(7.65, 6, .62),
+  [8.25, 'tick'], ...BABBLE0(9.0, 7), [9.38, 'whoosh'], [9.6, 'swoosh'], [9.98, 'pop', { pitch: 1.25 }],
+  [10.0, 'jingle'], [10.02, 'impact'], [10.6, 'swoosh'],
+  [13.5, 'whoosh'], [13.75, 'pop', { pitch: .8 }], [14.0, 'ding'],
+  ...BABBLE0(14.35, 10), [14.6, 'pop', { pitch: 1.3 }], [15.05, 'pop', { pitch: 1.1 }],
+];
+
+// ---------------------------------------------------------------- the car (side view, facing left) — she has a face and a name
 const CAR = '#F2B33D', CAR_D = '#cf8f22';
 function car(x, y, t, st) {
-  g.save(); g.translate(x, y); g.rotate(st.tilt || 0); g.scale(st.sc || 1, st.sc || 1);
-  g.translate(170, 172); g.rotate(-.045); g.translate(-170, -172);   // sags onto the flat front tyre (pivot: rear tyre on the ground)
-  // shadow
-  g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(0, 172, 300, 18, 0, 0, Math.PI * 2); g.fill();
-  // body
+  const f = st.flat || 0;
+  g.save(); g.translate(x, y); g.scale(CSC, CSC);
+  g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(0, 172 + (st.hop || 0) / CSC, 300 * (1 - (st.hop || 0) / 400), 18, 0, 0, Math.PI * 2); g.fill();   // shadow stays on the road
+  g.translate(170, 172); g.rotate(-.045 * f); g.translate(-170, -172);   // sags onto the flat front tyre
   g.fillStyle = CAR; rrect(-290, -30, 580, 150, 50); g.fill();
   g.beginPath(); g.moveTo(-170, -28); g.quadraticCurveTo(-120, -170, 30, -168); g.lineTo(150, -165); g.quadraticCurveTo(220, -160, 235, -28); g.closePath(); g.fill();
   g.fillStyle = CAR_D; g.fillRect(-290, 70, 580, 14);
-  // windows
   g.fillStyle = '#BFE3F5';
   g.beginPath(); g.moveTo(-135, -38); g.quadraticCurveTo(-100, -140, 10, -142); g.lineTo(10, -38); g.closePath(); g.fill();
   rrect(30, -142, 175, 104, 18); g.fill();
-  // the client at the wheel (pops out of the window when he talks)
+  if (st.splash > 0) {               // the raindrop bursts on the windscreen
+    const p = st.splash; g.save(); g.globalAlpha = 1 - lin(p, .5, 1); g.strokeStyle = '#7fc4ff'; g.lineWidth = 6;
+    g.beginPath(); g.ellipse(-70, -95, 20 + 50 * p, 8 + 18 * p, -.5, 0, Math.PI * 2); g.stroke();
+    g.fillStyle = '#7fc4ff'; for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; g.beginPath(); g.arc(-70 + Math.cos(a) * 60 * p, -95 + Math.sin(a) * 30 * p, 6, 0, Math.PI * 2); g.fill(); }
+    g.restore();
+  }
+  // the name plate on the door: « ??? » flips over to her name
+  { const fl = st.plate || 0, k = Math.abs(Math.cos(Math.PI * fl));
+    g.save(); g.translate(118, 34); g.scale(1, k);
+    g.fillStyle = WH; g.strokeStyle = BLUE; g.lineWidth = 5; rrect(-92, -30, 184, 60, 14); g.fill(); g.stroke();
+    text(fl < .5 ? '???' : NAME, 0, 3, { s: fit(fl < .5 ? '???' : NAME, 50, 160), col: fl < .5 ? GREY : RED });
+    g.restore(); }
+  // the client at the wheel
   const pop = st.pop || 0;
   g.save(); g.translate(-55 - pop * 70, -80 - pop * 60);
   g.fillStyle = '#8a5a3c'; g.beginPath(); g.ellipse(0, 0, 44, 50, 0, 0, Math.PI * 2); g.fill();
@@ -472,247 +494,301 @@ function car(x, y, t, st) {
   g.fillRect(-82, -20, 50, 12);
   g.fillStyle = WH; for (const ex of [-18, 10]) { g.beginPath(); g.ellipse(ex, 0, 9, 10, 0, 0, Math.PI * 2); g.fill(); }
   g.fillStyle = '#1a1110'; for (const ex of [-21, 7]) { g.beginPath(); g.arc(ex, 1, 5, 0, Math.PI * 2); g.fill(); }
-  g.strokeStyle = '#3a1712'; g.lineWidth = 5; g.lineCap = 'round'; g.beginPath(); g.moveTo(-14, 26); g.quadraticCurveTo(0, 32, 14, 24); g.stroke();
+  if (st.bof) { g.fillStyle = '#8a5a3c'; for (const ex of [-18, 10]) g.fillRect(ex - 11, -12, 22, 11); g.strokeStyle = '#3a1712'; g.lineWidth = 3; for (const ex of [-18, 10]) { g.beginPath(); g.moveTo(ex - 10, -1); g.lineTo(ex + 10, -1); g.stroke(); } }  // half-lidded: « bof »
+  g.strokeStyle = '#3a1712'; g.lineWidth = 5; g.lineCap = 'round'; g.beginPath();
+  if (st.bof) { g.moveTo(-12, 28); g.lineTo(12, 26); } else { g.moveTo(-14, 26); g.quadraticCurveTo(0, 32, 14, 24); } g.stroke();
+  if (st.thumb > 0) {                // a half-hearted thumbs-up out of the window
+    g.save(); g.translate(-70, 40); g.rotate(Math.sin(t * 7) * .25); g.scale(st.thumb, st.thumb);
+    g.fillStyle = '#8a5a3c'; g.beginPath(); g.arc(0, 0, 20, 0, Math.PI * 2); g.fill(); rrect(-8, -44, 16, 36, 8); g.fill(); g.restore();
+  }
   g.restore();
-  // headlight = sleepy eye, grille = frown
-  g.fillStyle = WH; g.beginPath(); g.ellipse(-262, 18, 22, 26, 0, 0, Math.PI * 2); g.fill();
-  g.fillStyle = '#1a1110'; g.beginPath(); g.arc(-266, 24, 10, 0, Math.PI * 2); g.fill();
-  g.fillStyle = CAR_D; g.beginPath(); g.ellipse(-262, 6, 26, 16, 0, Math.PI, Math.PI * 2); g.fill();
-  g.strokeStyle = '#3a2a10'; g.lineWidth = 6; g.lineCap = 'round'; g.beginPath(); g.moveTo(-290, -16); g.lineTo(-240, -30); g.stroke();   // sad brow
-  g.lineWidth = 10; g.beginPath(); g.moveTo(-300, 100); g.quadraticCurveTo(-272, 70, -238, 98); g.stroke();                              // big sulky frown
-  // wheels (front one flat: squashed onto the road, bulging at the bottom, rim sitting low)
-  for (const [wx, flat] of [[-170, 1], [170, 0]]) {
-    g.save(); g.translate(wx, flat ? 117 : 110);
-    if (flat) {
-      g.fillStyle = '#16181c'; g.beginPath(); g.ellipse(0, 0, 76, 40, 0, 0, Math.PI * 2); g.fill();
-      g.beginPath(); g.ellipse(0, 30, 90, 13, 0, 0, Math.PI * 2); g.fill();
-      g.scale(1, .86);
-    } else { g.fillStyle = '#16181c'; g.beginPath(); g.arc(0, 0, 62, 0, Math.PI * 2); g.fill(); }
-    g.fillStyle = '#aeb6c2'; g.beginPath(); g.arc(0, 0, flat ? 27 : 30, 0, Math.PI * 2); g.fill();
+  // her face: headlight eye, brow, mouth on the bumper
+  const happy = st.mood === 'happy';
+  g.fillStyle = WH; g.beginPath(); g.ellipse(-262, 18, 22, happy ? 28 : 26, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#1a1110'; g.beginPath(); g.arc(-266, happy ? 14 : 24, happy ? 12 : 10, 0, Math.PI * 2); g.fill();
+  if (happy) { g.fillStyle = WH; g.beginPath(); g.arc(-261, 9, 4, 0, Math.PI * 2); g.fill(); }
+  else { g.fillStyle = CAR_D; g.beginPath(); g.ellipse(-262, 6, 26, 16, 0, Math.PI, Math.PI * 2); g.fill(); }
+  g.strokeStyle = '#3a2a10'; g.lineCap = 'round';
+  if (happy) {
+    g.lineWidth = 6; g.beginPath(); g.moveTo(-292, -24); g.quadraticCurveTo(-266, -40, -238, -26); g.stroke();
+    g.lineWidth = 10; g.beginPath(); g.moveTo(-300, 82); g.quadraticCurveTo(-270, 112, -236, 84); g.stroke();
+  } else {
+    g.lineWidth = 6; g.beginPath(); g.moveTo(-290, -16); g.lineTo(-240, -30); g.stroke();
+    g.lineWidth = 10; g.beginPath(); g.moveTo(-300, 100); g.quadraticCurveTo(-272, 70, -238, 98); g.stroke();
+  }
+  if (st.blush > 0) { g.fillStyle = `rgba(232,90,110,${.55 * st.blush})`; for (const bx of [-226, -196]) { g.beginPath(); g.ellipse(bx, 50, 20, 11, 0, 0, Math.PI * 2); g.fill(); } }
+  // wheels: the front one goes from flat (squashed, bulging, rim low) to round when inflated
+  for (const [wx, fw] of [[-170, f], [170, 0]]) {
+    g.save(); g.translate(wx, 110 + 7 * fw);
+    g.fillStyle = '#16181c'; g.beginPath(); g.ellipse(0, 0, 62 + 14 * fw, 62 - 22 * fw, 0, 0, Math.PI * 2); g.fill();
+    if (fw > .05) { g.beginPath(); g.ellipse(0, 30 * fw, 62 + 28 * fw, 13 * fw, 0, 0, Math.PI * 2); g.fill(); }
+    g.scale(1, 1 - .14 * fw);
+    g.fillStyle = '#aeb6c2'; g.beginPath(); g.arc(0, 0, 30 - 3 * fw, 0, Math.PI * 2); g.fill();
     g.rotate(st.spin || 0); g.fillStyle = '#5b6470'; for (let i = 0; i < 4; i++) { g.rotate(Math.PI / 2); g.fillRect(-4, 6, 8, 22); }
     g.restore();
   }
+  { const vx = -170 + Math.cos(-2.2) * 36, vy = 117 + 7 * f + Math.sin(-2.2) * 36 * (1 - .14 * f);   // valve stem
+    g.fillStyle = '#20242b'; rrect(vx - 5, vy - 12, 10, 18, 4); g.fill();
+    if (st.hose > 0) {               // compressor hose comes in from off frame and clips on the valve
+      const h = eOut(st.hose), ex = vx - 70 * (1 - h), ey = vy + 60 * (1 - h);
+      g.strokeStyle = '#121418'; g.lineWidth = 16; g.lineCap = 'round'; g.beginPath(); g.moveTo(ex - 520, ey + 330); g.bezierCurveTo(ex - 300, ey + 330, ex - 40, ey + 200, ex, ey); g.stroke();
+      g.strokeStyle = '#2b2f37'; g.lineWidth = 8; g.stroke();
+      g.fillStyle = '#c9a640'; rrect(ex - 12, ey - 6, 24, 30, 6); g.fill(); g.fillStyle = '#8f7426'; g.fillRect(ex - 12, ey + 8, 24, 4);
+    } }
   g.restore();
-  // smoke puffs from the bonnet
-  for (let i = 0; i < 5; i++) {
-    const ph = ((t * .9 + i / 5) % 1), a = (1 - ph) * .45 * (st.smoke || 0);
-    if (a <= 0) continue;
-    g.fillStyle = `rgba(120,128,140,${a})`; g.beginPath(); g.arc(x - 210 + Math.sin(i * 3 + t * 2) * 20, y - 60 - ph * 220, 26 + ph * 40, 0, Math.PI * 2); g.fill();
-  }
-  if (st.hiss > 0) { g.save(); g.strokeStyle = `rgba(255,255,255,${st.hiss})`; g.lineWidth = 7; g.lineCap = 'round';
-    const hx = x + (-170 - 95) * (st.sc || 1), hy = y + 150 * (st.sc || 1);
+  if (st.hiss > 0) {                 // air hissing out of the flat
+    g.save(); g.strokeStyle = `rgba(150,165,185,${st.hiss})`; g.lineWidth = 7; g.lineCap = 'round';
+    const hx = x + (-170 - 95) * CSC, hy = y + 150 * CSC;
     for (let i = 0; i < 3; i++) { const k = (t * 1.6 + i / 3) % 1; g.beginPath(); g.arc(hx - k * 70, hy - 10 - i * 18, 18 + k * 22, Math.PI * .6, Math.PI * 1.25); g.stroke(); }
-    g.restore(); }
-  if (st.honk) { g.save(); g.translate(x + 60, y - 290); g.rotate(-.12); g.scale(st.honk, st.honk); text('TÛT ! TÛT !', 0, 0, { s: 62, col: RED }); g.restore(); }
+    g.restore();
+  }
 }
 
-// ---------------------------------------------------------------- scenes
-// Photo = provisional stand-in for the manager's "Karibu!" shot (replaced by the real footage)
-// assets/alonzo-reference.jpg: THE reference photo of Alonzo (1080x1920 crop). The drawing is traced on his pose:
-// centred at x 545, sunglasses at y ~180, feet at y ~1840, mic held at the chest in his right hand, left arm down.
-const PH = { x: 545, y: 538, sc: 1.6 };
-const MASC = { x: 720, y: 640, sc: 1.05 };                           // where he settles to introduce himself
-const HOME = { x: 280, y: 800, sc: 1.0 };
-const T0 = 2.0, SETTLE = T0 + 1.1;  // T0: the wink / transformation; SETTLE: he steps back to his place in the scene
-const FLIP = [5.6, 6.15];           // mic flip during the hop
+// ---------------------------------------------------------------- Alonzo, drawn flat — two looks:
+// « ville » (as in the Karibu footage: white shirt, cream flower, sunglasses pushed up on the head) and
+// « atelier » (navy tee + navy cap with the logo, sunglasses hooked on the collar): the outfit change is the reveal.
+let FLAT = false;
+function hostLook(x, y, sc, t, st, ville) {
+  const blink = (t % 2.9) < .12 ? .1 : 1, breathe = Math.sin(t * 2.4) * 4;
+  const shake = st.mood === 'worried' ? Math.sin(t * 40) * 3 : 0;
+  const TOP = ville ? WH : NAVY, TOP_D = ville ? '#e2e8f1' : NAVY_D;
+  g.save(); g.translate(x + shake, y); g.scale(sc, sc);
+  FLAT = true; LOOK = ville ? 'ville' : 'atelier'; SHIRT = TOP; SHIRT_D = TOP_D;
+  const L = st.l || { x: -150, y: 330, bend: 1, hand: 'fist' };
+  if (!st.lFront) arm(-112, 40, L.x, L.y, L.bend, L.hand, L.prop);
+  const torso = () => { g.beginPath(); g.moveTo(-125, 30 + breathe * .3); g.quadraticCurveTo(-130, -8, -60, -12); g.lineTo(60, -12);
+    g.quadraticCurveTo(130, -8, 125, 30 + breathe * .3); g.lineTo(150, 760); g.lineTo(-150, 760); g.closePath(); };
+  torso(); g.fillStyle = TOP; g.fill();
+  if (ville) {                       // shirt: soft shade on the right, placket, buttons, collar, flower
+    g.save(); torso(); g.clip(); g.fillStyle = TOP_D; g.beginPath(); g.moveTo(80, -20); g.quadraticCurveTo(60, 300, 90, 770); g.lineTo(160, 770); g.lineTo(160, -20); g.closePath(); g.fill(); g.restore();
+    g.strokeStyle = '#c6d0dc'; g.lineWidth = 4; g.beginPath(); g.moveTo(0, 30); g.lineTo(0, 760); g.stroke();
+    g.fillStyle = '#b4c0d0'; for (let by = 80; by < 400; by += 70) { g.beginPath(); g.arc(9, by, 5, 0, Math.PI * 2); g.fill(); }
+    g.fillStyle = PANTS; g.beginPath(); g.moveTo(-142, 428); g.lineTo(142, 428); g.lineTo(150, 760); g.lineTo(-150, 760); g.closePath(); g.fill();   // navy trousers, as in the photo
+    g.strokeStyle = '#2f3c69'; g.lineWidth = 4; g.beginPath(); g.moveTo(0, 470); g.lineTo(0, 760); g.stroke();
+    g.fillStyle = '#121316'; g.fillRect(-142, 398, 284, 32); g.strokeStyle = '#dfe3e8'; g.lineWidth = 5; g.strokeRect(-18, 404, 30, 20);   // black belt
+    g.fillStyle = SKIN; g.beginPath(); g.moveTo(-30, -12); g.quadraticCurveTo(0, 34, 30, -12); g.closePath(); g.fill();
+    g.fillStyle = '#eef2f7'; for (const sd of [-1, 1]) { g.beginPath(); g.moveTo(sd * 30, -26); g.lineTo(sd * 66, -2); g.lineTo(sd * 8, 42); g.lineTo(sd * 22, -10); g.closePath(); g.fill(); }
+    g.save(); g.translate(64, 110);
+    for (const [lx, ly, r] of [[-16, 14, .7], [14, 18, -.7], [-2, -20, 1.6]]) { g.fillStyle = LEAF; g.beginPath(); g.ellipse(lx, ly, 15, 6.5, r, 0, Math.PI * 2); g.fill(); }
+    for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2 + t * .4; g.fillStyle = '#fbf6dc'; g.beginPath(); g.arc(Math.cos(a) * 11, Math.sin(a) * 11, 9, 0, Math.PI * 2); g.fill(); }
+    g.fillStyle = '#f2c230'; g.beginPath(); g.arc(0, 0, 6, 0, Math.PI * 2); g.fill(); g.restore();
+  } else {                           // work tee: hem, collar, sunglasses hooked on it, logo badge
+    g.fillStyle = NAVY_D; g.fillRect(-150, 710, 300, 50);
+    g.fillStyle = SKIN; g.beginPath(); g.moveTo(-34, -12); g.quadraticCurveTo(0, 30, 34, -12); g.closePath(); g.fill();
+    g.save(); g.translate(-6, 30); g.rotate(-.08);
+    g.strokeStyle = '#0b0d11'; g.lineWidth = 5; g.beginPath(); g.moveTo(-6, -22); g.lineTo(-6, -4); g.stroke();
+    for (const lx of [-26, 14]) { const lg = g.createLinearGradient(0, -6, 0, 18); lg.addColorStop(0, '#2c4a73'); lg.addColorStop(1, '#0b1322');
+      g.fillStyle = lg; g.beginPath(); g.roundRect(lx - 4, -6, 34, 24, [6, 6, 12, 12]); g.fill(); }
+    g.restore();
+    g.fillStyle = WH; g.beginPath(); g.arc(58, 120, 36, 0, Math.PI * 2); g.fill();
+    { const lw = 58, lh = lw * LOGO.height / LOGO.width; g.drawImage(LOGO, 58 - lw / 2, 120 - lh / 2, lw, lh); }
+  }
+  g.fillStyle = SKIN_D; g.fillRect(-28, -52, 56, 46);
+  // head
+  g.save(); g.translate(0, -140 + breathe * .4);
+  g.rotate(st.mood === 'worried' ? -.05 : Math.sin(t * 3) * .03 + (st.talk ? Math.sin(t * 9) * .025 : 0));
+  g.fillStyle = SKIN; g.beginPath(); g.arc(-84, 8, 18, 0, Math.PI * 2); g.arc(84, 8, 18, 0, Math.PI * 2); g.fill();
+  const head = () => { g.beginPath(); g.ellipse(0, 0, 86, 98, 0, 0, Math.PI * 2); };
+  head(); g.fill();
+  if (ville) { g.save(); head(); g.clip(); g.fillStyle = SKIN_HI; g.globalAlpha = .6; g.beginPath(); g.ellipse(-30, -62, 32, 20, -.4, 0, Math.PI * 2); g.fill(); g.restore(); }   // the shine on his shaved head
+  g.save(); head(); g.clip(); g.fillStyle = BEARD;
+  g.beginPath(); g.moveTo(-88, 0); g.quadraticCurveTo(-80, 52, -44, 70); g.quadraticCurveTo(4, 86, 48, 70); g.quadraticCurveTo(82, 52, 88, 0);
+  g.lineTo(96, 0); g.lineTo(96, 120); g.lineTo(-96, 120); g.lineTo(-96, 0); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(-36, 42); g.quadraticCurveTo(-18, 22, 4, 27); g.quadraticCurveTo(28, 22, 42, 42); g.quadraticCurveTo(24, 34, 4, 36); g.quadraticCurveTo(-16, 34, -36, 42); g.fill();
+  g.strokeStyle = BEARD; g.lineWidth = 9; g.lineCap = 'round'; g.beginPath(); g.moveTo(-36, 42); g.lineTo(-42, 66); g.moveTo(42, 42); g.lineTo(46, 66); g.stroke();
+  g.restore();
+  const wb = st.mood === 'worried' || st.mood === 'shock', lx = (st.look || 0) * 5;
+  for (const ex of [-30, 28]) {
+    if (st.wink && ex > 0) { g.strokeStyle = BEARD; g.lineWidth = 7; g.lineCap = 'round'; g.beginPath(); g.arc(ex, -8, 14, Math.PI * .15, Math.PI * .85); g.stroke(); continue; }
+    const big = st.mood === 'shock' ? 1.25 : 1;
+    g.fillStyle = WH; g.beginPath(); g.ellipse(ex, -8, 15 * big, 17 * big * blink, 0, 0, Math.PI * 2); g.fill();
+    if (blink > .5) { g.fillStyle = '#1a1110'; g.beginPath(); g.arc(ex + 3 + lx, -6, 8, 0, Math.PI * 2); g.fill(); }
+  }
+  g.strokeStyle = BEARD; g.lineWidth = 8; g.lineCap = 'round';
+  const by = st.mood === 'shock' ? -10 : 0;
+  g.beginPath(); g.moveTo(-46, (wb ? -30 : -36) + by); g.lineTo(-16, (wb ? -42 : -38) + by); g.stroke();
+  g.beginPath(); g.moveTo(12, (wb ? -42 : -38) + by); g.lineTo(44, (wb ? -30 : -36) + by); g.stroke();
+  g.strokeStyle = SKIN_D; g.lineWidth = 6; g.beginPath(); g.arc(4, 14, 12, Math.PI * .1, Math.PI * .9); g.stroke();
+  const open = st.talk ? .35 + .65 * Math.abs(Math.sin(t * 17) * Math.sin(t * 7.3)) : 0;
+  g.fillStyle = LIPS;
+  if (st.mood === 'shock') { g.beginPath(); g.ellipse(4, 54, 16, 20, 0, 0, Math.PI * 2); g.fill(); }
+  else if (st.mood === 'worried') { g.beginPath(); g.ellipse(4, 52, 12, 14, 0, 0, Math.PI * 2); g.fill(); }
+  else if (open > .05) { g.beginPath(); g.ellipse(4, 52, 24, 6 + 16 * open, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = WH; g.fillRect(-12, 47 - 16 * open * .6, 32, 6); }
+  else if (st.mood === 'grin') {
+    g.beginPath(); g.moveTo(-28, 44); g.quadraticCurveTo(4, 86, 36, 44); g.closePath(); g.fill();
+    g.fillStyle = WH; g.beginPath(); g.moveTo(-24, 46); g.quadraticCurveTo(4, 60, 32, 46); g.closePath(); g.fill();
+  } else { g.strokeStyle = WH; g.lineWidth = 7; g.beginPath(); g.arc(4, 32, 26, Math.PI * .25, Math.PI * .75); g.stroke(); }
+  if (ville) {                       // sport sunglasses pushed up on the head
+    g.save(); g.translate(0, -72); g.rotate(-.04);
+    g.strokeStyle = GLASS; g.lineWidth = 8; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(-44, 0); g.quadraticCurveTo(-74, -2, -86, 20); g.moveTo(48, 0); g.quadraticCurveTo(76, -2, 86, 20); g.stroke();
+    for (const gx of [-27, 31]) { const lg = g.createLinearGradient(0, -12, 0, 14); lg.addColorStop(0, '#2c4a73'); lg.addColorStop(1, '#0b1322');
+      g.fillStyle = lg; g.beginPath(); g.roundRect(gx - 25, -14, 50, 30, [9, 9, 16, 16]); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.7)'; g.beginPath(); g.ellipse(gx - 9, -3, 8, 3.5, -.5, 0, Math.PI * 2); g.fill(); }
+    g.restore();
+  } else {                           // navy cap with the logo swooshes
+    g.fillStyle = NAVY; g.beginPath(); g.moveTo(-92, -38); g.quadraticCurveTo(-88, -118, 0, -120); g.quadraticCurveTo(88, -118, 92, -38); g.closePath(); g.fill();
+    g.fillStyle = NAVY_D; g.beginPath(); g.ellipse(70, -40, 78, 15, -.05, 0, Math.PI * 2); g.fill();
+    g.save(); g.translate(6, -78); g.lineCap = 'round';
+    g.strokeStyle = WH; g.lineWidth = 7; g.beginPath(); g.arc(0, 0, 20, Math.PI * .9, Math.PI * 2.1); g.stroke();
+    g.strokeStyle = RED; g.lineWidth = 6; g.beginPath(); g.arc(2, 2, 13, Math.PI * .95, Math.PI * 2.0); g.stroke();
+    g.restore();
+  }
+  if (st.mood === 'worried') { g.fillStyle = '#7fc4ff'; g.beginPath(); g.moveTo(80, -40); g.quadraticCurveTo(96, -14, 80, -8); g.quadraticCurveTo(64, -14, 80, -40); g.fill(); }
+  if (st.mood === 'shock') { g.strokeStyle = RED; g.lineWidth = 7; for (const a of [-2.4, -1.9, -1.4]) { g.beginPath(); g.moveTo(Math.cos(a) * 140, Math.sin(a) * 140 - 30); g.lineTo(Math.cos(a) * 175, Math.sin(a) * 175 - 30); g.stroke(); } }
+  g.restore();
+  const Rr = st.r || { x: 150, y: 330, bend: -1, hand: 'fist' };
+  arm(112, 40, Rr.x, Rr.y, Rr.bend, Rr.hand, Rr.prop);
+  if (st.lFront) { WAVES = st.waves ? t : -1; arm(-112, 40, L.x, L.y, L.bend, L.hand, L.prop); WAVES = -1; }
+  FLAT = false;
+  g.restore();
+}
+// st.dress 0..1: the work tee and the cap sweep on from the top of his head down, with a bright line
+function hostDraw(x, y, sc, t, st) {
+  const d = st.dress || 0;
+  if (d <= 0 || d >= 1) return hostLook(x, y, sc, t, st, d <= 0);
+  hostLook(x, y, sc, t, st, true);
+  const edge = y + (-280 + 1060 * d) * sc;
+  g.save(); g.beginPath(); g.rect(0, 0, W, edge); g.clip(); hostLook(x, y, sc, t, st, false); g.restore();
+  g.save(); g.strokeStyle = WH; g.lineWidth = 7 * sc; g.shadowColor = '#ffd34d'; g.shadowBlur = 20;
+  g.beginPath(); g.moveTo(x - 170 * sc, edge); g.lineTo(x + 170 * sc, edge); g.stroke(); g.restore();
+}
 
+// ---------------------------------------------------------------- where he is, what he does (design time)
+const PH = { x: 545, y: 538, sc: 1.6 };                 // the reference photo (its zoom pivot)
+const TRACE = { x: 545, y: 560, sc: 1.7 };              // the drawing laid over him in the photo (head on his head)
+const INTRO = { x: 540, y: 1200, sc: 1.3 };             // he introduces himself, centred, big
+const HOME = { x: 290, y: 1250, sc: 1 };                // then the host spot, bottom-left
+function hostXf(t) {
+  const mix = (A, B, p) => ({ x: A.x + (B.x - A.x) * p, y: A.y + (B.y - A.y) * p, sc: A.sc + (B.sc - A.sc) * p });
+  if (t < SETTLE) return TRACE;
+  if (t < FLIP[0]) return mix(TRACE, INTRO, eInOut(lin(t, SETTLE, SETTLE + .5)));
+  const p = eInOut(lin(t, FLIP[0], FLIP[1])), m = mix(INTRO, HOME, p);
+  m.y -= Math.sin(Math.PI * p) * 200; return m;
+}
+const MIC_CHEST = { x: -28, y: 64, bend: 1, hand: 'fist', prop: 'mic' }, MIC_MOUTH = { x: -40, y: 6, bend: 1, hand: 'fist', prop: 'mic' };
+const MIC_UP = { x: -200, y: -190, bend: -1, hand: 'fist', prop: 'mic' }, CATCH = { x: -215, y: -150, bend: -1, hand: 'open' };
+const WRENCH = { x: -190, y: -50, bend: -1, hand: 'fist', prop: 'wrench' };
+const LINES0 = [                     // [start, end, typing, lines, who, big]
+  [3.6, 5.55, 0, ['C’est moi, Alonzo !'], 'm', 2],
+  [7.55, 8.85, 0, ['Ça va passer…'], 'c', 1],
+  [8.9, 10.9, 0, ['Pas avec moi !'], 'm', 2],
+  [14.25, 17.4, 0, ['Et sa voiture ?'], 'm', 2],
+];
+function poseAt(t) {
+  const st = { mood: 'happy', dress: eOut(lin(t, DRESS[0], DRESS[1])), lFront: true, l: MIC_CHEST, look: 1 };
+  if (t < SETTLE) { st.mood = t > T0 + .75 ? 'grin' : 'happy'; st.wink = t > T0 + .75 && t < T0 + 1.05; }
+  else if (t < 4.3) { st.mood = t < 3.6 ? 'shock' : 'happy'; st.r = t < 3.6 ? { x: 130, y: -20, bend: 1, hand: 'open' } : { x: 40, y: 90, bend: 1, hand: 'open' }; if (t >= 3.6) { st.l = MIC_MOUTH; st.waves = true; } }
+  else if (t < FLIP[0]) { st.mood = 'grin'; st.r = { x: 195, y: -30, bend: 1, hand: 'thumb' }; }
+  else if (t < FLIP[1]) { st.mood = 'grin'; st.l = CATCH; }
+  else if (t < 8.2) st.mood = 'happy';
+  else if (t < 8.9) { st.mood = 'worried'; st.r = { x: 10, y: -170, bend: 1, hand: 'open' }; }   // facepalm
+  else if (t < 9.62) { st.l = MIC_MOUTH; st.waves = true; }                                         // « Pas avec moi ! »
+  else if (t < 10.0) st.mood = 'grin';
+  else if (t < 11.2) { st.mood = 'grin'; st.l = MIC_UP; }                                           // presenter: mic up for the title
+  else if (t < SWAP[0]) st.mood = 'grin';
+  else if (t < SWAP[1]) { st.mood = 'grin'; st.l = CATCH; }
+  else { st.mood = 'grin'; st.l = WRENCH; st.r = { x: 300, y: 110, bend: 1, hand: 'point' }; }       // wrench in hand, points at the car
+  st.talk = LINES0.some(l => l[4] === 'm' && t >= l[0] && t < l[0] + .9);
+  if (st.talk && st.mood !== 'worried' && st.mood !== 'shock') st.mood = 'talk';
+  return st;
+}
+function flyingTool(kind) {
+  if (kind === 'mic') { g.fillStyle = INKL; rrect(-14, -30, 28, 80, 11); g.fill(); g.fillStyle = '#25282e'; rrect(-10, -26, 20, 72, 8); g.fill(); foam(0, -52); }
+  else { g.rotate(Math.PI / 2); wrenchShape(-70); }
+}
+function host(t) {
+  if (t < T0 + .6) return;
+  const xf = hostXf(t), st = poseAt(t);
+  g.save(); g.globalAlpha = lin(t, T0 + .6, T0 + .9); sticker(() => hostDraw(xf.x, xf.y, xf.sc, t, st)); g.restore();
+  for (const [a, b, swap] of [[FLIP[0], FLIP[1], false], [SWAP[0], SWAP[1], true]]) {   // mic flip on the hop; mic up, « pouf », wrench down
+    const fp = lin(t, a, b); if (fp <= 0 || fp >= 1) continue;
+    const fx = xf.x - 215 * xf.sc, fy = xf.y - 230 * xf.sc - Math.sin(Math.PI * fp) * 120;
+    g.save(); g.translate(fx, fy); g.rotate(fp * Math.PI * 4); g.scale(xf.sc, xf.sc); flyingTool(swap && fp > .5 ? 'wrench' : 'mic'); g.restore();
+    const pf = swap ? 1 - Math.abs(fp - .5) / .12 : 0;
+    if (pf > 0) { g.save(); g.translate(fx, fy); g.globalAlpha = pf; g.strokeStyle = WH; g.lineWidth = 8; g.lineCap = 'round';
+      for (let i = 0; i < 8; i++) { const an = i / 8 * Math.PI * 2, r0 = 40 + (1 - pf) * 40; g.beginPath(); g.moveTo(Math.cos(an) * r0, Math.sin(an) * r0); g.lineTo(Math.cos(an) * (r0 + 34), Math.sin(an) * (r0 + 34)); g.stroke(); }
+      g.fillStyle = '#ffd34d'; g.beginPath(); g.arc(0, 0, 30 * pf, 0, Math.PI * 2); g.fill(); g.restore(); }
+  }
+}
+
+// ---------------------------------------------------------------- the photo, and the drawing taking over
 function photo(t) {
-  // slow push-in that lands exactly on the traced pose at the wink (z = 1), then a small punch
   const z = 1.06 - .06 * eOut(lin(t, 0, T0)) + .03 * eOut(lin(t, T0, T0 + .12)), w = W * z, h = H * z;
   g.drawImage(IMG.photo, PH.x - PH.x * z, H * .5 - h * .5, w, h);
   const dark = lin(t, T0 + .05, T0 + .4);
   if (dark > 0) { g.fillStyle = `rgba(8,40,90,${.6 * dark})`; g.fillRect(0, 0, W, H); }
 }
-
-// cartoonBg(t): the garage set (the real Combani garage) lives in ../video/set-garage.js, shared by the episodes
-
-function transformation(t) {
+function transformation(t) {          // a white sketch of the drawing, revealed top to bottom with a glowing pen line
   const p = lin(t, T0 + .05, T0 + .75);
   if (p <= 0 || t > T0 + 1.2) return;
-  // white sketch of the mascot drawn from top to bottom, with a glowing pen line
-  const top = PH.y - 300 * PH.sc, bot = PH.y + 860 * PH.sc, yy = top + (bot - top) * eInOut(p);
-  sticker(() => mechanic(PH.x, PH.y, T0, { ...poseAt(T0 + .8), sc: PH.sc }), true);   // same scale as the photo pose, so the sketch traces him
-  g.save(); g.beginPath(); g.rect(0, 0, W, yy); g.clip();
-  g.globalAlpha = .9 * (1 - lin(t, T0 + .7, T0 + 1.0)); g.drawImage(OW, 0, 0); g.restore();
+  const top = TRACE.y - 280 * TRACE.sc, bot = H, yy = top + (bot - top) * eInOut(p);
+  sticker(() => hostDraw(TRACE.x, TRACE.y, TRACE.sc, T0, poseAt(T0 + .8)), true);
+  g.save(); g.beginPath(); g.rect(0, 0, W, yy); g.clip(); g.globalAlpha = .9 * (1 - lin(t, T0 + .7, T0 + 1.0)); g.drawImage(OW, 0, 0); g.restore();
   if (p < 1) {
     g.save(); g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 6; g.shadowColor = WH; g.shadowBlur = 30;
-    g.beginPath(); g.moveTo(PH.x - 300, yy); g.lineTo(PH.x + 300, yy); g.stroke(); g.restore();
-    for (let i = 0; i < 10; i++) { const sx = PH.x - 240 + ((i * 97 + t * 900) % 480), sy = yy + Math.sin(i * 7 + t * 30) * 30; g.fillStyle = i % 2 ? '#ffd34d' : WH; g.beginPath(); g.arc(sx, sy, 5 + (i % 3) * 3, 0, Math.PI * 2); g.fill(); }
+    g.beginPath(); g.moveTo(TRACE.x - 320, yy); g.lineTo(TRACE.x + 320, yy); g.stroke(); g.restore();
+    for (let i = 0; i < 10; i++) { const sx = TRACE.x - 260 + ((i * 97 + t * 900) % 520), sy = yy + Math.sin(i * 7 + t * 30) * 30; g.fillStyle = i % 2 ? '#ffd34d' : WH; g.beginPath(); g.arc(sx, sy, 5 + (i % 3) * 3, 0, Math.PI * 2); g.fill(); }
   }
 }
-
-// the mic is his prop: held at the chest (as in the photo), to the mouth when he talks, tossed during the hop,
-// raised for the title, held out to the viewer for the closing question. Mic arm in front of the body.
-const MIC_CHEST = { x: -28, y: 64, bend: 1, hand: 'fist', prop: 'mic' }, MIC_MOUTH = { x: -40, y: 6, bend: 1, hand: 'fist', prop: 'mic', waves: true };
-const MIC_UP = { x: -200, y: -190, bend: -1, hand: 'fist', prop: 'mic' };
-const WRENCH = { x: -190, y: -50, bend: -1, hand: 'fist', prop: 'wrench' }, CATCH = { x: -215, y: -150, bend: -1, hand: 'open' };
-function poseAt(t) {
-  const st = { mood: 'happy', sc: 1, dress: eOut(lin(t, DRESS[0], DRESS[1])), lFront: true, l: MIC_CHEST };
-  const talking = LINES0.some(l => l[7] === 'm' && t >= l[0] && t < l[0] + l[2] + .25);
-  if (t < SETTLE) { st.mood = t > T0 + .75 ? 'grin' : 'happy'; st.wink = t > T0 + .75 && t < T0 + 1.05; }   // his pose in the photo, then the wink
-  else if (t < 4.3) {                // "Eh oui… c'est moi, Alonzo !" — into the mic, other hand on his chest
-    st.mood = t < 3.6 ? 'shock' : 'happy'; st.r = t < 3.6 ? { x: 130, y: -20, bend: 1, hand: 'open' } : { x: 40, y: 90, bend: 1, hand: 'open' };
-    if (t >= 3.6) st.l = MIC_MOUTH;
-  }
-  else if (t < FLIP[0]) { st.mood = 'grin'; st.r = { x: 195, y: -110, bend: 1, hand: 'thumb' }; }
-  else if (t < FLIP[1]) { st.mood = 'grin'; st.l = CATCH; }            // mic in the air: open hand ready to catch
-  else if (t < 8.2) st.mood = 'happy';
-  else if (t < 9.3) { st.mood = 'worried'; st.r = { x: 10, y: -170, bend: 1, hand: 'open' }; }             // facepalm
-  else if (t < 9.62) st.l = MIC_MOUTH;                                                                        // "Pas avec moi !"
-  else if (t < 10.0) st.mood = 'grin';
-  else if (t < 11.2) { st.mood = 'grin'; st.l = MIC_UP; }                                                     // presenter: mic up for the title
-  else if (t < SWAP[0]) st.mood = 'grin';
-  else if (t < SWAP[1]) { st.mood = 'grin'; st.l = CATCH; }                                                 // mic in the air…
-  else { st.mood = 'grin'; st.r = { x: 290, y: 200, bend: 1, hand: 'point' }; st.l = WRENCH; }              // …back to work: wrench in hand, points at the car
-  if (talking && st.l === MIC_MOUTH) st.waves = true;
-  return st;
-}
-
-const LINES0 = [
-  [3.6, 5.55, .6, ['Eh oui… c’est moi,', 'Alonzo !'], 40, 250, 580, 'm'],
-  [7.55, 9.6, 0, ['Ça va passer…'], 400, 900, 540, 'c', 1],          // the client's line for the whole season: big, all at once, it trembles
-  [8.9, 10.9, 0, ['Ah non.', 'Pas avec moi !'], 400, 545, 540, 'm'],   // all at once, held past the outfit change so it can be read
-  [14.25, 17.4, .5, ['Et sa voiture ?'], 400, 560, 540, 'm'],
-];
-
-function mascotPos(t) {
-  if (t < SETTLE) return PH;
-  if (t < 5.6) { const p = eInOut(lin(t, SETTLE, SETTLE + .5)); return { x: PH.x + (MASC.x - PH.x) * p, y: PH.y + (MASC.y - PH.y) * p, sc: PH.sc + (MASC.sc - PH.sc) * p }; }
-  const p = eInOut(lin(t, 5.6, 6.15)), hop = Math.sin(Math.PI * p) * 180, gp = groundPos(t);
-  return { x: gp.x, y: gp.y - hop, sc: gp.sc };
-}
-function groundPos(t) {              // mascot position without the hop
-  if (t < 5.6) return mascotPos(t);
-  const p = eInOut(lin(t, 5.6, 6.15));
-  return { x: MASC.x + (HOME.x - MASC.x) * p, y: MASC.y + (HOME.y - MASC.y) * p, sc: MASC.sc + (HOME.sc - MASC.sc) * p };
-}
-
 function carState(t) {
-  const e = lin(t, 6.2, 7.0), x = 1500 + (664 - 1500) * eOut(e);
-  const skid = Math.sin(Math.PI * lin(t, 6.85, 7.25)) * -.05;
-  const shake = t > 7.1 ? Math.sin(t * 45) * 2 : 0;
-  return {
-    x: x + shake, y: 1290, sc: .95, hiss: lin(t, 6.8, 7.0) * (1 - lin(t, 7.6, 7.9)), tilt: skid, spin: -t * 14 * (1 - e) - 6, smoke: lin(t, 7.0, 7.5),
-    honk: t > 7.15 && t < 7.75 ? eBack(lin(t, 7.15, 7.35)) : 0, pop: eBack(lin(t, 7.45, 7.75)) * (1 - lin(t, 9.4, 9.7)),
-  };
+  const e = lin(t, 6.2, 7.0), x = 1450 + (CARX - 1450) * eOut(e);
+  const shake = t > 7.1 ? Math.sin(t * 45) * 2 : 0, roll = 1 - e;
+  return { x: x + shake, y: CARY - (roll > .01 ? Math.abs(Math.sin(t * 9)) * 14 * roll : 0), spin: (x - CARX) / 60, flat: 1, mood: 'sad', plate: 0,
+    pop: eBack(lin(t, 7.45, 7.75)) * (1 - lin(t, 9.4, 9.7)), hiss: lin(t, 6.8, 7.0) * (1 - lin(t, 7.6, 7.9)) };
 }
 
 function render(t) {
   g.setTransform(1, 0, 0, 1, 0, 0);
-  // background: real shot, then the drawn garage opening from the mascot
   if (t < T0 + 1.3) photo(t);
   const iris = eInOut(lin(t, T0 + .55, T0 + 1.2));
-  if (iris > 0) { g.save(); g.beginPath(); g.arc(PH.x, PH.y - 100, 2300 * iris, 0, Math.PI * 2); g.clip(); cartoonBg(t); g.restore(); }
-  // A — the real "Karibu!"
-  if (t < T0 + .2) {
-    g.save(); g.globalAlpha = 1 - lin(t, T0, T0 + .2);
-    g.save(); g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 24; punch('KARIBU !', W / 2, 1330, .2, t, 190, WH); g.restore();
-    g.restore();
-  }
+  if (iris > 0) { g.save(); g.beginPath(); g.arc(TRACE.x, TRACE.y - 140 * TRACE.sc, 2300 * iris, 0, Math.PI * 2); g.clip(); cartoonBg(t); g.restore(); }
+  // the real « Karibu ! »
+  if (t < T0 + .2) { g.save(); g.globalAlpha = 1 - lin(t, T0, T0 + .2); g.save(); g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 24; punch('KARIBU !', W / 2, 1180, .2, t, 190, WH); g.restore(); g.restore(); }
   if (t < T0 + 1.0) { g.save(); g.globalAlpha = 1 - lin(t, T0 + .3, T0 + .55); rrect(40, 250, 470, 56, 28); g.fillStyle = 'rgba(0,0,0,.5)'; g.fill(); text('MAQUETTE · photo → vidéo Karibu', 275, 279, { f: 'Montserrat', w: 700, s: 26, col: WH }); g.restore(); }
-  // the wink: flash
   const fl = 1 - lin(t, T0, T0 + .12); if (t >= T0 && fl > 0) { g.fillStyle = `rgba(255,255,255,${fl * .8})`; g.fillRect(0, 0, W, H); }
-  if (t >= T0 && t < T0 + 1.1) { g.save(); g.globalAlpha = 1 - lin(t, T0 + .55, T0 + .8); punch('ATTENDEZ…', W / 2, 1330, T0 + .05, t, 150, WH); g.restore(); }
+  if (t >= T0 && t < T0 + 1.1) { g.save(); g.globalAlpha = 1 - lin(t, T0 + .55, T0 + .8); punch('ATTENDEZ…', W / 2, 1180, T0 + .05, t, 150, WH); g.restore(); }
   transformation(t);
-  if (t >= 3.6 && t < 5.6) { g.save(); g.globalAlpha = 1 - lin(t, 5.3, 5.6); marker('ALONZO', MASC.x, 1600, 3.6, t, 90, RED, WH); g.restore(); }  // he introduces himself
-  // D — series title
+  // the car of the client
+  const cs = carState(t);
+  if (t >= 6.2) car(cs.x, cs.y, t, cs);
+  // the series title (just the title and the date of episode 1)
   if (t >= 10.0) {
     punch('GARDE LE CAP !', W / 2, 300, 10.0, t, 150, BLUE);
-    g.save(); g.globalAlpha = 1 - lin(t, 13.2, 13.45);   // cleared before the mic/wrench swap
-    { const a = eOut(lin(t, 10.3, 10.6)); g.save(); g.globalAlpha *= a; g.fillStyle = 'rgba(255,255,255,.94)'; rrect(70, 365, 940, 62, 31); g.fill(); g.restore(); }
-    revealLine('Tous les 15 jours, un conseil pour votre voiture', 395, t, 10.3, fit('Tous les 15 jours, un conseil pour votre voiture', 50, 900), INK);
-    marker('ÉPISODE 1 · VENDREDI 4 DÉCEMBRE', W / 2, 480, 10.6, t, fit('ÉPISODE 1 · VENDREDI 4 DÉCEMBRE', 60, 820), RED, WH);
+    g.save(); g.globalAlpha = 1 - lin(t, 13.2, 13.45);
+    marker('ÉPISODE 1 · VENDREDI 4 DÉC.', W / 2, 430, 10.4, t, fit('ÉPISODE 1 · VENDREDI 4 DÉC.', 72, 860), RED, WH);
     g.restore();
   }
-  // the car
-  if (t >= 6.2) car(carState(t).x, carState(t).y, t, carState(t));
-  // the mascot (fully coloured once the sketch is done)
-  const mA = lin(t, T0 + .6, T0 + .9);
-  if (mA > 0) {
-    const m = mascotPos(t), st = poseAt(t); st.sc = m.sc;
-    const say = LINES0.find(l => l[7] === 'm' && t >= l[0] && t < l[1]);
-    if (say && t < say[0] + say[2] + .1) st.talk = true;
-    if (st.talk && st.mood === 'happy') st.mood = 'talk';
-    if (t > T0 + .9) {               // ground shadow: stays on the floor and shrinks while he is in the air
-      const gp = groundPos(t), air = clamp((gp.y - m.y) / 180);
-      g.fillStyle = `rgba(10,25,60,${.22 * (1 - air * .5)})`; g.beginPath(); g.ellipse(m.x, gp.y + 830 * gp.sc, 190 * gp.sc * (1 - air * .35), 22 * gp.sc, 0, 0, Math.PI * 2); g.fill();
-    }
-    g.save(); g.globalAlpha = mA; sticker(() => mechanic(m.x, m.y, t, st)); g.restore();
-    // mic flip during the hop (caught again), and the last-shot swap: mic goes up, a wrench comes down
-    for (const [a, b, swap] of [[FLIP[0], FLIP[1], false], [SWAP[0], SWAP[1], true]]) {
-      const fp = lin(t, a, b); if (fp <= 0 || fp >= 1) continue;
-      const fx = m.x - 215 * m.sc, fy = m.y - 230 * m.sc - Math.sin(Math.PI * fp) * 120;
-      g.save(); g.translate(fx, fy); g.rotate(fp * Math.PI * 4); g.scale(m.sc, m.sc);
-      if (swap && fp > .5) { g.rotate(Math.PI / 2); wrenchShape(-70); }
-      else { g.fillStyle = INKL; rrect(-14, -30, 28, 80, 11); g.fill(); g.fillStyle = '#25282e'; rrect(-10, -26, 20, 72, 8); g.fill(); foam(0, -52); }
-      g.restore();
-      const pf = swap ? 1 - Math.abs(fp - .5) / .12 : 0;                 // poof at the apex
-      if (pf > 0) { g.save(); g.translate(fx, fy); g.globalAlpha = pf; g.strokeStyle = WH; g.lineWidth = 8; g.lineCap = 'round';
-        for (let i = 0; i < 8; i++) { const an = i / 8 * Math.PI * 2, r0 = 40 + (1 - pf) * 40; g.beginPath(); g.moveTo(Math.cos(an) * r0, Math.sin(an) * r0); g.lineTo(Math.cos(an) * (r0 + 34), Math.sin(an) * (r0 + 34)); g.stroke(); }
-        g.fillStyle = '#ffd34d'; g.beginPath(); g.arc(0, 0, 30 * pf, 0, Math.PI * 2); g.fill(); g.restore(); }
-    }
-  }
-  // the work tee drops onto him, then slides on
-  if (t >= DRESS[0] - .22 && t < DRESS[0] + .02) {
-    const m = mascotPos(t), k = eIn(lin(t, DRESS[0] - .22, DRESS[0])), ty = -150 + (m.y - 250 * m.sc + 150) * k;
-    g.save(); g.translate(m.x, ty); g.rotate((1 - k) * .5); g.scale(.9 * m.sc, .9 * m.sc);
-    g.fillStyle = NAVY; g.strokeStyle = WH; g.lineWidth = 10; g.lineJoin = 'round';
-    g.beginPath(); g.moveTo(-50, -60); g.quadraticCurveTo(0, -36, 50, -60); g.lineTo(130, -20); g.lineTo(100, 30); g.lineTo(80, 18); g.lineTo(80, 120);
-    g.lineTo(-80, 120); g.lineTo(-80, 18); g.lineTo(-100, 30); g.lineTo(-130, -20); g.closePath(); g.stroke(); g.fill();
-    g.fillStyle = WH; g.beginPath(); g.arc(36, 0, 24, 0, Math.PI * 2); g.fill();
-    const lw = 38, lh = lw * LOGO.height / LOGO.width; g.drawImage(LOGO, 36 - lw / 2, -lh / 2, lw, lh);
-    g.restore();
-  }
-  // end block: logo + contact
-  const ep = eBack(lin(t, 15.0, 15.4));
-  if (ep > 0) {
-    g.save(); g.translate(195, 452); g.scale(ep * 1.1, ep * 1.1);
-    g.shadowColor = 'rgba(8,40,90,.25)'; g.shadowBlur = 24; g.fillStyle = WH; g.beginPath(); g.ellipse(0, 0, 100, 86, -.1, 0, Math.PI * 2); g.fill(); g.shadowColor = 'transparent';
-    const lw = 165, lh = lw * LOGO.height / LOGO.width; g.drawImage(LOGO, -lw / 2, -lh / 2, lw, lh);
-    g.restore();
-    g.save(); g.globalAlpha = clamp(ep); g.fillStyle = 'rgba(255,255,255,.94)'; rrect(400, 392, 480, 140, 34); g.fill(); g.restore();
-    text('Combani', 640, 432, { f: 'Montserrat', w: 800, s: 44, col: BLUE, a: clamp(ep) });
-    text('+262 639 29 17 02', 640, 496, { f: 'Montserrat', w: 800, s: 52, col: BLUE, a: clamp(ep) });
-  }
-  // the call to action: big marker that pulses on the beat, a line to say where, and an arrow bouncing onto the car
+  host(t);
+  // the question: one marker that pulses on the beat, an arrow bouncing onto the car
   if (t >= 14.6) {
-    { const a = eOut(lin(t, 14.6, 14.9)); g.save(); g.globalAlpha *= a; g.fillStyle = '#f4f6f9'; rrect(430, 730, 540, 190, 40); g.fill(); g.restore(); }   // over the name panel of the set
     const beat = Math.pow(Math.max(0, Math.cos(Math.PI * 2 * (t - 14.6) / BEAT)), 6), k = 1 + .05 * beat * lin(t, 15, 15.3);
-    g.save(); g.translate(700, 790); g.scale(k, k); g.translate(-700, -790);
-    marker('QUEL PRÉNOM ?', 700, 790, 14.6, t, fit('QUEL PRÉNOM ?', 112, 420), RED, WH); g.restore();
-    text('Répondez en commentaire', 700, 880, { f: 'Montserrat', w: 800, s: 34, col: INK, a: eOut(lin(t, 14.8, 15.1)) });
-    const b = Math.abs(Math.sin(t * 5)) * 18, a = eOut(lin(t, 14.6, 14.9)), ax = 700; g.save(); g.globalAlpha = a; g.fillStyle = RED;
-    g.beginPath(); g.moveTo(ax - 25, 975 + b); g.lineTo(ax + 25, 975 + b); g.lineTo(ax + 25, 1020 + b); g.lineTo(ax + 62, 1020 + b); g.lineTo(ax, 1085 + b); g.lineTo(ax - 62, 1020 + b); g.lineTo(ax - 25, 1020 + b); g.closePath(); g.fill(); g.restore();
+    g.save(); g.translate(700, 730); g.scale(k, k); g.translate(-700, -730);
+    marker('QUEL PRÉNOM ?', 700, 730, 14.6, t, fit('QUEL PRÉNOM ?', 120, 460), RED, WH); g.restore();
+    const b = Math.abs(Math.sin(t * 5)) * 18, a = eOut(lin(t, 14.8, 15.1)), ax = 720; g.save(); g.globalAlpha = a; g.fillStyle = RED;
+    g.beginPath(); g.moveTo(ax - 25, 905 + b); g.lineTo(ax + 25, 905 + b); g.lineTo(ax + 25, 950 + b); g.lineTo(ax + 62, 950 + b); g.lineTo(ax, 1015 + b); g.lineTo(ax - 62, 950 + b); g.lineTo(ax - 25, 950 + b); g.closePath(); g.fill(); g.restore();
   }
-  // bubbles
-  for (const [a, b, d, lines, bx, by, bw, who, big] of LINES0) {
+  // bubbles: a few words, large
+  for (const [a, b, d, lines, who, big] of LINES0) {
     if (t < a || t > b) continue;
-    const p = eBack(lin(t, a, a + .3)) * (1 - eIn(lin(t, b - .25, b))), typed = d ? lin(t, a + .1, a + .1 + d) : 1;
-    let tail;
-    if (who === 'c') { const cs = carState(t); tail = [cs.x + (-55 - cs.pop * 70) * 1.05, cs.y + (-140 - cs.pop * 60) * 1.05]; }
-    else { const m = mascotPos(t); tail = bx > m.x ? [m.x + 110 * m.sc, m.y - 140 * m.sc] : [m.x - 100 * m.sc, m.y - 150 * m.sc]; }   // tail toward his mouth
-    g.save(); if (big) g.translate(Math.sin(t * 38) * 4 * (1 - lin(t, a + .3, a + .9)) + Math.sin(t * 9) * 1.5, 0);   // nervous tremble
-    bubble(lines, bx, by, bw, tail, p, typed, big); g.restore();
+    const p = eBack(lin(t, a, a + .3)) * (1 - eIn(lin(t, b - .25, b)));
+    const xf = hostXf(t);
+    let bx, by, bw, tail;
+    if (who === 'c') { bx = 360; by = 880; bw = 580; tail = [cs.x + (-55 - cs.pop * 70) * CSC, cs.y + (-140 - cs.pop * 60) * CSC]; }
+    else if (xf.sc > 1.15) { bx = 170; by = 640; bw = 740; tail = [xf.x + 20, xf.y - 270 * xf.sc]; }   // centred intro: above his head
+    else { const hgt = 50 + lines.length * 72; bx = 60; bw = 560; by = xf.y - 270 * xf.sc - 30 - hgt; tail = [xf.x + 40, xf.y - 250 * xf.sc]; }   // above his head: the car and the client stay clear
+    g.save(); if (big === 1) g.translate(Math.sin(t * 38) * 4 * (1 - lin(t, a + .3, a + .9)) + Math.sin(t * 9) * 1.5, 0);
+    bubble(lines, bx, by, bw, tail, p, 1, big); g.restore();
   }
   grain(t);
 }
 
-// ---------------------------------------------------------------- beat sync (Alpajo, 143.6 BPM)
-// The track starts 0.76 s in, so its beats fall at 2.0 s + k × 0.4178 s in the video (the wink is on a beat).
-// The animation is written in "design time"; this piecewise-linear warp moves each key hit onto a beat
-// (or a half-beat for the quick ones) and stretches/squeezes the time between them. SFX follow the same warp.
+// ---------------------------------------------------------------- beat sync (Alpajo): same warp as before
 const BEAT = 60 / 143.6, B0 = 2.0, onBeat = (n, half) => B0 + n * BEAT / (half ? 2 : 1);
-const WARP = [                     // [design time, video time]
-  [0, 0], [2.0, onBeat(0)],         // wink
-  [3.6, onBeat(4)],                 // "Eh oui… c'est moi, Alonzo !" + name marker
-  [5.6, onBeat(9)], [6.15, onBeat(10)],   // hop + mic flip, caught on the beat as the car rolls in
-  [6.9, onBeat(23, 1)], [7.2, onBeat(12)],  // screech (half-beat), first honk
-  [8.2, onBeat(15)],                // facepalm
-  [8.9, onBeat(33, 1)], [9.6, onBeat(37, 1)],  // "Ah non. Pas avec moi !", work outfit sweeps on
-  [10.0, onBeat(20)],               // series title (lands as the outfit is complete)
-  [SWAP[0], onBeat(28)],            // mic tossed
-  [SWAP[1], onBeat(29)], [15.0, onBeat(31)],  // wrench caught + closing question, logo
-  [DUR, DUR],
+const WARP = [
+  [0, 0], [2.0, onBeat(0)], [3.6, onBeat(4)], [5.6, onBeat(9)], [6.15, onBeat(10)],
+  [6.9, onBeat(23, 1)], [7.2, onBeat(12)], [8.2, onBeat(15)], [8.9, onBeat(33, 1)], [9.6, onBeat(37, 1)],
+  [10.0, onBeat(20)], [SWAP[0], onBeat(28)], [SWAP[1], onBeat(29)], [15.0, onBeat(31)], [DUR, DUR],
 ];
 function warp(t, from, to) {
   for (let i = 1; i < WARP.length; i++) {
@@ -722,7 +798,7 @@ function warp(t, from, to) {
 }
 const toVideo = t => warp(t, 0, 1), toDesign = t => warp(t, 1, 0);
 window.SFX = SFX0.map(([t, ...rest]) => [+toVideo(t).toFixed(3), ...rest]);
-const renderDesign = render;      // (a global function declaration: keep the original before overriding window.render)
+const renderDesign = render;
 window.render = t => renderDesign(toDesign(t));
 const IMG = {};
 Promise.all([

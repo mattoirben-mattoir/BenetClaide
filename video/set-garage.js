@@ -1,5 +1,5 @@
 // The garage set, drawn from the photo of Centre Auto Alonzo (Combani): light grey two-storey building,
-// blue fascia band with the white « CENTRE AUTO ALONZO » panel, the workshop bay (car lift, strip lights),
+// blue fascia band with the white « CENTRE AUTO ALONZO » panel (the only sign kept: the set must not compete with the titles), the workshop bay (car lift, strip lights),
 // the white tent (tonnelle) on the left, yellow/black kerb, concrete forecourt. No network logos (Top Garage / Groupauto).
 // Uses the page's globals (g, W, H, BLUE, RED, WH, text, rrect). Drawn wider than the frame so the camera can roam.
 function cartoonBg(t) {
@@ -23,8 +23,6 @@ function cartoonBg(t) {
   // fascia band + the white name panel
   g.fillStyle = '#0a4a96'; g.fillRect(X0, 760, XW, 140);
   g.fillStyle = '#2c69b8'; g.fillRect(X0, 760, XW, 6); g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(X0, 900, XW, 10);
-  text('ENTRETIEN & RÉPARATION', 40, 814, { f: 'Montserrat', w: 800, s: 30, col: WH, align: 'left' });
-  text('TOUTES MARQUES', 40, 852, { f: 'Montserrat', w: 800, s: 30, col: WH, align: 'left' });
   g.fillStyle = '#f4f6f9'; rrect(530, 776, 410, 108, 28); g.fill();
   text('CENTRE AUTO', 735, 811, { f: 'Montserrat', w: 900, s: 42, col: BLUE });
   text('ALONZO', 735, 856, { f: 'Montserrat', w: 900, s: 42, col: BLUE });
