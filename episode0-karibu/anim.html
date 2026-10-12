@@ -33,10 +33,10 @@ const sceneOf = () => 0, onBlue = () => false;   // single-scene episode (used b
 const BABBLE = (at, n, base = .85) => Array.from({ length: n }, (_, i) => [at + i * .11, 'blip', { pitch: base + ((i * 7) % 5) * .09 }]);
 window.SFX = [
   [0.2, 'pop'], [3.2, 'swoosh'], [1.98, 'snap'], [2.0, 'impact'], [2.1, 'swoosh'], [2.2, 'riser', { d: .55 }], [2.75, 'ding'], [3.0, 'pop', { pitch: 1.2 }],
-  ...BABBLE(3.45, 8), [5.6, 'swoosh'],
+  ...BABBLE(3.7, 6), [5.6, 'swoosh'], [5.62, 'whoosh'], [6.13, 'tick'],
   [6.2, 'roll', { d: .9 }], [6.25, 'whoosh'], [6.9, 'screech', { d: .5 }], [7.2, 'honk'], [7.5, 'honk'], ...BABBLE(7.65, 6, .62),
   [8.25, 'tick'], ...BABBLE(9.0, 7), [9.43, 'whoosh'], [9.66, 'swoosh'], [9.93, 'pop', { pitch: 1.25 }],
-  [10.0, 'jingle'], [10.02, 'impact'], [10.6, 'swoosh'],
+  [10.0, 'jingle'], [15.3, 'pop', { pitch: .9 }], [10.02, 'impact'], [10.6, 'swoosh'],
   [14.0, 'pop'], ...BABBLE(14.35, 10), [14.6, 'pop', { pitch: 1.3 }], [15.05, 'pop', { pitch: 1.1 }],
 ];
 
@@ -145,13 +145,9 @@ function arm(sx, sy, tx, ty, bend, hand, prop) {
     limb([[cx, cy], [hx, hy]], 40, SKIN);
     limb([[sx, sy], [ex, ey], [cx, cy]], 54, SHIRT);
     g.strokeStyle = SHIRT_D; g.lineWidth = 3; g.beginPath(); g.moveTo(ex + (cx - ex) * .8 - 4, ey + (cy - ey) * .8); g.lineTo(cx - 4, cy); g.stroke();
-  } else {                           // short sleeve with a red hem
+  } else {                           // plain short sleeve
     limb([[sx, sy], [ex, ey], [hx, hy]], 46, SKIN);
-    const mx = sx + (ex - sx) * .5, my = sy + (ey - sy) * .5;
-    limb([[sx, sy], [mx, my]], 62, SHIRT);
-    g.strokeStyle = RED; g.lineWidth = 62; g.lineCap = 'butt';
-    const ux = (ex - sx) / 165, uy = (ey - sy) / 165;
-    g.beginPath(); g.moveTo(mx - ux * 4, my - uy * 4); g.lineTo(mx + ux * 6, my + uy * 6); g.stroke(); g.lineCap = 'round';
+    limb([[sx, sy], [sx + (ex - sx) * .5, sy + (ey - sy) * .5]], 62, SHIRT);
   }
   // highlight along the forearm (light from the top left)
   const h0 = LOOK === 'ville' ? .86 : .45;
@@ -168,21 +164,27 @@ function arm(sx, sy, tx, ty, bend, hand, prop) {
   } else if (prop === 'micLow') {   // mic held down along the leg, as in the photo
     g.fillStyle = INKL; rrect(4, -13, 76, 26, 10); g.fill(); g.fillStyle = '#25282e'; rrect(8, -9, 70, 18, 8); g.fill();
     foam(98, 0);
-  } else if (prop === 'paper') {    // the folded speech sheet
-    g.save(); g.rotate(-1.15); g.fillStyle = INKL; g.fillRect(-14, -26, 108, 50); g.fillStyle = WH; g.fillRect(-10, -22, 100, 42);
-    g.strokeStyle = '#c3ccd8'; g.lineWidth = 3; for (const ly of [-10, 0, 10]) { g.beginPath(); g.moveTo(28, ly); g.lineTo(82, ly); g.stroke(); }
-    g.restore();
   }
   g.fillStyle = INKL; handShape(hand, 4.5);
   g.fillStyle = SKIN; handShape(hand, 0);
   if (!hand || hand === 'fist') { g.strokeStyle = SKIN_D; g.lineWidth = 4; for (const fy of [-8, 6]) { g.beginPath(); g.moveTo(22, fy); g.lineTo(38, fy); g.stroke(); } }
   g.restore();
   if (hand === 'thumb') { g.fillStyle = INKL; rrect(hx - 15, hy - 70, 32, 58, 16); g.fill(); g.fillStyle = SKIN; rrect(hx - 11, hy - 66, 24, 50, 12); g.fill(); }
-  if (prop === 'mic') {             // mic held up, foam to the mouth
+  if (prop === 'mic') {             // mic held upright, foam up
     g.fillStyle = INKL; rrect(hx - 14, hy - 82, 28, 74, 11); g.fill(); g.fillStyle = '#25282e'; rrect(hx - 10, hy - 78, 20, 66, 8); g.fill();
     foam(hx, hy - 102);
+    if (WAVES >= 0) {                // his voice in the mic
+      g.strokeStyle = BLUE; g.lineWidth = 6; g.lineCap = 'round';
+      for (let i = 0; i < 3; i++) { const k = (WAVES * 2.2 + i / 3) % 1; g.globalAlpha = 1 - k; g.beginPath(); g.arc(hx, hy - 102, 44 + k * 60, Math.PI * .8, Math.PI * 1.2); g.stroke(); }
+      g.globalAlpha = 1;
+    }
+  }
+  if (prop === 'micOut') {          // mic held out to the viewer: your turn!
+    g.fillStyle = INKL; rrect(hx - 14, hy - 70, 28, 64, 11); g.fill(); g.fillStyle = '#25282e'; rrect(hx - 10, hy - 66, 20, 56, 8); g.fill();
+    g.save(); g.translate(hx - 6, hy - 96); g.scale(1.45, 1.45); foam(0, 0); g.restore();
   }
 }
+let WAVES = -1;
 function foam(x, y) {
   g.fillStyle = INKL; g.beginPath(); g.arc(x, y, 31, 0, Math.PI * 2); g.fill();
   g.fillStyle = MIC; g.beginPath(); g.arc(x, y, 27, 0, Math.PI * 2); g.fill();
@@ -209,9 +211,9 @@ function mech0(x, y, t, st) {
   if (st.sway) { g.translate(0, 780); g.rotate(st.sway); g.translate(0, -780); }
   g.rotate(Math.sin(t * 1.7) * .015);
   legs(st, t);
-  // left arm behind the body
+  // left arm: behind the body, or in front when it holds the mic
   const L = st.l || { x: -150, y: 330, bend: 1, hand: 'fist' };
-  arm(-100, 40, L.x, L.y, L.bend, L.hand, L.prop);
+  if (!st.lFront) arm(-100, 40, L.x, L.y, L.bend, L.hand, L.prop);
   // torso (slim, fitted)
   const torso = () => { g.beginPath(); g.moveTo(-112, 34 + breathe * .3); g.quadraticCurveTo(-118, -6, -54, -12); g.lineTo(54, -12);
     g.quadraticCurveTo(118, -6, 112, 34 + breathe * .3); g.quadraticCurveTo(100, 230, 112, 430); g.lineTo(-112, 430); g.quadraticCurveTo(-100, 230, -112, 34 + breathe * .3); g.closePath(); };
@@ -250,7 +252,7 @@ function mech0(x, y, t, st) {
     g.fillStyle = '#f2c230'; g.beginPath(); g.arc(0, 0, 6, 0, Math.PI * 2); g.fill();
     g.restore();
   } else {
-    g.strokeStyle = RED; g.lineWidth = 10; g.lineCap = 'round';                     // red rib collar
+    g.strokeStyle = TEE_D; g.lineWidth = 8; g.lineCap = 'round';                    // plain crew neck
     g.beginPath(); g.moveTo(-34, -12); g.quadraticCurveTo(0, 40, 34, -12); g.stroke();
     g.fillStyle = INKL; g.beginPath(); g.arc(54, 112, 46, 0, Math.PI * 2); g.fill();
     g.fillStyle = WH; g.beginPath(); g.arc(54, 112, 42, 0, Math.PI * 2); g.fill();
@@ -325,6 +327,7 @@ function mech0(x, y, t, st) {
   // right arm in front — does the work
   const Rr = st.r || { x: 150, y: 330, bend: -1, hand: 'fist' };
   arm(100, 40, Rr.x, Rr.y, Rr.bend, Rr.hand, Rr.prop);
+  if (st.lFront) { WAVES = st.waves ? t : -1; arm(-100, 40, L.x, L.y, L.bend, L.hand, L.prop); WAVES = -1; }
   g.restore();
 }
 
@@ -454,12 +457,13 @@ function car(x, y, t, st) {
 
 // ---------------------------------------------------------------- scenes
 // Photo = provisional stand-in for the manager's "Karibu!" shot (replaced by the real footage)
-// assets/alonzo-atelier.jpg: Alonzo in the workshop (1080x1920 crop of his photo). The drawing is traced on his pose:
-// centred at x 540, sunglasses at y ~390, feet at y ~1765, mic in his right hand, speech sheet in the left.
-const PH = { x: 540, y: 690, sc: 1.32 };
+// assets/alonzo-reference.jpg: THE reference photo of Alonzo (1080x1920 crop). The drawing is traced on his pose:
+// centred at x 545, sunglasses at y ~180, feet at y ~1840, mic held at the chest in his right hand, left arm down.
+const PH = { x: 545, y: 538, sc: 1.6 };
 const MASC = { x: 765, y: 480, sc: 1.05 };                           // where he settles to introduce himself
 const HOME = { x: 300, y: 800, sc: 1.0 };
-const T0 = 2.0, PAPER = T0 + 1.1;   // he lets go of his speech sheet when he discovers his drawn hands                                                      // the wink / transformation
+const T0 = 2.0, SETTLE = T0 + 1.1;  // T0: the wink / transformation; SETTLE: he steps back to his place in the scene
+const FLIP = [5.6, 6.15];           // mic flip during the hop
 
 function photo(t) {
   // slow push-in that lands exactly on the traced pose at the wink (z = 1), then a small punch
@@ -496,33 +500,41 @@ function transformation(t) {
   }
 }
 
+// the mic is his prop: held at the chest (as in the photo), to the mouth when he talks, tossed during the hop,
+// raised for the title, held out to the viewer for the closing question. Mic arm in front of the body.
+const MIC_CHEST = { x: -28, y: 64, bend: 1, hand: 'fist', prop: 'mic' }, MIC_MOUTH = { x: -40, y: 6, bend: 1, hand: 'fist', prop: 'mic', waves: true };
+const MIC_UP = { x: -200, y: -190, bend: -1, hand: 'fist', prop: 'mic' }, MIC_OUT = { x: -235, y: 120, bend: 1, hand: 'fist', prop: 'micOut' };
 function poseAt(t) {
-  const st = { mood: 'happy', sc: 1, dress: eOut(lin(t, DRESS[0], DRESS[1])) };
-  const MIC_UP = { x: -165, y: -40, bend: 1, hand: 'fist', prop: 'mic' }, MIC_DOWN = { x: -150, y: 330, bend: 1, hand: 'fist', prop: 'micLow' };
-  st.l = MIC_DOWN;
-  if (t < T0 + 1.1) {                // his pose in the photo; the wink lands once the drawing is complete
-    st.mood = t > T0 + .75 ? 'grin' : 'happy'; st.wink = t > T0 + .75;
-    st.r = { x: 150, y: 330, bend: -1, hand: 'fist', prop: t < PAPER ? 'paper' : undefined };
+  const st = { mood: 'happy', sc: 1, dress: eOut(lin(t, DRESS[0], DRESS[1])), lFront: true, l: MIC_CHEST };
+  const talking = LINES0.some(l => l[7] === 'm' && t >= l[0] && t < l[0] + l[2] + .25);
+  if (t < SETTLE) { st.mood = t > T0 + .75 ? 'grin' : 'happy'; st.wink = t > T0 + .75 && t < T0 + 1.05; }   // his pose in the photo, then the wink
+  else if (t < 4.3) {                // "Eh oui… c'est moi, Alonzo !" — into the mic, other hand on his chest
+    st.mood = t < 3.6 ? 'shock' : 'happy'; st.r = t < 3.6 ? { x: 130, y: -20, bend: 1, hand: 'open' } : { x: 40, y: 90, bend: 1, hand: 'open' };
+    if (t >= 3.6) st.l = MIC_MOUTH;
   }
-  else if (t < 4.3) { st.mood = 'shock'; st.r = { x: 130, y: -20, bend: 1, hand: 'open' }; st.l = MIC_UP; }   // looks at his drawn hand
-  else if (t < 5.6) { st.mood = 'grin'; st.l = MIC_UP; st.r = { x: 210, y: -110, bend: 1, hand: 'thumb' }; }
+  else if (t < FLIP[0]) { st.mood = 'grin'; st.r = { x: 210, y: -110, bend: 1, hand: 'thumb' }; }
+  else if (t < FLIP[1]) { st.mood = 'grin'; st.l = { x: -215, y: -150, bend: -1, hand: 'open' }; }            // mic in the air: open hand ready to catch
   else if (t < 8.2) st.mood = 'happy';
-  else if (t < 9.3) { st.mood = 'worried'; st.r = { x: 10, y: -170, bend: 1, hand: 'open' }; }  // facepalm
+  else if (t < 9.3) { st.mood = 'worried'; st.r = { x: 10, y: -170, bend: 1, hand: 'open' }; }             // facepalm
+  else if (t < 9.62) st.l = MIC_MOUTH;                                                                        // "Pas avec moi !"
+  else if (t < 10.0) st.mood = 'grin';
+  else if (t < 11.2) { st.mood = 'grin'; st.l = MIC_UP; }                                                     // presenter: mic up for the title
   else if (t < 14.0) st.mood = 'grin';
-  else { st.mood = 'grin'; st.r = { x: 290, y: 200, bend: 1, hand: 'point' }; }                   // points at the client's car: name it!
+  else { st.mood = 'grin'; st.r = { x: 290, y: 200, bend: 1, hand: 'point' }; st.l = t < 15.3 ? MIC_MOUTH : MIC_OUT; }  // asks, then holds the mic out to you
+  if (talking && st.l === MIC_MOUTH) st.waves = true;
   return st;
 }
 
 const LINES0 = [
-  [3.35, 5.55, .8, ['Eh oui… c’est moi,', 'Alonzo, en dessin !'], 40, 260, 470, 'm'],
+  [3.6, 5.55, .6, ['Eh oui… c’est moi,', 'Alonzo !'], 40, 260, 470, 'm'],
   [7.55, 9.6, .7, ['Ça va passer…'], 500, 930, 380, 'c'],
   [8.9, 10.0, .6, ['Ah non.', 'Pas avec moi !'], 410, 560, 400, 'm'],
   [14.25, 17.4, .9, ['Et sa voiture ?', 'Donnez-lui un prénom !'], 385, 600, 545, 'm'],
 ];
 
 function mascotPos(t) {
-  if (t < PAPER) return PH;
-  if (t < 5.6) { const p = eInOut(lin(t, PAPER, PAPER + .4)); return { x: PH.x + (MASC.x - PH.x) * p, y: PH.y + (MASC.y - PH.y) * p, sc: PH.sc + (MASC.sc - PH.sc) * p }; }
+  if (t < SETTLE) return PH;
+  if (t < 5.6) { const p = eInOut(lin(t, SETTLE, SETTLE + .5)); return { x: PH.x + (MASC.x - PH.x) * p, y: PH.y + (MASC.y - PH.y) * p, sc: PH.sc + (MASC.sc - PH.sc) * p }; }
   const p = eInOut(lin(t, 5.6, 6.15)), hop = Math.sin(Math.PI * p) * 180;
   return { x: MASC.x + (HOME.x - MASC.x) * p, y: MASC.y + (HOME.y - MASC.y) * p - hop, sc: MASC.sc + (HOME.sc - MASC.sc) * p };
 }
@@ -554,7 +566,7 @@ function render(t) {
   const fl = 1 - lin(t, T0, T0 + .12); if (t >= T0 && fl > 0) { g.fillStyle = `rgba(255,255,255,${fl * .8})`; g.fillRect(0, 0, W, H); }
   if (t >= T0 && t < T0 + 1.1) { g.save(); g.globalAlpha = 1 - lin(t, T0 + .8, T0 + 1.1); punch('ATTENDEZ…', W / 2, 1330, T0 + .05, t, 150, WH); g.restore(); }
   transformation(t);
-  if (t >= 3.15 && t < 5.6) { g.save(); g.globalAlpha = 1 - lin(t, 5.3, 5.6); marker('ALONZO', MASC.x, 1400, 3.15, t, 90, RED, WH); g.restore(); }  // he introduces himself
+  if (t >= 3.6 && t < 5.6) { g.save(); g.globalAlpha = 1 - lin(t, 5.3, 5.6); marker('ALONZO', MASC.x, 1400, 3.6, t, 90, RED, WH); g.restore(); }  // he introduces himself
   // D — series title
   if (t >= 10.0) {
     punch('GARDE LE CAP !', W / 2, 300, 10.0, t, 150, BLUE);
@@ -574,14 +586,12 @@ function render(t) {
     if (st.talk && st.mood === 'happy') st.mood = 'talk';
     if (t > T0 + .9) { g.fillStyle = 'rgba(10,25,60,.22)'; g.beginPath(); g.ellipse(m.x, m.y + 830 * m.sc, 190 * m.sc, 22 * m.sc, 0, 0, Math.PI * 2); g.fill(); }
     g.save(); g.globalAlpha = mA; sticker(() => mechanic(m.x, m.y, t, st)); g.restore();
-    // he tosses his speech sheet away (up and out to the right, clear of the name marker)
-    const fp = lin(t, PAPER, PAPER + .9);
+    // mic flip: tossed up, two turns, caught again
+    const fp = lin(t, FLIP[0], FLIP[1]);
     if (fp > 0 && fp < 1) {
-      g.save(); g.globalAlpha = 1 - lin(fp, .45, .7);   // gone before it reaches the name marker
-      g.translate(PH.x + 205 + fp * 380, PH.y + 470 - Math.sin(Math.PI * fp) * 260 + fp * 120); g.rotate(fp * 5);
-      g.fillStyle = INKL; g.fillRect(-54, -28, 108, 56); g.fillStyle = WH; g.fillRect(-50, -24, 100, 48);
-      g.strokeStyle = '#c3ccd8'; g.lineWidth = 3; for (const ly of [-10, 0, 10]) { g.beginPath(); g.moveTo(-36, ly); g.lineTo(36, ly); g.stroke(); }
-      g.restore();
+      g.save(); g.translate(m.x - 215 * m.sc, m.y - 230 * m.sc - Math.sin(Math.PI * fp) * 120); g.rotate(fp * Math.PI * 4); g.scale(m.sc, m.sc);
+      g.fillStyle = INKL; rrect(-14, -30, 28, 80, 11); g.fill(); g.fillStyle = '#25282e'; rrect(-10, -26, 20, 72, 8); g.fill();
+      foam(0, -52); g.restore();
     }
   }
   // the work tee drops onto him, then slides on
@@ -624,7 +634,7 @@ window.render = render;
 const IMG = {};
 Promise.all([
   document.fonts.load('900 40px Barlow'), document.fonts.load('600 40px Montserrat'), document.fonts.load('700 40px Montserrat'), document.fonts.load('800 40px Montserrat'),
-  img('../video/assets/logo.png').then(i => LOGO = i), img('assets/alonzo-atelier.jpg').then(i => IMG.photo = i),
+  img('../video/assets/logo.png').then(i => LOGO = i), img('assets/alonzo-reference.jpg').then(i => IMG.photo = i),
 ]).then(() => { render(0); window.ready = true; });
 </script>
 </body></html>
