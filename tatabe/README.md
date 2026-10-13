@@ -47,3 +47,10 @@ Re-rendu depuis `tatabe/` :
 - `tatabe-final-v12.mp4` (27 s, 1080×1920, 30 i/s, −13,9 LUFS / −1,7 dBTP) et `couverture-final-v12.jpg`.
 - Base v11 (entrée film + logo tapé, cartes géantes 2e ÉDITION / OBJECTIF / ZÉRO / DÉCHET, fleurs d'ylang-ylang) + idée de la version reçue : un seul sac qui se remplit (TON SAC → ASSIETTE → COUVERTS → GOBELET, compteur, « TON KIT EST PRÊT ! »), puis les objets de plage dans le même sac. Tampon « 17 OCT. » dès l'entrée.
 - `rafale-ob-v11.html` garde la v11.
+
+## v13 (29,8 s) — retours « DA »
+
+- Récit : accroche → 2e édition → **le problème** (carte « LE JETABLE finit sur la plage… », gobelet, fourchette et sachet en plastique sur le sable) → objectif zéro déchet → le kit → la plage → la règle → **la récompense** (« LE LAGON DIT MERCI ! ») → rendez-vous.
+- Transitions : la caméra plonge dans l'ouverture du sac et la carte « ET POUR LA PLAGE » en ressort en zoom ; la carte lagon se retourne et devient la carte finale.
+- Musique : 2e mesure répétée sur le temps (`assets/musique-baco-allongee2.wav`, mesure 8,42–11,66 s doublée) ; carte finale toujours sur le passage fort, tenue 4,2 s.
+- `rafale-ob-v12.html` garde la v12.

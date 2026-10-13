@@ -21,6 +21,7 @@ const FPS_ANIM = 12;
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 const lin = (t, a, b) => clamp((t - a) / (b - a));
 const eOut = x => 1 - Math.pow(1 - x, 3);
+const eIn = x => x * x * x;
 const eBack = x => { const c1 = 1.7, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
 const mix = (a, b, p) => a + (b - a) * p;
 function hash(a, b) { const h = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return h - Math.floor(h); }
@@ -31,33 +32,34 @@ const jit = (id, amp = 2) => (hash(STEP, id) - .5) * 2 * amp * BOIL;
 // Calé sur « Leo N'Gomma » (Baco), 74 BPM : extrait pris à 2,256 s du fichier source, avec une mesure répétée (+3,24 s, montage musical sur le temps) pour laisser respirer les séquences ; demi-temps hb(n) en temps vidéo.
 const hb = n => .077 + n * .4054;
 const ENTRY_END = hb(10);                 // entrée tenue un temps de plus
-const RUN1 = [ // [début, durée, carte] : 2 demi-temps par carte, 3 pour le kit
-  [hb(10), 1.22, 'edition'], [hb(13), .81, 'plateau'],
-  [hb(15), .81, 'objectif'], [hb(17), .81, 'zero'], [hb(19), .81, 'dechet'], [hb(21), 1.62, 'kit'],
+// Récit : accroche → 2e édition → LE PROBLÈME (le jetable finit sur la plage) → objectif zéro déchet → le kit → la plage → la règle → LA RÉCOMPENSE (le lagon) → rendez-vous
+const RUN1 = [ // [début, durée, carte]
+  [hb(10), 1.22, 'edition'], [hb(13), .81, 'plateau'], [hb(15), 1.62, 'probleme'],
+  [hb(19), .81, 'objectif'], [hb(21), .81, 'zero'], [hb(23), .81, 'dechet'], [hb(25), 1.62, 'kit'],
 ];
-// Scène kit (reprise de la version reçue) : UN seul sac qui se remplit objet par objet, compteur, « TON KIT EST PRÊT ! »
-const KIT = [hb(25), hb(39)];
+// Scène kit : UN seul sac qui se remplit objet par objet, compteur, « TON KIT EST PRÊT ! », puis la caméra plonge dans le sac
+const KIT = [hb(29), hb(43)];
 const KIT_ITEMS = [ // [apparition, chute, sticker, mot] ; le sac lui-même ouvre la scène
-  [hb(25), null, null, 'TON SAC'],
-  [hb(27), hb(29.4), 'plateFood', 'ASSIETTE'],
-  [hb(30), hb(32.4), 'cutlerySet', 'COUVERTS'],
-  [hb(33), hb(35.4), 'cup', 'GOBELET'],
+  [hb(29), null, null, 'TON SAC'],
+  [hb(31), hb(33.4), 'plateFood', 'ASSIETTE'],
+  [hb(34), hb(36.4), 'cutlerySet', 'COUVERTS'],
+  [hb(37), hb(39.4), 'cup', 'GOBELET'],
 ];
-const KIT_READY = hb(36);
-const RUN2 = [[hb(39), .81, 'plage'], [hb(51), 1.62, 'aucun']];   // « aucun jetable sur place » regroupé sur une carte
+const KIT_READY = hb(40), DIVE = [hb(42), hb(43)];
+const RUN2 = [[hb(43), .81, 'plage'], [hb(55), 1.62, 'aucun'], [hb(59), 1.62, 'lagon']];
 // Scène plage : chaque objet apparaît en grand avec son nom puis tombe dans le même sac (rappel du kit)
-const BEACH = [hb(41), hb(51)];
+const BEACH = [hb(45), hb(55)];
 const BEACH_ITEMS = [ // [apparition, chute, sticker, mot, sous-titre]
-  [hb(41), hb(43.4), 'towel', 'SERVIETTE', ''],
-  [hb(44), hb(46.4), 'sunscreen', 'CRÈME SOLAIRE', 'minérale = lagon protégé'],
-  [hb(47), hb(49.4), 'hat', 'CHAPEAU', ''],
+  [hb(45), hb(47.4), 'towel', 'SERVIETTE', ''],
+  [hb(48), hb(50.4), 'sunscreen', 'CRÈME SOLAIRE', 'minérale = lagon protégé'],
+  [hb(51), hb(53.4), 'hat', 'CHAPEAU', ''],
 ];
-const FINAL_T = hb(55), DUR = 26.98;   // carte finale blanche (version v3) tenue jusqu'à la fin
+const FINAL_T = hb(63), DUR = 29.82;   // carte finale (se retourne à la place de la carte lagon), tenue 4,2 s
 // Version orange & bleu : le fond change de couleur à chaque chapitre, sur le temps
-const CHAP = [[0, 'B'], [hb(10), 'O'], [hb(21), 'B'], [hb(39), 'O'], [hb(51), 'B'], [hb(55), 'O']];
+const CHAP = [[0, 'B'], [hb(10), 'O'], [hb(25), 'B'], [hb(43), 'O'], [hb(55), 'B'], [hb(63), 'O']];
 const chapAt = T => { let c = 'B'; for (const [t0, k] of CHAP) if (T >= t0) c = k; return c; };
-// entrées variées (au lieu du seul « claquement ») aux charnières : balayage, zoom à travers
-const ENTER = { edition: 'sweep', kit: 'zoom', plage: 'sweep' };
+// entrées variées aux charnières : balayage, zoom à travers (la plage sort du sac)
+const ENTER = { edition: 'sweep', kit: 'zoom', plage: 'zoom', probleme: 'sweep', lagon: 'sweep' };
 const ROT = [-.07, .05, -.03, .08, -.06, .04, -.08, .06, -.04, .07, -.05, .03];
 
 window.SFX = [
@@ -65,11 +67,11 @@ window.SFX = [
   ...[0, 1, 2, 3, 4, 5].map(i => [1.1 + i * .083, 'tick']),
   [1.62, 'pop', { pitch: 1.2 }], [1.8, 'tape'], [2.05, 'scribble'], [2.4, 'pop'], [2.6, 'pop', { pitch: 1.1 }], [2.8, 'pop', { pitch: 1.25 }],
   ...RUN1.map(([t], i) => [t, 'slap', { k: .8 + (i % 3) * .1 }]),
-  [hb(10) - .05, 'whoosh'], [hb(17) + .05, 'impact'], [hb(21) - .05, 'swoosh'], [hb(21) + .17, 'impact'], [hb(39) - .05, 'whoosh'],
+  [hb(10) - .05, 'whoosh'], [hb(15) - .05, 'whoosh'], [hb(15) + .6, 'scribble'], [hb(21) + .05, 'impact'], [hb(25) - .05, 'swoosh'], [hb(25) + .17, 'impact'], [DIVE[0], 'riser', { d: .5 }], [hb(43), 'whoosh'], [hb(59) - .05, 'whoosh'], [hb(59) + .3, 'ding'],
   [KIT[0], 'slap'], [KIT[0] + .05, 'impact'], ...KIT_ITEMS.slice(1).flatMap(([a, d], i) => [[a, 'whoosh'], [a + .05, 'pop', { pitch: 1 + i * .15 }], [d + .2, 'drip', { pitch: 1 + i * .15 }]]), [KIT_READY, 'ding'], [KIT_READY + .05, 'impact'],
   [2.95, 'slap', { k: .5 }],
-  ...RUN2.map(([t]) => [t, 'slap']), [BEACH[0], 'slap', { k: .6 }], ...BEACH_ITEMS.flatMap(([a, d], i) => [[a, 'whoosh'], [a + .05, 'pop', { pitch: 1 + i * .15 }], [d + .2, 'drip', { pitch: 1 + i * .15 }]]), [hb(50), 'ding'], [hb(52), 'pop', { pitch: 1.1 }], [hb(52) + .05, 'impact'], [hb(53), 'pop', { pitch: 1.3 }],
-  [FINAL_T, 'rustle', { d: .4 }], [FINAL_T + .17, 'slap'], [FINAL_T + .55, 'tape'], [FINAL_T + .95, 'jingle'],
+  ...RUN2.map(([t]) => [t, 'slap']), [BEACH[0], 'slap', { k: .6 }], ...BEACH_ITEMS.flatMap(([a, d], i) => [[a, 'whoosh'], [a + .05, 'pop', { pitch: 1 + i * .15 }], [d + .2, 'drip', { pitch: 1 + i * .15 }]]), [hb(54), 'ding'], [hb(56), 'pop', { pitch: 1.1 }], [hb(56) + .05, 'impact'], [hb(57), 'pop', { pitch: 1.3 }],
+  [FINAL_T, 'swoosh'], [FINAL_T + .17, 'slap'], [FINAL_T + .55, 'tape'], [FINAL_T + .95, 'jingle'],
 ];
 
 const img = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
@@ -319,6 +321,23 @@ const CARDS = {
   chapeau: { bg: CREAM, deco: grid, draw: u => {
       sticker('hat', 0, -40, { rot: -.06, id: 37 });
       bigWord('CHAPEAU', 0, 400, 190, { col: ORANGE, depthCol: NAVY, outline: NAVY, depth: 12, id: 38 }); } },
+  probleme: { bg: WH, draw: u => {   // le problème : le jetable échoue sur la plage
+      photoIn(PLAGE, CW - 50, CH - 50, 1.25 + u * .08, .5, .85);
+      g.fillStyle = 'rgba(11,26,79,.18)'; g.fillRect(-CW / 2, -CH / 2, CW, CH);
+      sticker('cupDispo', -170, 200, { rot: 1.25, sc: .55, id: 101 }); sticker('forkDispo', 120, 260, { rot: -.9, sc: .6, id: 102 }); sticker('bagDispo', 240, 80, { rot: .35, sc: .5, id: 103 });
+      hand(ellipsePts(40, 190, 360, 220), lin(u, .3, .75), { col: ORANGE, w: 12, seed: 104 });
+      g.save(); g.rotate(-.04); g.fillStyle = BLEU; tornPath(840, 190, 105); g.translate(0, 0); g.restore();
+      g.save(); g.translate(0, -380); g.rotate(-.04); g.fillStyle = BLEU; tornPath(840, 190, 105); g.fill(); g.restore();
+      bigWord('LE JETABLE', 0, -380, 170, { col: WH, depthCol: NAVY, outline: NAVY, depth: 12, id: 105 });
+      torn(-60, 440, 600, 110, { rot: -.03, seed: 106 }, () => txt('finit sur la plage…', 0, 2, { f: 'Caveat', s: 78, col: NAVY }));
+    } },
+  lagon: { bg: WH, draw: u => {   // la récompense : le lagon propre
+      photoIn(PLAGE, CW - 50, CH - 50, 1.05 + u * .12, .5, .35);
+      flower(-330, -400, 70, WH, .3); flower(340, 360, 60, WH, 1.1); flower(-300, 420, 46, WH, 2);
+      g.save(); g.rotate(-.04); g.fillStyle = BLEU; g.globalAlpha = .9; tornPath(860, 470, 107); g.fill(); g.restore();
+      bigWord('LE LAGON', 0, -90, 190, { col: WH, depthCol: NAVY, outline: NAVY, depth: 14, id: 108 });
+      bigWord('DIT MERCI !', 0, 120, 190, { col: ORANGE, depthCol: NAVY, outline: WH, depth: 14, id: 109 });
+    } },
   aucun: { bg: ORANGE, deco: () => rays('#ffb43c'), draw: u => {
       bigWord('AUCUN', 0, -300, 270, { col: WH, depthCol: NAVY, outline: NAVY, depth: 18, id: 13 });
       if (u >= .4) bigWord('JETABLE', 0, -20, 290, { col: BLEU, depthCol: NAVY, outline: WH, depth: 22, id: 14 });
@@ -415,9 +434,9 @@ function kitBag(T) {
   const done = KIT_ITEMS.filter(([a, d]) => d === null ? T >= a + .25 : T >= d + .22).length;
   g.save(); g.translate(bx + jit(81, 2), byy + jit(82, 2)); g.rotate(-.04); tote(bw, 'back', NAVY); g.restore();
   // objets déjà rangés qui dépassent du sac
-  if (T >= hb(29.4) + .22) sticker('plate', bx - 30, byy - 175, { rot: -.12, sc: .42, id: 71 });
-  if (T >= hb(32.4) + .22) sticker('fork', bx - 110, byy - 185, { rot: -.25, sc: .5, id: 72 });
-  if (T >= hb(35.4) + .22) sticker('cup', bx + 115, byy - 170, { rot: .2, sc: .42, id: 73 });
+  if (T >= hb(33.4) + .22) sticker('plate', bx - 30, byy - 175, { rot: -.12, sc: .42, id: 71 });
+  if (T >= hb(36.4) + .22) sticker('fork', bx - 110, byy - 185, { rot: -.25, sc: .5, id: 72 });
+  if (T >= hb(39.4) + .22) sticker('cup', bx + 115, byy - 170, { rot: .2, sc: .42, id: 73 });
   KIT_ITEMS.forEach(([a, d, key], i) => {
     if (!key || T < a) return;
     const q = lin(T, d, d + .22); if (q >= 1) return;
@@ -451,7 +470,7 @@ function beachBag(T) {
     bigWord(word, CX, 345, 170, { col: WH, depthCol: NAVY, outline: NAVY, depth: 14, id: 90 + cur, maxW: 900 });
     if (sub) torn(CX, 462, 620, 92, { rot: -.03, col: WH, seed: 92 }, () => txt(sub, 0, 2, { f: 'Caveat', s: 62, col: NAVY, maxW: 580 }));
   }
-  if (T >= hb(50)) { g.save(); g.translate(bx + 210, by - 120); const k = T < hb(50) + .09 ? 1.2 : 1; g.scale(k, k); g.fillStyle = BLEU; g.beginPath(); g.arc(0, 0, 66, 0, Math.PI * 2); g.fill(); g.strokeStyle = WH; g.lineWidth = 15; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(-28, 2); g.lineTo(-8, 24); g.lineTo(30, -22); g.stroke(); g.restore(); }
+  if (T >= hb(54)) { g.save(); g.translate(bx + 210, by - 120); const k = T < hb(54) + .09 ? 1.2 : 1; g.scale(k, k); g.fillStyle = BLEU; g.beginPath(); g.arc(0, 0, 66, 0, Math.PI * 2); g.fill(); g.strokeStyle = WH; g.lineWidth = 15; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(-28, 2); g.lineTo(-8, 24); g.lineTo(30, -22); g.stroke(); g.restore(); }
 }
 function objectBeat(T) {   // (non utilisé depuis la scène kit à sac unique)
   const u = T - KIT[0];
@@ -481,7 +500,8 @@ function finalCard(T) {
   g.save(); g.fillStyle = '#fbf6ec'; g.beginPath(); g.moveTo(0, H); g.lineTo(0, 1650);
   for (let x = 0; x <= W; x += 20) g.lineTo(x, 1650 + 26 * Math.sin(x / W * Math.PI * 2.2 + .6) + 10 * Math.sin(x / W * Math.PI * 7));
   g.lineTo(W, H); g.closePath(); g.fill(); g.restore();
-  g.save(); g.translate(CX, 840); g.rotate(-.02); const pop = u < .17 + 1 / FPS_ANIM + 1e-6 ? 1.06 : 1; g.scale(pop * .85, pop * .85);
+  const fx = eOut(clamp((u - .17) / .2));   // retournement : la carte s'ouvre sur la tranche
+  g.save(); g.translate(CX, 840); g.rotate(-.02); g.scale(.85 * Math.max(.02, fx), .85);
   cardFrame(w, h, WH);
   const lw = 800, lh = LOGO_N.height * lw / LOGO_N.width; g.drawImage(LOGO_N, -lw / 2, -540, lw, lh);
   if (u >= .25) { const pw2 = 450, ph2 = PILL.height * pw2 / PILL.width; g.drawImage(PILL, 200 - pw2 / 2, -255 - ph2 / 2, pw2, ph2); }
@@ -499,10 +519,14 @@ function render(t) {
   g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(chapAt(T) === 'O' ? FOND_O : FOND, 0, 0, W, H);
   if (T < ENTRY_END) entry(T);
   else if (T < KIT[0]) runStack(RUN1, T, 0);
-  else if (T < KIT[1]) kitBag(T);
+  else if (T < KIT[1]) {
+    const d = lin(T, DIVE[0], DIVE[1]);   // la caméra plonge dans l'ouverture du sac
+    if (d > 0) { const z = 1 + eIn(d) * 7; g.save(); g.translate(CX, 940); g.scale(z, z); g.translate(-CX, -940); kitBag(T); g.restore(); g.fillStyle = `rgba(10,47,156,${eIn(d)})`; g.fillRect(0, 0, W, H); }
+    else kitBag(T);
+  }
   else if (T >= BEACH[0] && T < BEACH[1]) beachBag(T);
   else if (T < FINAL_T) runStack(RUN2, T, 20);
-  else { const f = clamp((T - FINAL_T) / .25); if (f < 1) { g.save(); g.translate(0, f * f * 1900); runStack(RUN2, FINAL_T - .01, 20); g.restore(); } finalCard(T); }   // la pile tombe, la carte finale claque
+  else { const f = clamp((T - FINAL_T) / .17); if (f < 1) { g.save(); g.translate(CX, 0); g.scale(Math.max(.02, 1 - f * f), 1); g.translate(-CX, 0); runStack(RUN2, FINAL_T - .01, 20); g.restore(); } finalCard(T); }   // la carte lagon se retourne et devient la carte finale   // la pile tombe, la carte finale claque
 }
 
 Promise.all([
@@ -523,6 +547,9 @@ Promise.all([
   makeSticker('towel', 640, () => towel(560), 18);
   makeSticker('sunscreen', 520, () => sunscreen(440), 18);
   makeSticker('hat', 640, () => hat(560), 18);
+  makeSticker('forkDispo', 460, () => { const p = new Path2D('M-40 -190 v90 c0 30 18 48 40 48 s40 -18 40 -48 v-90 M-13 -190 v75 M13 -190 v75'); g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = OL; g.lineWidth = 30; g.stroke(p); g.strokeStyle = '#d3d8de'; g.lineWidth = 15; g.stroke(p); shape(rr(-18, -60, 36, 250, 16), '#d3d8de'); });
+  makeSticker('cupDispo', 460, () => { const h = 380, tw = h * .34, bw = h * .25; const b = new Path2D(); b.moveTo(-tw, -h / 2); b.lineTo(tw, -h / 2); b.lineTo(bw, h / 2); b.lineTo(-bw, h / 2); b.closePath(); shape(b, '#e3e7ea'); g.strokeStyle = '#a9b0b8'; g.lineWidth = 6; for (let k = 1; k < 6; k++) { const y = -h / 2 + k * h / 6, w = mix(tw, bw, k / 6) * .9; g.beginPath(); g.moveTo(-w, y); g.lineTo(w, y); g.stroke(); } });
+  makeSticker('bagDispo', 460, () => { g.save(); g.scale(1.2, 1.2); plasticBag(300); g.restore(); });
   makeSticker('cutlerySet', 560, () => { g.save(); g.translate(-130, 10); g.rotate(-.18); cutlery('fork', 380); g.restore(); g.save(); g.translate(0, -10); cutlery('spoon', 380); g.restore(); g.save(); g.translate(130, 10); g.rotate(.18); cutlery('knife', 380); g.restore(); });
   render(0); window.ready = true;
 });
