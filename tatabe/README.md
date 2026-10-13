@@ -30,3 +30,10 @@ Re-rendu depuis `tatabe/` :
 - « Leo N'Gomma » de Baco (`assets/musique-baco-leo-ngomma.wav`, capté depuis l'enregistrement d'écran fourni), extrait de 2,256 s à 26 s (v5). Les cartes tombent sur les demi-temps (74 BPM, `hb(n)` dans `rafale.html`) et la carte finale arrive sur le passage le plus fort.
 - Mix : `SFX_MUSIC=0 python3 ../video/sfx.py sfx-rafale.json 23.74 sfx-rafale-effets.wav` puis
   `ffmpeg -ss 2.256 -t 23.74 -i assets/musique-baco-leo-ngomma.wav -i sfx-rafale-effets.wav -filter_complex "[0:a]afade=t=in:d=0.25,afade=t=out:st=22.84:d=0.9[m];[1:a]volume=0.45[s];[m][s]amix=inputs=2:normalize=0:duration=first[a]" -map "[a]" audio-rafale.wav`.
+
+## Version orange & bleu (v7)
+
+- `tatabe-orange-bleu-v7.mp4` : même script que la v6, fond qui alterne bleu (robe) / orange (soleil) à chaque chapitre, cartes inversées en conséquence.
+- Corrections de l'état des lieux : zones sûres (rien d'important dans les 250 px du haut ni les 420 px du bas), film translucide qui part dès 0,13 s, petits textes illisibles retirés (« minérale = lagon protégé » gardé, carte crème solaire sur 3 demi-temps), entrées variées (balayage, zoom à travers, pile qui tombe), son normalisé en deux passes à −14 LUFS / −1,4 dBTP.
+- `couverture-orange-bleu-v7.jpg` : image de couverture du Reel.
+- Rendu : `rafale-ob.html`, mix `audio-ob.wav` (même extrait de Baco, 2,256 s → 26 s), `LOUDNORM=0` au rendu.
