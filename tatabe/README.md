@@ -1,4 +1,4 @@
-# Vidéo « Apporte ton assiette et tes couverts » — tataBé, marché gourmand
+# Vidéo « Apporte ton assiette, tes couverts et ton gobelet » — tataBé, marché gourmand
 
 - `tatabe-apporte-ton-assiette.mp4` : vidéo finale, 30 s, 1080×1920 (Reels / TikTok / Stories), sans voix off : musique tropicale + bruitages synchronisés.
 - `assets/affiche.jpg` : affiche d'origine ; `extract.py` en tire le logo détouré, le cartouche « Marché gourmand », les photos (texte de l'affiche effacé autour de la femme) et la bande des logos partenaires.

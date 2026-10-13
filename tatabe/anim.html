@@ -22,9 +22,9 @@ window.SFX = [
   [S[1], 'whoosh'], [S[1] + .3, 'pop'], [S[1] + .65, 'pop', { pitch: 1.2 }],
   [S[2], 'whoosh'], [S[2] + .05, 'pop'], [S[2] + .45, 'pop', { pitch: 1.25 }],
   [S[3] + .05, 'pop'], [S[3] + .55, 'swoosh'], [S[3] + 2.6, 'swoosh'],
-  [S[4] + .05, 'pop', { pitch: .9 }], [S[4] + .45, 'pop', { pitch: 1.1 }], [S[4] + 1.05, 'pop'], [S[4] + 1.25, 'pop', { pitch: 1.15 }], [S[4] + 1.4, 'pop', { pitch: 1.3 }], [S[4] + 1.55, 'pop', { pitch: 1.45 }],
+  [S[4] + .05, 'pop', { pitch: .9 }], [S[4] + .45, 'pop', { pitch: 1.1 }], [S[4] + .7, 'pop', { pitch: 1.2 }], [S[4] + 1.35, 'pop'], [S[4] + 1.55, 'pop', { pitch: 1.15 }], [S[4] + 1.67, 'pop', { pitch: 1.3 }], [S[4] + 1.79, 'pop', { pitch: 1.45 }], [S[4] + 1.95, 'pop', { pitch: 1.6 }],
   [S[5] - .1, 'whoosh'], [S[5] + .6, 'swoosh'], [S[5] + 1.7, 'pop', { pitch: .9 }],
-  [S[6] + .05, 'pop'], [S[6] + .7, 'drip'], [S[6] + 1.15, 'drip', { pitch: 1.15 }], [S[6] + 1.4, 'drip', { pitch: 1.3 }], [S[6] + 1.65, 'drip', { pitch: 1.45 }], [S[6] + 2.05, 'ding'],
+  [S[6] + .05, 'pop'], [S[6] + .75, 'drip'], [S[6] + 1.2, 'drip', { pitch: 1.15 }], [S[6] + 1.4, 'drip', { pitch: 1.3 }], [S[6] + 1.6, 'drip', { pitch: 1.45 }], [S[6] + 1.8, 'drip', { pitch: 1.6 }], [S[6] + 2.15, 'ding'],
   [S[7] - .05, 'whoosh'], [S[7] + .15, 'pop'], [S[7] + .65, 'pop', { pitch: .85 }],
   [S[8] - .05, 'whoosh'], [S[8] + .35, 'pop'], [S[8] + .75, 'pop', { pitch: 1.2 }], [S[8] + 1.05, 'jingle'],
 ];
@@ -151,6 +151,25 @@ function plate(x, y, r, { style = 'reuse', a = 1, sc = 1 } = {}) {
   }
   g.restore();
 }
+// Gobelet : maison (blanc, bande bleue, anse) ou jetable (plastique gris strié)
+function cup(x, y, h, { style = 'reuse', a = 1, sc = 1 } = {}) {
+  if (a <= 0 || sc <= 0) return;
+  g.save(); g.globalAlpha *= a; g.translate(x, y); g.scale(sc, sc);
+  const tw = h * .36, bw = h * .27, top = -h / 2, bot = h / 2;
+  const body = () => { g.beginPath(); g.moveTo(-tw, top); g.lineTo(tw, top); g.lineTo(bw, bot); g.quadraticCurveTo(0, bot + h * .03, -bw, bot); g.closePath(); };
+  if (style === 'reuse') {
+    g.strokeStyle = LAGON; g.lineWidth = h * .06; g.beginPath(); g.ellipse(tw * .98, 0, h * .14, h * .2, 0, -Math.PI / 2, Math.PI / 2); g.stroke();
+    body(); g.fillStyle = '#f2f6fa'; g.fill(); g.lineWidth = h * .025; g.stroke();
+    g.save(); body(); g.clip(); g.fillStyle = LAGON; g.fillRect(-tw, -h * .08, tw * 2, h * .16); g.restore();
+    g.strokeStyle = LAGON; g.lineWidth = h * .035; g.beginPath(); g.moveTo(-tw, top); g.lineTo(tw, top); g.stroke();
+  } else {
+    body(); g.fillStyle = GREY; g.fill();
+    g.strokeStyle = GREY_D; g.lineWidth = h * .02;
+    for (let k = 1; k < 6; k++) { const yy = top + k * h / 6, ww = mix(tw, bw, k / 6); g.beginPath(); g.moveTo(-ww * .92, yy); g.lineTo(ww * .92, yy); g.stroke(); }
+    g.lineWidth = h * .04; g.beginPath(); g.moveTo(-tw - 6, top); g.lineTo(tw + 6, top); g.stroke();
+  }
+  g.restore();
+}
 // Barre diagonale orange tracée en un geste (p = 0..1)
 function bar(x0, y0, x1, y1, p, w = 26) {
   if (p <= 0) return;
@@ -246,31 +265,33 @@ function plan4(t) {
   rise('LE JETABLE', W / 2, 680, 9.15, t, { s: 96 }, 11.6);
   const pin = eBack(lin(t, 9.05, 9.5)), out = eIn(lin(t, 11.5, 12));
   const dx = -out * 1200;
-  plate(W / 2 - 110 + dx, 1180, 210, { style: 'dispo', sc: pin });
-  cutlery('fork', W / 2 + 230 + dx, 1180, 400, { style: 'dispo', rot: .12, sc: pin });
-  bar(W / 2 - 360 + dx, 1440, W / 2 + 380 + dx, 920, eInOut(lin(t, 9.55, 10.2)), 30);
+  plate(W / 2 - 200 + dx, 1180, 180, { style: 'dispo', sc: pin });
+  cutlery('fork', W / 2 + 80 + dx, 1180, 360, { style: 'dispo', rot: .12, sc: pin });
+  cup(W / 2 + 300 + dx, 1190, 300, { style: 'dispo', sc: pin });
+  bar(W / 2 - 430 + dx, 1440, W / 2 + 440 + dx, 920, eInOut(lin(t, 9.55, 10.2)), 30);
 }
 // 5 à 7 — Assiette et couverts : consigne, préparation, geste (objets continus)
-const ITEMS = ['plate', 'fork', 'spoon', 'knife'];
+const ITEMS = ['plate', 'fork', 'spoon', 'knife', 'cup'];
 function itemPos(i, t) {
   // plan 5 : rangée basse ; plan 6-7 : rangée haute au-dessus du sac ; plan 7 : descente dans le sac
-  const row5 = [[W / 2 - 230, 1340], [W / 2 + 40, 1340], [W / 2 + 170, 1340], [W / 2 + 300, 1340]];
-  const row6 = [[W / 2 - 200, 740], [W / 2 + 40, 740], [W / 2 + 150, 740], [W / 2 + 260, 740]];
+  const row5 = [[W / 2 - 290, 1350], [W / 2 - 60, 1350], [W / 2 + 50, 1350], [W / 2 + 160, 1350], [W / 2 + 330, 1365]];
+  const row6 = [[W / 2 - 270, 740], [W / 2 - 50, 740], [W / 2 + 45, 740], [W / 2 + 140, 740], [W / 2 + 290, 752]];
   const m = eInOut(lin(t, 15.7, 16.4));
   let [x, y] = [mix(row5[i][0], row6[i][0], m), mix(row5[i][1], row6[i][1], m)];
   let sc = mix(1, .82, m);
-  const d0 = [19.4, 19.9, 20.15, 20.4][i], d = eIn(lin(t, d0, d0 + .5));
-  x = mix(x, W / 2 + (i - 1.5) * 50, eInOut(lin(t, d0 - .15, d0 + .3)));
+  const d0 = [19.4, 19.85, 20.05, 20.25, 20.45][i], d = eIn(lin(t, d0, d0 + .5));
+  x = mix(x, W / 2 + (i - 2) * 45, eInOut(lin(t, d0 - .15, d0 + .3)));
   y += d * 640;
   return [x, y, sc];
 }
 function drawItem(i, t, a = 1) {
-  const enter = [13.0, 13.3, 13.45, 13.6][i];
+  const enter = [13.3, 13.5, 13.62, 13.74, 13.9][i];
   const p = lin(t, enter, enter + .35);
   if (p <= 0) return;
   const [x, y0, sc] = itemPos(i, t), y = y0 + (1 - eOut(p)) * 60;
   const s = sc * eBack(p);
   if (i === 0) plate(x, y, 150, { sc: s, a });
+  else if (i === 4) cup(x, y, 230, { sc: s, a });
   else cutlery(ITEMS[i], x, y, 330, { sc: s, a });
 }
 function plan5to7(t) {
@@ -283,9 +304,11 @@ function plan5to7(t) {
     const o = 1 - lin(t, 15.55, 15.85);
     g.save(); g.globalAlpha = o;
     rise('TON GESTE :', W / 2, 470, 12.0, t, { s: 64, col: LIGHT });
-    rise('APPORTE', W / 2, 630, 12.4, t, { s: 160, col: ORANGE });
-    rise('TON ASSIETTE', W / 2, 800, 12.55, t, { s: 92 });
-    rise('ET TES COUVERTS', W / 2, 910, 12.7, t, { s: 92 });
+    rise('APPORTE', W / 2, 610, 12.4, t, { s: 160, col: ORANGE });
+    rise('POUR MANGER :', W / 2, 765, 12.6, t, { s: 54, col: LIGHT });
+    rise('ASSIETTE + COUVERTS', W / 2, 845, 12.7, t, { s: 84 });
+    rise('POUR BOIRE :', W / 2, 960, 12.85, t, { s: 54, col: LIGHT });
+    rise('TON GOBELET', W / 2, 1040, 12.95, t, { s: 84 });
     g.restore();
   }
   // plan 6-7 : sac
@@ -297,13 +320,13 @@ function plan5to7(t) {
   const bw = 600;
   if (t >= 16.4) bagBack(bx, by, bw, open);
   // objets (derrière la face avant du sac pendant la descente)
-  for (let i = 0; i < 4; i++) {
-    const d0 = [19.4, 19.9, 20.15, 20.4][i];
+  for (let i = 0; i < 5; i++) {
+    const d0 = [19.4, 19.85, 20.05, 20.25, 20.45][i];
     if (t > d0 + .5) continue;
     drawItem(i, t);
   }
   if (t >= 16.4) bagFront(bx, by, bw);
-  if (t >= 16.4) check(bx + 225, by - 110, 92, lin(t, 20.9, 21.35));
+  if (t >= 16.4) check(bx + 225, by - 110, 92, lin(t, 21.0, 21.4));
   // textes plans 6 et 7
   if (t >= 16 && t < 19.2) {
     const o = 1 - lin(t, 18.85, 19.1);
@@ -313,14 +336,14 @@ function plan5to7(t) {
     arrow(W / 2, 930, 120, { a: 1 - lin(t, 19.3, 19.6) });
   }
   if (t >= 19) {
-    rise('ASSIETTE + COUVERTS', W / 2, 360, 19.0, t, { s: 84, col: INK });
+    rise('ASSIETTE, COUVERTS,', W / 2, 340, 19.0, t, { s: 84, col: INK });
     const p = eOut(lin(t, 19.15, 19.6));
     if (p > 0) {
-      g.save(); g.globalAlpha = p;
-      g.font = font(96); const tw = g.measureText('SAC').width, gap = 40, aw = 120, total = aw + gap + tw, x0 = W / 2 - total / 2;
-      g.restore();
-      arrow(x0 + aw / 2, 480, aw, { dir: 'right', p, w: 20 });
-      text('SAC', x0 + aw + gap + tw / 2, 482 + (1 - p) * 30, { s: 96, col: INK, a: p });
+      g.save(); g.font = font(84); const t1 = g.measureText('GOBELET').width, tw = g.measureText('SAC').width; g.restore();
+      const gap = 34, aw = 110, total = t1 + gap + aw + gap + tw, x0 = W / 2 - total / 2;
+      text('GOBELET', x0 + t1 / 2, 452 + (1 - p) * 30, { s: 84, col: INK, a: p });
+      arrow(x0 + t1 + gap + aw / 2, 450, aw, { dir: 'right', p, w: 20 });
+      text('SAC', x0 + t1 + gap + aw + gap + tw / 2, 452 + (1 - p) * 30, { s: 84, col: INK, a: p });
     }
   }
 }
@@ -331,14 +354,15 @@ function plan8(t) {
   footWave(LAGON, H - 230, 1, t * .5);
   const p = eOut(lin(t, 22.6, 23.05));
   g.save(); g.globalAlpha = p; g.translate(0, (1 - p) * 40);
-  text('AUCUNE ASSIETTE', W / 2, 640, { s: 88 });
-  text('NI COUVERT JETABLE', W / 2, 750, { s: 88 });
-  text('NE SERA DISTRIBUÉ', W / 2, 860, { s: 88 });
+  text('AUCUNE VAISSELLE', W / 2, 640, { s: 92 });
+  text('JETABLE', W / 2, 752, { s: 92, col: ORANGE });
+  text('NE SERA DISTRIBUÉE', W / 2, 864, { s: 92 });
   g.restore();
   const q = eBack(lin(t, 23.05, 23.45));
-  plate(W / 2 - 70, 1180, 130, { style: 'dispo', sc: q });
-  cutlery('fork', W / 2 + 140, 1180, 250, { style: 'dispo', rot: .12, sc: q });
-  if (q > 0) bar(W / 2 - 250, 1340, W / 2 + 260, 1020, clamp(lin(t, 23.05, 23.45) * 1.2), 22);
+  plate(W / 2 - 150, 1180, 120, { style: 'dispo', sc: q });
+  cutlery('fork', W / 2 + 40, 1180, 240, { style: 'dispo', rot: .12, sc: q });
+  cup(W / 2 + 190, 1188, 200, { style: 'dispo', sc: q });
+  if (q > 0) bar(W / 2 - 320, 1340, W / 2 + 330, 1020, clamp(lin(t, 23.05, 23.45) * 1.2), 22);
 }
 // 9 — Le rendez-vous
 function plan9(t) {
@@ -352,10 +376,11 @@ function plan9(t) {
   rise('MTSANGAMOUJI', W / 2, 885, 26.7, t, { s: 96 });
   const pc = lin(t, 26.85, 27.2);
   if (pc > 0) {
-    g.save(); g.globalAlpha = clamp(pc * 3); g.translate(W / 2, 1110); g.rotate(-.03); const s = mix(.85, 1, eBack(pc)); g.scale(s, s);
-    g.fillStyle = ORANGE; g.beginPath(); g.roundRect(-450, -125, 900, 250, 60); g.fill();
-    text('VIENS AVEC TON ASSIETTE', 0, -45, { s: 64, col: INK, maxW: 820 });
-    text('ET TES COUVERTS !', 0, 48, { s: 64, col: INK, maxW: 820 });
+    g.save(); g.globalAlpha = clamp(pc * 3); g.translate(W / 2, 1150); g.rotate(-.03); const s = mix(.85, 1, eBack(pc)); g.scale(s, s);
+    g.fillStyle = ORANGE; g.beginPath(); g.roundRect(-450, -165, 900, 330, 70); g.fill();
+    text('VIENS AVEC TON ASSIETTE,', 0, -88, { s: 62, col: INK, maxW: 820 });
+    text('TES COUVERTS', 0, 0, { s: 62, col: INK, maxW: 820 });
+    text('ET TON GOBELET !', 0, 88, { s: 62, col: INK, maxW: 820 });
     g.restore();
   }
   // bande blanche ondulée + logos partenaires (proportions d'origine)
