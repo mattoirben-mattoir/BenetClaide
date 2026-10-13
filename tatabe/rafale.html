@@ -28,16 +28,17 @@ let STEP = 0, BOIL = 1;
 const jit = (id, amp = 2) => (hash(STEP, id) - .5) * 2 * amp * BOIL;
 
 // ---------------------------------------------------------------- minutage
-// Calé sur « Leo N'Gomma » (Baco), 74 BPM : extrait pris à 5,5 s du fichier source, demi-temps hb(n) en temps vidéo.
+// Calé sur « Leo N'Gomma » (Baco), 74 BPM : extrait pris à 3,878 s du fichier source (4 demi-temps avant 5,5 s), demi-temps hb(n) en temps vidéo.
 const hb = n => .077 + n * .4054;
 const ENTRY_END = hb(10);                 // entrée tenue un temps de plus
 const RUN1 = [ // [début, durée, carte] : 2 demi-temps par carte, 3 pour le kit
-  [hb(10), .81, 'evenement'], [hb(12), .81, 'zero'], [hb(14), .81, 'dechet'], [hb(16), 1.22, 'kit'],
-  [hb(19), .81, 'assiette'], [hb(21), .81, 'couverts'], [hb(23), .81, 'gobelet'], [hb(25), .81, 'sac'],
+  [hb(10), .81, 'edition'], [hb(12), .81, 'plateau'],
+  [hb(14), .81, 'objectif'], [hb(16), .81, 'zero'], [hb(18), .81, 'dechet'], [hb(20), 1.22, 'kit'],
+  [hb(23), .81, 'assiette'], [hb(25), .81, 'couverts'], [hb(27), .81, 'gobelet'], [hb(29), .81, 'sac'],
 ];
-const OBJ = [hb(27), hb(33)];           // pause objet : tout dans le sac
-const RUN2 = [[hb(33), .81, 'sachet'], [hb(35), 1.62, 'aucun']];   // « aucun jetable sur place » regroupé sur une carte
-const FINAL_T = hb(39), DUR = 20.5;
+const OBJ = [hb(31), hb(37)];           // pause objet : tout dans le sac
+const RUN2 = [[hb(37), .81, 'sachet'], [hb(39), 1.62, 'aucun']];   // « aucun jetable sur place » regroupé sur une carte
+const FINAL_T = hb(43), DUR = 22.12;
 const ROT = [-.07, .05, -.03, .08, -.06, .04, -.08, .06, -.04, .07, -.05, .03];
 
 window.SFX = [
@@ -45,14 +46,14 @@ window.SFX = [
   ...[0, 1, 2, 3, 4, 5].map(i => [1.1 + i * .083, 'tick']),
   [1.62, 'pop', { pitch: 1.2 }], [1.8, 'tape'], [2.05, 'scribble'], [2.4, 'pop'], [2.6, 'pop', { pitch: 1.1 }], [2.8, 'pop', { pitch: 1.25 }],
   ...RUN1.map(([t], i) => [t, 'slap', { k: .8 + (i % 3) * .1 }]),
-  [hb(12) + .05, 'impact'], [hb(16) + .05, 'swoosh'],
+  [hb(10) + .05, 'impact'], [hb(16) + .05, 'impact'], [hb(20) + .05, 'swoosh'],
   [OBJ[0], 'slap', { k: .6 }], [OBJ[0] + .3, 'drip'], [OBJ[0] + .55, 'drip', { pitch: 1.15 }], [OBJ[0] + .8, 'drip', { pitch: 1.3 }], [OBJ[0] + 1.05, 'drip', { pitch: 1.45 }], [OBJ[0] + 1.3, 'ding'], [OBJ[0] + 1.2, 'scribble'],
-  ...RUN2.map(([t]) => [t, 'slap']), [hb(36), 'pop', { pitch: 1.1 }], [hb(36) + .05, 'impact'], [hb(37), 'pop', { pitch: 1.3 }],
-  [FINAL_T, 'slap'], [FINAL_T + .4, 'tape'], [FINAL_T + .8, 'jingle'],
+  ...RUN2.map(([t]) => [t, 'slap']), [hb(40), 'pop', { pitch: 1.1 }], [hb(40) + .05, 'impact'], [hb(41), 'pop', { pitch: 1.3 }],
+  [FINAL_T, 'impact'], [FINAL_T + .02, 'slap'], [FINAL_T + .25, 'slap', { k: .6 }], ...Array.from({ length: 12 }, (_, i) => [FINAL_T + .45 + i * .034, 'tick']), [FINAL_T + .95, 'tape'], [FINAL_T + 1.3, 'jingle'],
 ];
 
 const img = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
-let FOND, GRAIN, LOGO_N, LOGO_W, PILL, PART, FEMME, PLAGE;
+let FOND, GRAIN, LOGO_N, LOGO_W, PILL, PART, FEMME, PLAGE, PLATEAU;
 
 // ---------------------------------------------------------------- texte
 function setFont(f, s) { g.font = `${f === 'Caveat' ? '700 ' : ''}${s}px ${f}`; }
@@ -141,9 +142,9 @@ function cup(h) {
   g.save(); body(); g.clip(); g.fillStyle = LAGON_L; g.fillRect(-tw, -h * .08, tw * 2, h * .16); g.restore();
   g.lineWidth = h * .035; g.beginPath(); g.moveTo(-tw, top); g.lineTo(tw, top); g.stroke();
 }
-function tote(w, part = 'all') {
+function tote(w, part = 'all', handle = NAVY) {
   const h = w * .9, top = -h / 2 + 60;
-  if (part !== 'front') { g.save(); g.lineCap = 'round'; g.strokeStyle = NAVY; g.lineWidth = w * .06; g.beginPath(); g.moveTo(-w * .22, top + 6); g.bezierCurveTo(-w * .22, top - w * .42, w * .22, top - w * .42, w * .22, top + 6); g.stroke(); g.fillStyle = '#d9cdb0'; g.beginPath(); g.ellipse(0, top + 4, w * .47, w * .04, 0, 0, Math.PI * 2); g.fill(); g.restore(); }
+  if (part !== 'front') { g.save(); g.lineCap = 'round'; g.strokeStyle = handle; g.lineWidth = w * .06; g.beginPath(); g.moveTo(-w * .22, top + 6); g.bezierCurveTo(-w * .22, top - w * .42, w * .22, top - w * .42, w * .22, top + 6); g.stroke(); g.fillStyle = '#d9cdb0'; g.beginPath(); g.ellipse(0, top + 4, w * .47, w * .04, 0, 0, Math.PI * 2); g.fill(); g.restore(); }
   if (part === 'back') return;
   g.fillStyle = CREAM; g.beginPath(); g.moveTo(-w * .47, top); g.lineTo(w * .47, top); g.lineTo(w / 2, top + h); g.lineTo(-w / 2, top + h); g.closePath(); g.fill();
   g.strokeStyle = NAVY; g.lineWidth = w * .035; g.lineCap = 'round'; g.beginPath();
@@ -185,16 +186,26 @@ function photoIn(im, w, h, zoom = 1, fx = .5, fy = .5) {
 const CW = 860, CH = 1100, CX = W / 2, CY = 940;
 // contenu de chaque carte : u = temps local (s depuis l'apparition)
 const CARDS = {
-  evenement: { bg: ORANGE, deco: () => rays('#ffb43c'), draw: u => { bigWord('UN', 0, -170, 230, { col: WH, depthCol: NAVY, outline: NAVY, id: 1 }); bigWord('ÉVÉNEMENT', 0, 110, 230, { col: BLEU, depthCol: NAVY, outline: WH, id: 2 }); sparkle(-330, -380, 50, WH, 1); sparkle(320, 390, 40, WH, 2); } },
+  edition: { bg: WH, deco: () => rays('#e3ecff'), draw: u => {
+      bigWord('2e', 0, -150, 420, { col: ORANGE, depthCol: NAVY, outline: NAVY, depth: 26, id: 21 });
+      bigWord('ÉDITION', 0, 220, 230, { col: BLEU, depthCol: NAVY, outline: WH, depth: 16, id: 22 });
+      sparkle(-320, -380, 56, ORANGE, 21); sparkle(320, -300, 40, BLEU, 22); sparkle(300, 420, 50, ORANGE, 23); } },
+  plateau: { bg: WH, draw: u => {
+      photoIn(PLATEAU, CW - 50, CH - 50, 1.08 + u * .15, .35, .55);
+      torn(-120, -420, 520, 120, { rot: -.05, col: ORANGE, seed: 85 }, () => txt('stands gourmands', 0, 2, { f: 'Caveat', s: 78, col: NAVY }));
+      if (u > .35) torn(180, 420, 300, 110, { rot: .06, seed: 86 }, () => txt('miam !', 0, 2, { f: 'Caveat', s: 90, col: NAVY }));
+      sparkle(330, -300, 50, WH, 24); } },
+  objectif: { bg: ORANGE, deco: () => rays('#ffb43c'), draw: u => { bigWord('OBJECTIF', 0, -20, 250, { col: BLEU, depthCol: NAVY, outline: WH, depth: 18, id: 1 }); sparkle(-330, -380, 50, WH, 1); sparkle(320, 390, 40, WH, 2); } },
   zero: { bg: WH, deco: () => rays('#e3ecff'), draw: u => { bigWord('ZÉRO', 0, 20, 420, { col: ORANGE, depthCol: NAVY, outline: NAVY, depth: 26, id: 3 }); sparkle(-320, -360, 60, BLEU, 3); sparkle(330, -300, 34, ORANGE, 4); sparkle(300, 380, 54, WH, 5); } },
   dechet: { bg: TURQ, deco: () => rays(TURQ_R), draw: u => { bigWord('DÉCHET !', 0, 0, 300, { col: WH, depthCol: NAVY, outline: NAVY, depth: 20, id: 4 }); sparkle(-310, -330, 46, WH, 6); sparkle(300, 340, 40, ORANGE, 7); } },
   kit: { bg: WH, draw: u => {
       photoIn(PLAGE, CW - 50, CH - 50, 1.05 + u * .12, .55, .5);           // la plage de l'affiche, poussée caméra
+      g.save(); g.rotate(-.04); g.fillStyle = BLEU; g.globalAlpha = .92; tornPath(860, 560, 87); g.fill(); g.restore();
       bigWord('PRÉPARE', 0, -150, 210, { col: WH, depthCol: NAVY, outline: NAVY, id: 5 });
       bigWord('TON KIT', 0, 90, 250, { col: ORANGE, depthCol: NAVY, outline: WH, depth: 22, id: 6 });
       if (u > .45) torn(150, 400, 380, 110, { rot: .05, seed: 81 }, () => txt('chez toi !', 0, 0, { f: 'Caveat', s: 86, col: NAVY }));
     } },
-  assiette: { bg: CREAM, deco: grid, draw: u => { txt('1.', -330, -410, { s: 150, col: ORANGE }); sticker('plate', 0, 30, { rot: -.06, sc: 1.05, id: 11 }); bigWord('ASSIETTE', 0, 400, 180, { col: ORANGE, depthCol: NAVY, outline: NAVY, depth: 12, id: 7 }); } },
+  assiette: { bg: CREAM, deco: grid, draw: u => { txt('1.', -330, -410, { s: 150, col: ORANGE }); sticker('plateFood', 0, 30, { rot: -.06, sc: 1.05, id: 11 }); bigWord('ASSIETTE', 0, 400, 180, { col: ORANGE, depthCol: NAVY, outline: NAVY, depth: 12, id: 7 }); } },
   couverts: { bg: WH, deco: (w, h) => dots(w, h, 'rgba(22,138,207,.18)'), draw: u => {
       txt('2.', -330, -410, { s: 150, col: ORANGE });
       sticker('fork', -150, 20, { rot: -.18, id: 12 }); sticker('spoon', 0, 0, { rot: .02, id: 13 }); sticker('knife', 150, 20, { rot: .18, id: 14 });
@@ -271,7 +282,7 @@ function entry(T) {
     g.beginPath(); g.moveTo(-40, 50); g.lineTo(-70, 95); g.lineTo(0, 52); g.fillStyle = WH; g.fill(); g.stroke();
     txt('Karibu !', 0, 2, { f: 'Caveat', s: 70, col: NAVY }); g.restore();
   }
-  if (T >= 2.0) torn(110, 290, 430, 100, { rot: .04, seed: 44 }, () => { txt('2e édition !', -10, 0, { f: 'Caveat', s: 66, col: NAVY }); });
+  if (T >= 2.0) torn(110, 290, 430, 100, { rot: .04, seed: 44 }, () => { txt('c\'est reparti !', -10, 0, { f: 'Caveat', s: 66, col: NAVY }); });
   hand(ellipsePts(110, 292, 240, 70, 1.05, -2.8), lin(T, 2.05, 2.45), { col: ORANGE, w: 7, seed: 45 });
   g.restore();
   // logo tataBé « tapé » lettre à lettre (révélé de gauche à droite, une lettre par image) + curseur
@@ -298,10 +309,10 @@ function objectBeat(T) {
   txt('voilà', 280, 310, { f: 'Caveat', s: 100, col: WH, align: 'left' });
   txt('ton kit !', 340, 410, { f: 'Caveat', s: 100, col: WH, align: 'left' });
   const bx = CX, by = 1050, bw = 640;
-  g.save(); g.translate(bx + jit(91, 2), by + jit(92, 2)); g.rotate(-.04); tote(bw, 'back'); g.restore();
+  g.save(); g.translate(bx + jit(91, 2), by + jit(92, 2)); g.rotate(-.04); tote(bw, 'back', ORANGE); g.restore();
   [['plate', .3, -60], ['fork', .55, 40], ['spoon', .8, -20], ['cup', 1.05, 70]].forEach(([k, t0, dx], i) => {
     const q = lin(u, t0 - .3, t0); if (q <= 0 || q >= 1) return;
-    sticker(k, bx + dx * q + mix(320 * (i % 2 ? 1 : -1), 0, q), mix(380, by + 120, q * q), { rot: (1 - q) * (i % 2 ? .6 : -.6), sc: .62, id: 93 + i });
+    sticker(k, bx + dx * q + mix(320 * (i % 2 ? 1 : -1), 0, q), mix(380, by + 120, q * q), { rot: (1 - q) * (i % 2 ? .6 : -.6), sc: .85, id: 93 + i });
   });
   g.save(); g.translate(bx + jit(91, 2), by + jit(92, 2)); g.rotate(-.04); tote(bw, 'front'); g.restore();
   // traits de mouvement autour du sac
@@ -314,15 +325,23 @@ function objectBeat(T) {
 // ---------------------------------------------------------------- carte finale (tenue, lisible)
 function finalCard(T) {
   const u = T - FINAL_T, w = 920, h = 1420;
-  g.save(); g.translate(CX, 960); g.rotate(-.02); const pop = u < 1 / FPS_ANIM + 1e-6 ? 1.06 : 1; g.scale(pop, pop);
+  const typed = (str, t0, rate = 24) => str.slice(0, Math.max(0, Math.min(str.length, Math.floor((u - t0) * rate + 1e-6) + 1)));
+  g.save(); g.translate(CX, 960); g.rotate(-.02);
+  const pop = u < 1 / FPS_ANIM + 1e-6 ? 1.16 : u < 2 / FPS_ANIM + 1e-6 ? .97 : 1; g.scale(pop, pop);   // arrivée plus marquée
   cardFrame(w, h, WH);
   const lw = 800, lh = LOGO_N.height * lw / LOGO_N.width; g.drawImage(LOGO_N, -lw / 2, -650, lw, lh);
-  if (u >= .1) { const pw2 = 450, ph2 = PILL.height * pw2 / PILL.width; g.drawImage(PILL, 200 - pw2 / 2, -370 - ph2 / 2, pw2, ph2); }
-  if (u >= .2) txt('17 OCTOBRE · 10H À 18H', 0, -220, { s: 96, col: NAVY, maxW: 820 });
-  if (u >= .3) txt('MTSANGAMOUJI', 0, -100, { s: 126, col: NAVY, maxW: 820 });
-  if (u >= .4) torn(0, 80, 1000, 170, { rot: -.035, col: ORANGE, seed: 71 }, () => txt('VIENS AVEC TON KIT !', 0, 4, { s: 112, col: NAVY, maxW: 920 }));
-  if (u >= .6) txt('assiette · couverts · gobelet · sac', 0, 240, { f: 'Caveat', s: 68, col: NAVY, maxW: 840 });
-  if (u >= .8) { const bw = 920, bh = PART.height * bw / PART.width; g.drawImage(PART, -bw / 2, h / 2 - bh, bw, bh); }
+  if (u >= .1) { const pw2 = 450, ph2 = PILL.height * pw2 / PILL.width; g.drawImage(PILL, 200 - pw2 / 2, -330 - ph2 / 2, pw2, ph2); }
+  // tampon « 17 OCT. » posé de travers
+  if (u >= .25) { const k = u < .25 + 1 / FPS_ANIM ? 1.25 : 1; g.save(); g.translate(-235, -185); g.rotate(-.12); g.scale(k, k);
+    g.fillStyle = ORANGE; g.beginPath(); g.roundRect(-175, -82, 350, 164, 26); g.fill(); g.strokeStyle = NAVY; g.lineWidth = 6; g.setLineDash([14, 9]); g.beginPath(); g.roundRect(-160, -68, 320, 136, 18); g.stroke(); g.setLineDash([]);
+    txt('SAM.', 0, -50, { s: 38, col: NAVY }); txt('17 OCT.', 0, 24, { s: 84, col: NAVY }); g.restore(); }
+  if (u >= .45) txt(typed('10H – 18H', .45), -20, -185, { s: 112, col: NAVY, align: 'left' });
+  if (u >= .7) txt(typed('MTSANGAMOUJI', .7), -405, -45, { s: 128, col: NAVY, align: 'left', maxW: 820 });
+  if (u >= 1.1) torn(0, 120, 1000, 170, { rot: -.035, col: ORANGE, seed: 71 }, () => txt('VIENS AVEC TON KIT !', 0, 4, { s: 112, col: NAVY, maxW: 920 }));
+  if (u >= 1.3) txt('assiette · couverts · gobelet · sac', -110, 275, { f: 'Caveat', s: 62, col: NAVY, maxW: 580 });
+  // petite photo de la femme : on boucle avec l'entrée
+  if (u >= 1.3) { g.save(); g.translate(330, 300); g.rotate(.12); g.shadowColor = 'rgba(0,0,0,.3)'; g.shadowBlur = 12; g.shadowOffsetY = 6; g.fillStyle = CREAM; g.fillRect(-100, -120, 200, 240); g.shadowColor = 'transparent'; g.translate(0, -20); photoIn(FEMME, 170, 170, 1.0, .5, .12); g.restore(); }
+  if (u >= .9) { const bw = 920, bh = PART.height * bw / PART.width; g.drawImage(PART, -bw / 2, h / 2 - bh, bw, bh); }
   g.restore();
 }
 
@@ -340,11 +359,13 @@ function render(t) {
 
 Promise.all([
   img('assets/fond-bleu.jpg'), img('assets/grain-carte.jpg'), img('assets/logo-navy.png'), img('assets/logo-blanc.png'), img('assets/marche-gourmand.png'),
-  img('assets/partenaires.png'), img('assets/femme-illustree.jpg'), img('assets/plage-illustree.jpg'),
+  img('assets/partenaires.png'), img('assets/femme-illustree.jpg'), img('assets/plage-illustree.jpg'), img('assets/plateau-illustre.jpg'),
   document.fonts.load('80px Anton'), document.fonts.load('80px Marker'), document.fonts.load('700 80px Caveat'),
-]).then(([a, b, c, lwh, d, e, f, h]) => {
+]).then(([a, b, c, lwh, d, e, f, h, pl]) => {
+  PLATEAU = pl;
   FOND = a; GRAIN = b; LOGO_N = c; LOGO_W = lwh; PILL = d; PART = e; FEMME = f; PLAGE = h;
   makeSticker('plate', 400, () => plate(180));
+  makeSticker('plateFood', 400, () => { plate(180); g.save(); g.beginPath(); g.arc(0, 0, 180 * .62, 0, Math.PI * 2); g.clip(); const s = 260 / 300; g.drawImage(FEMME, 110, 730, 330, 300, -150, -130, 330 * s * 1.15, 300 * s * 1.15); g.restore(); g.strokeStyle = '#d6e6f2'; g.lineWidth = 5; g.beginPath(); g.arc(0, 0, 180 * .62, 0, Math.PI * 2); g.stroke(); });
   makeSticker('fork', 460, () => cutlery('fork', 430));
   makeSticker('spoon', 460, () => cutlery('spoon', 430));
   makeSticker('knife', 460, () => cutlery('knife', 430));

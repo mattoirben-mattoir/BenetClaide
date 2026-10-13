@@ -30,4 +30,6 @@ clean.crop((0, 140, 620, 1170)).save(A + 'femme-illustree.jpg', quality=95)
 ImageEnhance.Color(clean.crop((560, 430, 1122, 800))).enhance(1.15).save(A + 'plage-illustree.jpg', quality=95)
 # full-screen background for the card stack: sky, palms, lagoon and beach (text removed above)
 clean.crop((420, 120, 1122, 860)).save(A + 'fond-plage.jpg', quality=94)
+# the tray close-up for the « stands gourmands » photo card
+clean.crop((0, 600, 800, 1175)).save(A + 'plateau-illustre.jpg', quality=94)
 print('ok')
