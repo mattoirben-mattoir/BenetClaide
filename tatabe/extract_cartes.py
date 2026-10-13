@@ -65,6 +65,11 @@ shade = crumple() * 2.2 + noise(240) * .08 + noise(40) * .04 + noise(3) * .06
 bg = np.clip(base[None, None] * (1 + shade[..., None]), 0, 255)
 Image.fromarray(bg.astype(np.uint8)).save(A + 'fond-papier.jpg', quality=92)
 
+# solar orange paper (rafale.html background, like the yellow wall of the reference)
+base = np.array([0xf9, 0xa5, 0x1a], float)
+shade = crumple() * 1.6 + noise(240) * .06 + noise(40) * .03 + noise(3) * .05
+Image.fromarray(np.clip(base[None, None] * (1 + shade[..., None]), 0, 255).astype(np.uint8)).save(A + 'fond-orange.jpg', quality=92)
+
 # card grain (multiply layer, near white): applied over every card
 g = 1 + noise(3, 1000, 1000) * .06 + noise(30, 1000, 1000) * .05 + crumple(1000, 1000, 25) * 3
 Image.fromarray(np.clip(g * 245, 0, 255).astype(np.uint8)).convert('RGB').save(A + 'grain-carte.jpg', quality=90)

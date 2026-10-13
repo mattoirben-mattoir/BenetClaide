@@ -17,3 +17,10 @@ Re-rendu depuis la racine du dépôt : `SFX_STYLE=tropical video/build.sh tatabe
 Re-rendu depuis `tatabe/` :
 `SFX_OUT=sfx-cartes.json PAGE=cartes.html node ../video/render.js x x && SFX_STYLE=tropical SFX_BPM=120 python3 ../video/sfx.py sfx-cartes.json 25 audio-cartes.wav && PAGE=cartes.html DUR=25 node ../video/render.js audio-cartes.wav tatabe-cartes-viens-avec-ton-kit.mp4`
 (avec `NODE_PATH=/opt/node22/lib/node_modules`).
+
+## Version « rafale » (au plus près de la référence)
+
+- `tatabe-rafale-viens-avec-ton-kit.mp4` : 20,5 s, 1080×1920, 12 i/s façon stop-motion sur fond papier orange.
+- Entrée : photo instantanée (affiche illustrée) sous film protecteur qui se décolle, titre tapé lettre à lettre, stickers posés un à un.
+- Rafale : une carte = une idée, posée d'un coup toutes les 0,6 à 1,3 s (CETTE ANNÉE → ZÉRO → DÉCHET → PRÉPARE TON KIT → 1. ASSIETTE → 2. COUVERTS → 3. GOBELET → 4. TON SAC), pause « & voilà ton kit » (tout dans le sac), puis 0 SACHET PLASTIQUE → AUCUN → JETABLE → SUR PLACE, carte finale tenue 4,6 s.
+- `rafale.html` ; re-rendu depuis `tatabe/` : `SFX_OUT=sfx-rafale.json PAGE=rafale.html node ../video/render.js x x && SFX_STYLE=tropical SFX_BPM=124 python3 ../video/sfx.py sfx-rafale.json 20.5 audio-rafale.wav && PAGE=rafale.html DUR=20.5 node ../video/render.js audio-rafale.wav tatabe-rafale-viens-avec-ton-kit.mp4`
