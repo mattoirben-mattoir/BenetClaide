@@ -262,6 +262,63 @@ def music(dur, bpm=118):
     return m
 
 
+def music_tropical(dur, bpm=108):
+    """Warm island groove (SFX_STYLE=tropical): marimba chords, shaker 16ths, kick + conga, round bass. C G Am F."""
+    N = int(dur * SR); m = np.zeros(N); beat = 60 / bpm; six = beat / 4
+
+    def add(sig, at):
+        i = int(at * SR)
+        if 0 <= i < N:
+            j = min(N, i + len(sig)); m[i:j] += sig[:j - i]
+
+    def marimba(midi, amp=.12, d=.55):
+        f = 440 * 2 ** ((midi - 69) / 12); t = t_(d)
+        s = np.sin(2 * np.pi * f * t) * np.exp(-t / .22) + .35 * np.sin(2 * np.pi * f * 3.93 * t) * np.exp(-t / .03)
+        return s * amp * np.minimum(t / .002, 1)
+
+    def kick():
+        t = t_(.3); f = 50 + 80 * np.exp(-t / .03)
+        return np.sin(2 * np.pi * np.cumsum(f) / SR) * env(len(t), .001, .11) * .8
+
+    def conga(f0=230, amp=.22):
+        t = t_(.22); f = f0 * (1 + .25 * np.exp(-t / .01))
+        return (np.sin(2 * np.pi * np.cumsum(f) / SR) * env(len(t), .001, .07) + .15 * band(rng.standard_normal(len(t)), 1500, 5000) * env(len(t), .0005, .01)) * amp
+
+    def shaker(acc):
+        n = int(.07 * SR); x = band(rng.standard_normal(n), 5000, 12000)
+        return x * env(n, .01, .025) * (.12 if acc else .06)
+
+    def bass(midi, d):
+        f = 440 * 2 ** ((midi - 69) / 12); t = t_(d)
+        s = np.sin(2 * np.pi * f * t) + .2 * np.sin(4 * np.pi * f * t)
+        return s * .3 * np.minimum(t / .006, 1) * np.exp(-t / (d * .7))
+
+    prog = [(48, [60, 64, 67]), (43, [59, 62, 67]), (45, [60, 64, 69]), (41, [60, 65, 69])]  # C G Am F
+    melody = [76, 74, 72, 74, 76, 79, 76, 74, 72, 71, 72, 74, 72, 69, 72, 0]              # 2-bar hook, eighths
+    end = dur - 1.2
+    t, b = 0.0, 0
+    while t < end:
+        root, ch = prog[(b // 4) % 4]
+        if b % 2 == 0: add(kick(), t)
+        add(conga(230), t + beat * .75); add(conga(310, .15), t + beat * .5) if b % 2 else None
+        for k in range(4): add(shaker(k == 2), t + k * six)
+        if b % 4 in (0, 2): add(bass(root - 12, beat * 1.4), t)
+        if b % 4 == 3: add(bass(root - 5, beat * .5), t + beat * .5)
+        # marimba: chord on the off-beat (island skank)
+        for k, n in enumerate(ch): add(marimba(n, .07), t + beat * .5 + k * .008)
+        if b >= 8:  # hook comes in after the first phrase
+            for h in range(2):
+                n = melody[((b * 2) + h) % len(melody)]
+                if n: add(marimba(n, .09, .4), t + h * beat / 2)
+        t += beat; b += 1
+    for k, n in enumerate([60, 64, 67, 72]): add(marimba(n, .12, 1.4), end + k * .05)
+    add(kick(), end)
+    m = norm(m, .9)
+    fi = int(.08 * SR); m[:fi] *= np.linspace(0, 1, fi)
+    fo = int(.5 * SR); m[-fo:] *= np.linspace(1, 0, fo)
+    return m
+
+
 def main():
     events, dur, out = json.load(open(sys.argv[1])), float(sys.argv[2]), sys.argv[3]
     N = int(dur * SR)
@@ -276,7 +333,8 @@ def main():
         j = min(N, i + len(s)); fx[i:j] += s[:j - i]
     # SFX_MUSIC=0: effects only, for a version where the client lays their own music
     with_music = os.environ.get('SFX_MUSIC', '1') != '0'
-    mix = (music(dur, float(os.environ.get('SFX_BPM', 118))) * .55 if with_music else 0) + fx   # SFX_BPM: match the episode's beat grid
+    bed = music_tropical if os.environ.get('SFX_STYLE') == 'tropical' else music   # SFX_STYLE=tropical: island groove (tataBé)
+    mix = (bed(dur, float(os.environ.get('SFX_BPM', 108 if bed is music_tropical else 118))) * .55 if with_music else 0) + fx   # SFX_BPM: match the episode's beat grid
     # stereo: a little width on the effects
     left, right = mix + .08 * np.roll(fx, 220), mix + .08 * np.roll(fx, -220)
     st = np.stack([left, right], 1)

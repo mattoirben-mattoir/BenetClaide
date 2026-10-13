@@ -1,0 +1,398 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:Montserrat;src:url(assets/Montserrat.ttf);font-weight:100 900}
+html,body{margin:0;background:#0a3f78}
+canvas{display:block}
+</style></head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script>
+// tataBé « Apporte ton assiette et tes couverts » : 30 s, 9 plans, sans voix off.
+const W = 1080, H = 1920;
+const c = document.getElementById('c'), g = c.getContext('2d');
+// Charte tirée de l'affiche
+const DEEP = '#0a3f78', LAGON = '#1675b8', LIGHT = '#8fd3ee', ORANGE = '#f99d0a', WH = '#ffffff', GREY = '#c9ced3', GREY_D = '#a7afb7', INK = '#0a3f78';
+
+// Début de chaque plan (s) : 1 accroche, 2 marché, 3 engagement, 4 jetable, 5 consigne, 6 avant de partir, 7 geste, 8 règle, 9 rendez-vous
+const S = [0, 3, 6, 9, 12, 16, 19, 22.5, 26, 30];
+
+window.SFX = [
+  [0.05, 'impact'], [0.45, 'swoosh'], [1.05, 'pop'],
+  [S[1], 'whoosh'], [S[1] + .3, 'pop'], [S[1] + .65, 'pop', { pitch: 1.2 }],
+  [S[2], 'whoosh'], [S[2] + .05, 'pop'], [S[2] + .45, 'pop', { pitch: 1.25 }],
+  [S[3] + .05, 'pop'], [S[3] + .55, 'swoosh'], [S[3] + 2.6, 'swoosh'],
+  [S[4] + .05, 'pop', { pitch: .9 }], [S[4] + .45, 'pop', { pitch: 1.1 }], [S[4] + 1.05, 'pop'], [S[4] + 1.25, 'pop', { pitch: 1.15 }], [S[4] + 1.4, 'pop', { pitch: 1.3 }], [S[4] + 1.55, 'pop', { pitch: 1.45 }],
+  [S[5] - .1, 'whoosh'], [S[5] + .6, 'swoosh'], [S[5] + 1.7, 'pop', { pitch: .9 }],
+  [S[6] + .05, 'pop'], [S[6] + .7, 'drip'], [S[6] + 1.15, 'drip', { pitch: 1.15 }], [S[6] + 1.4, 'drip', { pitch: 1.3 }], [S[6] + 1.65, 'drip', { pitch: 1.45 }], [S[6] + 2.05, 'ding'],
+  [S[7] - .05, 'whoosh'], [S[7] + .15, 'pop'], [S[7] + .65, 'pop', { pitch: .85 }],
+  [S[8] - .05, 'whoosh'], [S[8] + .35, 'pop'], [S[8] + .75, 'pop', { pitch: 1.2 }], [S[8] + 1.05, 'jingle'],
+];
+
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lin = (t, a, b) => clamp((t - a) / (b - a));
+const eOut = x => 1 - Math.pow(1 - x, 3);
+const eIn = x => x * x * x;
+const eInOut = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const eBack = x => { const c1 = 1.7, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const mix = (a, b, p) => a + (b - a) * p;
+
+const img = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
+let LOGO, PILL, FEMME, PLATEAU, PLAGE, PART;
+
+// ---------------------------------------------------------------- texte
+function font(s, w = 900) { return `${w} ${s}px Montserrat`; }
+// Taille ajustée pour tenir dans maxW
+function fit(str, s, maxW, w = 900) { g.save(); g.font = font(s, w); const m = g.measureText(str).width; g.restore(); return m > maxW ? s * maxW / m : s; }
+function text(str, x, y, { s = 80, w = 900, col = WH, a = 1, align = 'center', maxW = 940, ls = 0 } = {}) {
+  if (a <= 0) return;
+  g.save(); g.globalAlpha *= a; if (ls) g.letterSpacing = ls + 'px';
+  g.font = font(fit(str, s, maxW, w), w); g.fillStyle = col; g.textAlign = align; g.textBaseline = 'middle';
+  g.fillText(str, x, y); g.restore();
+}
+// Ligne qui monte derrière un masque, puis reste fixe
+function rise(str, x, y, t0, t, opts = {}, t1 = 1e9) {
+  const p = eOut(lin(t, t0, t0 + .45)), q = lin(t, t1, t1 + .3);
+  if (p <= 0 || q >= 1) return;
+  const s = opts.s || 80;
+  g.save(); g.beginPath(); g.rect(0, y - s * .85, W, s * 1.7); g.clip();
+  text(str, x, y + (1 - p) * s * 1.1 - q * 20, { ...opts, a: p * (1 - q) });
+  g.restore();
+}
+// Cartouche orange (code « Marché gourmand ») avec texte
+function cartouche(str, x, y, { s = 100, bg = ORANGE, col = INK, rot = -.04, sc = 1, a = 1, padX = .45, padY = .3 } = {}) {
+  if (a <= 0 || sc <= 0) return;
+  g.save(); g.globalAlpha *= a; g.translate(x, y); g.rotate(rot); g.scale(sc, sc);
+  g.font = font(s); const w = g.measureText(str).width + s * padX * 2, h = s * (1 + padY * 2);
+  g.fillStyle = bg; g.beginPath(); g.roundRect(-w / 2, -h / 2, w, h, h / 2); g.fill();
+  g.fillStyle = col; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(str, 0, s * .04);
+  g.restore();
+}
+
+// ---------------------------------------------------------------- photo
+function cover(im, cx, cy, h, { a = 1, blur = 0 } = {}) {
+  const w = im.width * h / im.height;
+  g.save(); g.globalAlpha *= a; if (blur) g.filter = `blur(${blur}px)`;
+  g.drawImage(im, cx - w / 2, cy - h / 2, w, h); g.restore();
+}
+function vgrad(stops) { const gr = g.createLinearGradient(0, 0, 0, H); stops.forEach(([p, col]) => gr.addColorStop(p, col)); return gr; }
+
+// ---------------------------------------------------------------- vagues
+// Contour ondulé, inspiré de la bande blanche du bas de l'affiche
+function wavePath(y, amp = 38, ph = 0, k = 1) {
+  g.beginPath(); g.moveTo(-20, H + 20); g.lineTo(-20, y);
+  for (let x = -20; x <= W + 20; x += 20) g.lineTo(x, y + amp * Math.sin(x / W * Math.PI * 2 * k + ph) + amp * .35 * Math.sin(x / W * Math.PI * 5 + ph * 1.7));
+  g.lineTo(W + 20, H + 20); g.closePath();
+}
+// Révélation par vague : le nouveau plan monte depuis le bas, bordé d'un liseré
+function waveReveal(t, t0, d, drawNew, edge = WH) {
+  const p = eInOut(lin(t, t0, t0 + d));
+  if (p <= 0) return false;
+  if (p >= 1) { drawNew(); return true; }
+  const y = H + 120 - p * (H + 300), ph = t * 3;
+  g.save(); wavePath(y, 38, ph); g.fillStyle = edge; g.fill(); g.restore();
+  g.save(); wavePath(y + 34, 38, ph); g.clip(); drawNew(); g.restore();
+  return false;
+}
+// Petite vague décorative fixe en bas
+function footWave(col, y = H - 150, a = 1, ph = 0) { g.save(); g.globalAlpha *= a; wavePath(y, 26, ph, 1); g.fillStyle = col; g.fill(); g.restore(); }
+
+// Feuille tropicale discrète (référence motif, faible opacité)
+function leaf(x, y, s, rot, a) {
+  g.save(); g.globalAlpha *= a; g.translate(x, y); g.rotate(rot); g.scale(s, s);
+  g.fillStyle = WH; g.beginPath(); g.moveTo(0, 0);
+  g.bezierCurveTo(60, -40, 140, -40, 200, 0); g.bezierCurveTo(140, 40, 60, 40, 0, 0); g.fill();
+  g.strokeStyle = DEEP; g.lineWidth = 3; g.globalAlpha *= 1; g.beginPath(); g.moveTo(10, 0); g.lineTo(190, 0); g.stroke();
+  for (let i = 1; i < 6; i++) { g.beginPath(); g.moveTo(i * 32, 0); g.lineTo(i * 32 + 18, -22 + Math.abs(i - 3) * 2); g.moveTo(i * 32, 0); g.lineTo(i * 32 + 18, 22 - Math.abs(i - 3) * 2); g.stroke(); }
+  g.restore();
+}
+
+// ---------------------------------------------------------------- pictogrammes (une seule famille de trait)
+const P = {
+  fork: new Path2D('M5 4v18c0 5 3 8 7 8s7-3 7-8V4M9.6 4v15M14.4 4v15M12 30v48'),
+  spoonHead: new Path2D('M12 4c4.2 0 7.5 5 7.5 11s-3.3 11-7.5 11-7.5-5-7.5-11 3.3-11 7.5-11z'),
+  spoonHandle: new Path2D('M12 26v52'),
+  knife: new Path2D('M10 78V40c-3 0-4-6-4-16S8 4 14 4c2 0 3 2 3 5v31h-7z'),
+  knifeHandle: new Path2D('M13 44v34'),
+};
+// kind: fork | spoon | knife ; style: reuse (métal, contour bleu) | dispo (gris)
+function cutlery(kind, x, y, h, { style = 'reuse', rot = 0, a = 1, sc = 1 } = {}) {
+  if (a <= 0 || sc <= 0) return;
+  const k = h / 84 * sc;
+  g.save(); g.globalAlpha *= a; g.translate(x, y); g.rotate(rot); g.scale(k, k); g.translate(-12, -42);
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  const out = style === 'reuse' ? LAGON : GREY_D, fill = style === 'reuse' ? '#f2f6fa' : GREY;
+  const twice = (path, wide, thin, isFill) => {
+    if (isFill) { g.lineWidth = 2.4; g.strokeStyle = out; g.fillStyle = fill; g.fill(path); g.stroke(path); return; }
+    g.strokeStyle = out; g.lineWidth = wide; g.stroke(path); g.strokeStyle = fill; g.lineWidth = thin; g.stroke(path);
+  };
+  if (kind === 'fork') twice(P.fork, 5.4, 2.8);
+  if (kind === 'spoon') { twice(P.spoonHandle, 6.2, 3.6); twice(P.spoonHead, 0, 0, true); }
+  if (kind === 'knife') { twice(P.knifeHandle, 7.4, 4.8); twice(P.knife, 0, 0, true); }
+  if (style === 'reuse') { // reflet métal
+    g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 1.2;
+    if (kind === 'spoon') { g.beginPath(); g.ellipse(10, 12, 2, 5, -.2, 0, Math.PI * 2); g.stroke(); }
+  }
+  g.restore();
+}
+// Assiette vue de dessus : maison (blanche, bord bleu) ou carton (gris)
+function plate(x, y, r, { style = 'reuse', a = 1, sc = 1 } = {}) {
+  if (a <= 0 || sc <= 0) return;
+  g.save(); g.globalAlpha *= a; g.translate(x, y); g.scale(sc, sc);
+  if (style === 'reuse') {
+    g.fillStyle = 'rgba(5,30,60,.18)'; g.beginPath(); g.arc(6, 10, r, 0, Math.PI * 2); g.fill();
+    g.fillStyle = WH; g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = LAGON; g.lineWidth = r * .085; g.beginPath(); g.arc(0, 0, r * .955, 0, Math.PI * 2); g.stroke();
+    g.strokeStyle = '#d6e6f2'; g.lineWidth = r * .03; g.beginPath(); g.arc(0, 0, r * .66, 0, Math.PI * 2); g.stroke();
+  } else {
+    g.fillStyle = GREY; g.beginPath();
+    for (let i = 0; i <= 64; i++) { const an = i / 64 * Math.PI * 2, rr = r * (1 + .025 * Math.sin(an * 24)); g.lineTo(Math.cos(an) * rr, Math.sin(an) * rr); }
+    g.fill(); g.strokeStyle = GREY_D; g.lineWidth = r * .03; g.beginPath(); g.arc(0, 0, r * .7, 0, Math.PI * 2); g.stroke();
+  }
+  g.restore();
+}
+// Barre diagonale orange tracée en un geste (p = 0..1)
+function bar(x0, y0, x1, y1, p, w = 26) {
+  if (p <= 0) return;
+  g.save(); g.lineCap = 'round'; g.strokeStyle = ORANGE; g.lineWidth = w;
+  g.beginPath(); g.moveTo(x0, y0); g.lineTo(mix(x0, x1, p), mix(y0, y1, p)); g.stroke(); g.restore();
+}
+function arrow(x, y, len, { dir = 'down', col = INK, w = 22, p = 1, a = 1 } = {}) {
+  if (p <= 0 || a <= 0) return;
+  g.save(); g.globalAlpha *= a; g.translate(x, y); if (dir === 'right') g.rotate(-Math.PI / 2);
+  g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'round'; g.lineJoin = 'round';
+  const L = len * eOut(p);
+  g.beginPath(); g.moveTo(0, -len / 2); g.lineTo(0, -len / 2 + L); g.stroke();
+  if (p > .6) { const h = len * .3 * eBack(lin(p, .6, 1)); g.beginPath(); g.moveTo(-h, -len / 2 + L - h); g.lineTo(0, -len / 2 + L); g.lineTo(h, -len / 2 + L - h); g.stroke(); }
+  g.restore();
+}
+// Tote bag orange : fond (anses + intérieur) puis face avant, pour que les objets « entrent »
+function bagBack(x, y, w, open = 1) {
+  const h = w * .82, top = y - h / 2;
+  g.save(); g.lineCap = 'round'; g.strokeStyle = '#c97f00'; g.lineWidth = w * .055;
+  const sp = w * (.2 + .06 * open);
+  g.beginPath(); g.moveTo(x - sp, top + 6); g.bezierCurveTo(x - sp, top - w * .36, x + sp, top - w * .36, x + sp, top + 6); g.stroke();
+  g.fillStyle = '#b86f00'; g.beginPath(); g.ellipse(x, top + 4, w * .47, w * .05 * (.4 + open), 0, 0, Math.PI * 2); g.fill();
+  g.restore();
+}
+function bagFront(x, y, w) {
+  const h = w * .82, top = y - h / 2;
+  g.save();
+  g.fillStyle = ORANGE; g.beginPath(); g.moveTo(x - w * .47, top); g.lineTo(x + w * .47, top); g.lineTo(x + w / 2, top + h); g.lineTo(x - w / 2, top + h); g.closePath(); g.fill();
+  g.strokeStyle = '#e08a00'; g.lineWidth = 6; g.beginPath(); g.moveTo(x - w * .47, top + w * .1); g.lineTo(x + w * .47, top + w * .1); g.stroke();
+  g.strokeStyle = WH; g.lineWidth = w * .03; g.lineCap = 'round'; g.beginPath();
+  for (let i = 0; i <= 40; i++) { const xx = x - w * .28 + i / 40 * w * .56; g.lineTo(xx, y + h * .2 + w * .025 * Math.sin(i / 40 * Math.PI * 4)); }
+  g.stroke(); g.restore();
+}
+function check(x, y, r, p) {
+  if (p <= 0) return;
+  g.save(); g.translate(x, y); g.scale(eBack(clamp(p * 1.4)), eBack(clamp(p * 1.4)));
+  g.fillStyle = WH; g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = ORANGE; g.lineWidth = r * .24; g.lineCap = 'round'; g.lineJoin = 'round';
+  const q = lin(p, .3, 1); g.beginPath(); g.moveTo(-r * .45, 0);
+  if (q < .4) g.lineTo(mix(-r * .45, -r * .12, q / .4), mix(0, r * .32, q / .4));
+  else { g.lineTo(-r * .12, r * .32); g.lineTo(mix(-r * .12, r * .48, (q - .4) / .6), mix(r * .32, -r * .36, (q - .4) / .6)); }
+  g.stroke(); g.restore();
+}
+function logo(cx, cy, w, { a = 1, reveal = 1 } = {}) {
+  if (a <= 0 || reveal <= 0) return;
+  const h = LOGO.height * w / LOGO.width;
+  g.save(); g.globalAlpha *= a;
+  g.beginPath(); g.rect(0, cy + h / 2 - h * reveal - 4, W, h * reveal + 8); g.clip();
+  g.drawImage(LOGO, cx - w / 2, cy - h / 2 + (1 - reveal) * h * .5, w, h); g.restore();
+}
+
+// ================================================================ plans
+// 1 — L'accroche gourmande
+function plan1(t) {
+  g.fillStyle = DEEP; g.fillRect(0, 0, W, H);
+  const z = 1 + .07 * lin(t, 0, 3.2);
+  cover(PLATEAU, W / 2 + 40, 1330, 1200 * z);
+  g.fillStyle = vgrad([[0, DEEP], [.41, DEEP], [.58, 'rgba(10,63,120,.35)'], [.72, 'rgba(10,63,120,0)'], [1, 'rgba(10,63,120,.25)']]); g.fillRect(0, 0, W, H);
+  logo(W / 2, 520, 900, { reveal: eOut(lin(t, .4, .95)) });
+  const p = lin(t, 1.0, 1.45);
+  cartouche('REVIENT !', W / 2 + (1 - eBack(p)) * 420 + 60, 760, { s: 104, a: clamp(p * 3), rot: -.05 });
+}
+// 2 — Identifier le marché
+function plan2(t) {
+  cover(FEMME, W / 2 - 40 - 30 * lin(t, 3, 6.4), H / 2 + 40, H * 1.06);
+  g.fillStyle = vgrad([[0, 'rgba(10,63,120,.15)'], [.45, 'rgba(10,63,120,0)'], [.62, 'rgba(10,63,120,.15)'], [.8, 'rgba(10,63,120,.55)'], [1, 'rgba(10,63,120,.7)']]); g.fillRect(0, 0, W, H);
+  // cartouche texte à droite, sous le visage, au-dessus du plateau
+  g.save(); g.fillStyle = 'rgba(10,63,120,.82)'; const p0 = eOut(lin(t, 3.2, 3.55));
+  g.beginPath(); g.roundRect(W - 640 * p0, 1040, 700, 270, 40); g.fill(); g.restore();
+  rise('UN MARCHÉ', W - 330, 1110, 3.3, t, { s: 92, maxW: 560 });
+  const p = lin(t, 3.65, 4.15);
+  cartouche('GOURMAND', W - 330, 1235, { s: 92, a: clamp(p * 3), rot: mix(-.22, -.05, eBack(p)), sc: mix(.7, 1, eBack(p)) });
+}
+// 3 — L'engagement
+function plan3(t) {
+  g.fillStyle = DEEP; g.fillRect(0, 0, W, H);
+  leaf(820, 230, 1.5, .5 + .03 * Math.sin(t), .07); leaf(-60, 1500, 1.3, -.4, .06);
+  footWave(LAGON, H - 230, 1, t * .5);
+  const out = 1 - lin(t, 8.75, 9);
+  g.save(); g.globalAlpha = out;
+  rise('ENGAGÉ VERS', W / 2, 700, 6.05, t, { s: 72 });
+  rise('LE', W / 2, 830, 6.4, t, { s: 120 });
+  const p = lin(t, 6.45, 6.95);
+  cartouche('ZÉRO', W / 2, 970, { s: 150, a: clamp(p * 3), sc: mix(.6, 1, eBack(p)), rot: -.05, padY: .18 });
+  rise('DÉCHET', W / 2, 1140, 6.55, t, { s: 150 });
+  g.restore();
+}
+// 4 — Ce qu'on évite
+function plan4(t) {
+  g.fillStyle = DEEP; g.fillRect(0, 0, W, H);
+  footWave(LAGON, H - 230, 1, t * .5);
+  rise('ICI, ON ÉVITE', W / 2, 560, 9.0, t, { s: 96 }, 11.6);
+  rise('LE JETABLE', W / 2, 680, 9.15, t, { s: 96 }, 11.6);
+  const pin = eBack(lin(t, 9.05, 9.5)), out = eIn(lin(t, 11.5, 12));
+  const dx = -out * 1200;
+  plate(W / 2 - 110 + dx, 1180, 210, { style: 'dispo', sc: pin });
+  cutlery('fork', W / 2 + 230 + dx, 1180, 400, { style: 'dispo', rot: .12, sc: pin });
+  bar(W / 2 - 360 + dx, 1440, W / 2 + 380 + dx, 920, eInOut(lin(t, 9.55, 10.2)), 30);
+}
+// 5 à 7 — Assiette et couverts : consigne, préparation, geste (objets continus)
+const ITEMS = ['plate', 'fork', 'spoon', 'knife'];
+function itemPos(i, t) {
+  // plan 5 : rangée basse ; plan 6-7 : rangée haute au-dessus du sac ; plan 7 : descente dans le sac
+  const row5 = [[W / 2 - 230, 1340], [W / 2 + 40, 1340], [W / 2 + 170, 1340], [W / 2 + 300, 1340]];
+  const row6 = [[W / 2 - 200, 740], [W / 2 + 40, 740], [W / 2 + 150, 740], [W / 2 + 260, 740]];
+  const m = eInOut(lin(t, 15.7, 16.4));
+  let [x, y] = [mix(row5[i][0], row6[i][0], m), mix(row5[i][1], row6[i][1], m)];
+  let sc = mix(1, .82, m);
+  const d0 = [19.4, 19.9, 20.15, 20.4][i], d = eIn(lin(t, d0, d0 + .5));
+  x = mix(x, W / 2 + (i - 1.5) * 50, eInOut(lin(t, d0 - .15, d0 + .3)));
+  y += d * 640;
+  return [x, y, sc];
+}
+function drawItem(i, t, a = 1) {
+  const enter = [13.0, 13.3, 13.45, 13.6][i];
+  const p = lin(t, enter, enter + .35);
+  if (p <= 0) return;
+  const [x, y0, sc] = itemPos(i, t), y = y0 + (1 - eOut(p)) * 60;
+  const s = sc * eBack(p);
+  if (i === 0) plate(x, y, 150, { sc: s, a });
+  else cutlery(ITEMS[i], x, y, 330, { sc: s, a });
+}
+function plan5to7(t) {
+  // fond : bleu profond (5) puis bleu clair révélé par une vague (6-7)
+  g.fillStyle = DEEP; g.fillRect(0, 0, W, H);
+  footWave(LAGON, H - 230, 1, t * .5);
+  waveReveal(t, 15.75, .55, () => { g.fillStyle = LIGHT; g.fillRect(0, 0, W, H); footWave('#b6e3f5', H - 230, 1, t * .5); });
+  // plan 5 : consigne
+  if (t < 16.1) {
+    const o = 1 - lin(t, 15.55, 15.85);
+    g.save(); g.globalAlpha = o;
+    rise('TON GESTE :', W / 2, 470, 12.0, t, { s: 64, col: LIGHT });
+    rise('APPORTE', W / 2, 630, 12.4, t, { s: 160, col: ORANGE });
+    rise('TON ASSIETTE', W / 2, 800, 12.55, t, { s: 92 });
+    rise('ET TES COUVERTS', W / 2, 910, 12.7, t, { s: 92 });
+    g.restore();
+  }
+  // plan 6-7 : sac
+  const bx = W / 2, by0 = 1420;
+  const up = eOut(lin(t, 16.5, 17.1)), down = eIn(lin(t, 22.0, 22.45));
+  const bounce = Math.sin(lin(t, 21.4, 21.8) * Math.PI) * 30;
+  const by = by0 + (1 - up) * 900 + down * 1000 - bounce;
+  const open = eOut(lin(t, 17.1, 17.6));
+  const bw = 600;
+  if (t >= 16.4) bagBack(bx, by, bw, open);
+  // objets (derrière la face avant du sac pendant la descente)
+  for (let i = 0; i < 4; i++) {
+    const d0 = [19.4, 19.9, 20.15, 20.4][i];
+    if (t > d0 + .5) continue;
+    drawItem(i, t);
+  }
+  if (t >= 16.4) bagFront(bx, by, bw);
+  if (t >= 16.4) check(bx + 225, by - 110, 92, lin(t, 20.9, 21.35));
+  // textes plans 6 et 7
+  if (t >= 16 && t < 19.2) {
+    const o = 1 - lin(t, 18.85, 19.1);
+    g.save(); g.globalAlpha = o; rise('AVANT DE PARTIR…', W / 2, 400, 16.15, t, { s: 92, col: INK }); g.restore();
+    arrow(W / 2, 930, 120, { p: lin(t, 17.6, 18.1), a: 1 - lin(t, 19.3, 19.6) });
+  } else if (t >= 19.2) {
+    arrow(W / 2, 930, 120, { a: 1 - lin(t, 19.3, 19.6) });
+  }
+  if (t >= 19) {
+    rise('ASSIETTE + COUVERTS', W / 2, 360, 19.0, t, { s: 84, col: INK });
+    const p = eOut(lin(t, 19.15, 19.6));
+    if (p > 0) {
+      g.save(); g.globalAlpha = p;
+      g.font = font(96); const tw = g.measureText('SAC').width, gap = 40, aw = 120, total = aw + gap + tw, x0 = W / 2 - total / 2;
+      g.restore();
+      arrow(x0 + aw / 2, 480, aw, { dir: 'right', p, w: 20 });
+      text('SAC', x0 + aw + gap + tw / 2, 482 + (1 - p) * 30, { s: 96, col: INK, a: p });
+    }
+  }
+}
+// 8 — Lever l'ambiguïté
+function plan8(t) {
+  g.fillStyle = DEEP; g.fillRect(0, 0, W, H);
+  leaf(860, 200, 1.4, 2.5, .06);
+  footWave(LAGON, H - 230, 1, t * .5);
+  const p = eOut(lin(t, 22.6, 23.05));
+  g.save(); g.globalAlpha = p; g.translate(0, (1 - p) * 40);
+  text('AUCUNE ASSIETTE', W / 2, 640, { s: 88 });
+  text('NI COUVERT JETABLE', W / 2, 750, { s: 88 });
+  text('NE SERA DISTRIBUÉ', W / 2, 860, { s: 88 });
+  g.restore();
+  const q = eBack(lin(t, 23.05, 23.45));
+  plate(W / 2 - 70, 1180, 130, { style: 'dispo', sc: q });
+  cutlery('fork', W / 2 + 140, 1180, 250, { style: 'dispo', rot: .12, sc: q });
+  if (q > 0) bar(W / 2 - 250, 1340, W / 2 + 260, 1020, clamp(lin(t, 23.05, 23.45) * 1.2), 22);
+}
+// 9 — Le rendez-vous
+function plan9(t) {
+  g.fillStyle = DEEP; g.fillRect(0, 0, W, H);
+  cover(PLAGE, W / 2 + 120, 700, 1500 * (1 + .03 * lin(t, 26, 30)), { blur: 2 });
+  g.fillStyle = vgrad([[0, 'rgba(10,63,120,.55)'], [.3, 'rgba(10,63,120,.72)'], [.55, 'rgba(10,63,120,.9)'], [1, DEEP]]); g.fillRect(0, 0, W, H);
+  logo(W / 2, 330, 860, { reveal: eOut(lin(t, 26.1, 26.6)) });
+  const pp = eBack(lin(t, 26.35, 26.75));
+  if (pp > 0) { const w = 560, h = PILL.height * w / PILL.width; g.save(); g.translate(W / 2 + 130, 535); g.scale(pp, pp); g.drawImage(PILL, -w / 2, -h / 2, w, h); g.restore(); }
+  rise('17 OCT. · 10 H–18 H', W / 2, 770, 26.6, t, { s: 92 });
+  rise('MTSANGAMOUJI', W / 2, 885, 26.7, t, { s: 96 });
+  const pc = lin(t, 26.85, 27.2);
+  if (pc > 0) {
+    g.save(); g.globalAlpha = clamp(pc * 3); g.translate(W / 2, 1110); g.rotate(-.03); const s = mix(.85, 1, eBack(pc)); g.scale(s, s);
+    g.fillStyle = ORANGE; g.beginPath(); g.roundRect(-450, -125, 900, 250, 60); g.fill();
+    text('VIENS AVEC TON ASSIETTE', 0, -45, { s: 64, col: INK, maxW: 820 });
+    text('ET TES COUVERTS !', 0, 48, { s: 64, col: INK, maxW: 820 });
+    g.restore();
+  }
+  // bande blanche ondulée + logos partenaires (proportions d'origine)
+  const pb = eOut(lin(t, 26.0, 26.6));
+  const bw = W + 24, bh = PART.height * bw / PART.width, by = H - bh + 8 + (1 - pb) * 300;
+  g.fillStyle = '#eef0ef'; g.fillRect(0, by + bh * .5, W, H);
+  g.drawImage(PART, -12, by, bw, bh);
+}
+
+// ================================================================ montage
+function render(t) {
+  g.save(); g.clearRect(0, 0, W, H);
+  if (t < S[1] + .4) {
+    plan1(t);
+    waveReveal(t, S[1] - .3, .6, () => plan2(t));
+  } else if (t < S[2] + .4) {
+    plan2(t);
+    waveReveal(t, S[2] - .3, .6, () => plan3(t), LAGON);
+  } else if (t < S[3]) plan3(t);
+  else if (t < S[4]) plan4(t);
+  else if (t < S[7] + .35) {
+    plan5to7(t);
+    waveReveal(t, S[7] - .3, .6, () => plan8(t));
+  } else if (t < S[8] + .35) {
+    plan8(t);
+    waveReveal(t, S[8] - .3, .6, () => plan9(t));
+  } else plan9(t);
+  // ouverture et fermeture douces
+  const f = Math.max(1 - lin(t, 0, .15), 0);
+  if (f > 0) { g.fillStyle = `rgba(10,63,120,${f})`; g.fillRect(0, 0, W, H); }
+  g.restore();
+}
+
+Promise.all([
+  img('assets/logo.png'), img('assets/marche-gourmand.png'), img('assets/femme-plateau.jpg'),
+  img('assets/plateau.jpg'), img('assets/plage.jpg'), img('assets/partenaires.png'),
+  document.fonts.load('900 80px Montserrat'),
+]).then(([a, b, cc, d, e, f]) => { LOGO = a; PILL = b; FEMME = cc; PLATEAU = d; PLAGE = e; PART = f; render(0); window.ready = true; });
+</script>
+</body></html>
