@@ -376,17 +376,21 @@ function objectBeat(T) {
 
 // ---------------------------------------------------------------- carte finale (tenue, lisible)
 function finalCard(T) {
-  const u = T - FINAL_T, w = 920, h = 1420;
+  // carte compacte, remontée : tout (partenaires compris) entre 350 et 1 340 px ; le bas reste libre pour la légende du Reel
+  const u = T - FINAL_T, w = 920, h = 1160;
   if (u < .17) return;
-  g.save(); g.translate(CX, 890); g.rotate(-.02); const pop = u < .17 + 1 / FPS_ANIM + 1e-6 ? 1.06 : 1; g.scale(pop * .85, pop * .85);   // 286 → 1 490 px
+  // vague blanche décorative en bas (comme l'affiche) : peut être recouverte par l'interface sans rien perdre
+  g.save(); g.fillStyle = '#fbf6ec'; g.beginPath(); g.moveTo(0, H); g.lineTo(0, 1650);
+  for (let x = 0; x <= W; x += 20) g.lineTo(x, 1650 + 26 * Math.sin(x / W * Math.PI * 2.2 + .6) + 10 * Math.sin(x / W * Math.PI * 7));
+  g.lineTo(W, H); g.closePath(); g.fill(); g.restore();
+  g.save(); g.translate(CX, 840); g.rotate(-.02); const pop = u < .17 + 1 / FPS_ANIM + 1e-6 ? 1.06 : 1; g.scale(pop * .85, pop * .85);
   cardFrame(w, h, WH);
-  const lw = 800, lh = LOGO_N.height * lw / LOGO_N.width; g.drawImage(LOGO_N, -lw / 2, -650, lw, lh);
-  if (u >= .1) { const pw2 = 450, ph2 = PILL.height * pw2 / PILL.width; g.drawImage(PILL, 200 - pw2 / 2, -370 - ph2 / 2, pw2, ph2); }
-  if (u >= .2) txt('17 OCTOBRE · 10H À 18H', 0, -220, { s: 96, col: NAVY, maxW: 820 });
-  if (u >= .3) txt('MTSANGAMOUJI', 0, -100, { s: 126, col: NAVY, maxW: 820 });
-  if (u >= .4) torn(0, 80, 1000, 170, { rot: -.035, col: BLEU, seed: 71 }, () => txt('VIENS AVEC TON KIT !', 0, 4, { s: 112, col: WH, maxW: 920 }));
-  if (u >= .6) txt('assiette · couverts · gobelet · sac', 0, 240, { f: 'Caveat', s: 68, col: NAVY, maxW: 840 });
-  if (u >= .8) { const bw = 920, bh = PART.height * bw / PART.width; g.drawImage(PART, -bw / 2, h / 2 - bh, bw, bh); }
+  const lw = 800, lh = LOGO_N.height * lw / LOGO_N.width; g.drawImage(LOGO_N, -lw / 2, -540, lw, lh);
+  if (u >= .25) { const pw2 = 450, ph2 = PILL.height * pw2 / PILL.width; g.drawImage(PILL, 200 - pw2 / 2, -255 - ph2 / 2, pw2, ph2); }
+  if (u >= .35) txt('17 OCTOBRE · 10H À 18H', 0, -110, { s: 96, col: NAVY, maxW: 820 });
+  if (u >= .45) txt('MTSANGAMOUJI', 0, 10, { s: 126, col: NAVY, maxW: 820 });
+  if (u >= .55) torn(0, 175, 1000, 160, { rot: -.035, col: BLEU, seed: 71 }, () => txt('VIENS AVEC TON KIT !', 0, 4, { s: 108, col: WH, maxW: 920 }));
+  if (u >= .75) { const bw = 900, bh = PART.height * bw / PART.width; g.drawImage(PART, -bw / 2, h / 2 - bh - 8, bw, bh); }
   g.restore();
 }
 
