@@ -70,6 +70,11 @@ base = np.array([0xf9, 0xa5, 0x1a], float)
 shade = crumple() * 1.6 + noise(240) * .06 + noise(40) * .03 + noise(3) * .05
 Image.fromarray(np.clip(base[None, None] * (1 + shade[..., None]), 0, 255).astype(np.uint8)).save(A + 'fond-orange.jpg', quality=92)
 
+# royal blue of the woman's dress on the illustrated poster (rafale.html background)
+base = np.array([0x06, 0x48, 0xf2], float)
+shade = crumple() * 1.6 + noise(240) * .07 + noise(40) * .03 + noise(3) * .05
+Image.fromarray(np.clip(base[None, None] * (1 + shade[..., None]), 0, 255).astype(np.uint8)).save(A + 'fond-bleu.jpg', quality=92)
+
 # card grain (multiply layer, near white): applied over every card
 g = 1 + noise(3, 1000, 1000) * .06 + noise(30, 1000, 1000) * .05 + crumple(1000, 1000, 25) * 3
 Image.fromarray(np.clip(g * 245, 0, 255).astype(np.uint8)).convert('RGB').save(A + 'grain-carte.jpg', quality=90)
