@@ -37,7 +37,14 @@ const RUN1 = [ // [début, durée, carte] : 2 demi-temps par carte, 3 pour le ki
   [hb(23), .81, 'assiette'], [hb(25), .81, 'couverts'], [hb(27), .81, 'gobelet'], [hb(29), .81, 'sac'],
 ];
 const OBJ = [hb(31), hb(34)];           // pause objet : tout dans le sac (3 demi-temps)
-const RUN2 = [[hb(34), .81, 'plage'], [hb(36), .81, 'serviette'], [hb(38), 1.22, 'creme'], [hb(41), .81, 'chapeau'], [hb(43), 1.62, 'aucun']];   // crème solaire : 3 demi-temps pour lire « minérale »   // « aucun jetable sur place » regroupé sur une carte
+const RUN2 = [[hb(34), .81, 'plage'], [hb(43), 1.62, 'aucun']];   // « aucun jetable sur place » regroupé sur une carte
+// Scène plage : chaque objet apparaît en grand avec son nom puis tombe dans le même sac (rappel du kit)
+const BEACH = [hb(36), hb(43)];
+const BEACH_ITEMS = [ // [apparition, chute, sticker, mot, sous-titre]
+  [hb(36), hb(37.4), 'towel', 'SERVIETTE', ''],
+  [hb(38), hb(40.4), 'sunscreen', 'CRÈME SOLAIRE', 'minérale = lagon protégé'],
+  [hb(41), hb(42.2), 'hat', 'CHAPEAU', ''],
+];
 const FINAL_T = hb(47), DUR = 23.74;   // carte finale blanche (version v3) tenue jusqu'à la fin
 // Version orange & bleu : le fond change de couleur à chaque chapitre, sur le temps
 const CHAP = [[0, 'B'], [hb(10), 'O'], [hb(20), 'B'], [hb(34), 'O'], [hb(43), 'B'], [hb(47), 'O']];
@@ -53,7 +60,7 @@ window.SFX = [
   ...RUN1.map(([t], i) => [t, 'slap', { k: .8 + (i % 3) * .1 }]),
   [hb(10) - .05, 'whoosh'], [hb(16) + .05, 'impact'], [hb(20) - .05, 'swoosh'], [hb(20) + .17, 'impact'], [hb(34) - .05, 'whoosh'],
   [OBJ[0], 'slap', { k: .6 }], [OBJ[0] + .15, 'drip'], [OBJ[0] + .29, 'drip', { pitch: 1.15 }], [OBJ[0] + .43, 'drip', { pitch: 1.3 }], [OBJ[0] + .57, 'drip', { pitch: 1.45 }], [OBJ[0] + .72, 'ding'], [OBJ[0] + .7, 'scribble'],
-  ...RUN2.map(([t]) => [t, 'slap']), [hb(44), 'pop', { pitch: 1.1 }], [hb(44) + .05, 'impact'], [hb(45), 'pop', { pitch: 1.3 }],
+  ...RUN2.map(([t]) => [t, 'slap']), [BEACH[0], 'slap', { k: .6 }], ...BEACH_ITEMS.flatMap(([a, d], i) => [[a, 'whoosh'], [a + .05, 'pop', { pitch: 1 + i * .15 }], [d + .2, 'drip', { pitch: 1 + i * .15 }]]), [hb(42.2) + .3, 'ding'], [hb(44), 'pop', { pitch: 1.1 }], [hb(44) + .05, 'impact'], [hb(45), 'pop', { pitch: 1.3 }],
   [FINAL_T, 'rustle', { d: .4 }], [FINAL_T + .17, 'slap'], [FINAL_T + .55, 'tape'], [FINAL_T + .95, 'jingle'],
 ];
 
@@ -355,6 +362,29 @@ function entry(T) {
 }
 
 // ---------------------------------------------------------------- pause objet : tout dans le sac
+function beachBag(T) {
+  const bx = CX, by = 1130, bw = 560;
+  // le sac du kit, déjà rempli : fourchette et gobelet dépassent
+  g.save(); g.translate(bx + jit(81, 2), by + jit(82, 2)); g.rotate(-.04); tote(bw, 'back', NAVY); g.restore();
+  sticker('fork', bx - 90, by - 190, { rot: -.25, sc: .5, id: 83 }); sticker('cup', bx + 110, by - 170, { rot: .2, sc: .42, id: 84 });
+  let cur = -1; BEACH_ITEMS.forEach(([a], i) => { if (T >= a) cur = i; });
+  BEACH_ITEMS.forEach(([a, d, key, word, sub], i) => {
+    if (T < a) return;
+    const q = lin(T, d, d + .22);                     // chute dans le sac
+    if (q >= 1) return;
+    const pin = T < a + 1 / FPS_ANIM + 1e-6 ? 1.12 : 1;
+    const x = mix(bx, bx + (i - 1) * 60, q), y = mix(730, by + 140, q * q), sc = mix(.78, .4, q) * pin;
+    sticker(key, x, y, { rot: mix(i % 2 ? .08 : -.08, i % 2 ? .7 : -.7, q), sc, id: 85 + i });
+  });
+  g.save(); g.translate(bx + jit(81, 2), by + jit(82, 2)); g.rotate(-.04); tote(bw, 'front'); g.restore();
+  // le mot de l'objet en cours, en haut (zone sûre)
+  if (cur >= 0) {
+    const [a, , , word, sub] = BEACH_ITEMS[cur];
+    bigWord(word, CX, 345, 170, { col: WH, depthCol: NAVY, outline: NAVY, depth: 14, id: 90 + cur, maxW: 900 });
+    if (sub) torn(CX, 462, 620, 92, { rot: -.03, col: WH, seed: 92 }, () => txt(sub, 0, 2, { f: 'Caveat', s: 62, col: NAVY, maxW: 580 }));
+  }
+  if (T >= hb(42.2) + .3) { g.save(); g.translate(bx + 210, by - 120); const k = T < hb(42.2) + .38 ? 1.2 : 1; g.scale(k, k); g.fillStyle = BLEU; g.beginPath(); g.arc(0, 0, 66, 0, Math.PI * 2); g.fill(); g.strokeStyle = WH; g.lineWidth = 15; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(-28, 2); g.lineTo(-8, 24); g.lineTo(30, -22); g.stroke(); g.restore(); }
+}
 function objectBeat(T) {
   const u = T - OBJ[0];
   txt('&', 170, 360, { f: 'Anton', s: 220, col: ORANGE });
@@ -402,6 +432,7 @@ function render(t) {
   if (T < ENTRY_END) entry(T);
   else if (T < OBJ[0]) runStack(RUN1, T, 0);
   else if (T < OBJ[1]) objectBeat(T);
+  else if (T >= BEACH[0] && T < BEACH[1]) beachBag(T);
   else if (T < FINAL_T) runStack(RUN2, T, 20);
   else { const f = clamp((T - FINAL_T) / .25); if (f < 1) { g.save(); g.translate(0, f * f * 1900); runStack(RUN2, FINAL_T - .01, 20); g.restore(); } finalCard(T); }   // la pile tombe, la carte finale claque
 }
