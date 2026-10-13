@@ -11,7 +11,7 @@ Re-rendu depuis la racine du dépôt : `SFX_STYLE=tropical video/build.sh tatabe
 ## Version « pile de cartes » (stop-motion)
 
 - `tatabe-cartes-viens-avec-ton-kit.mp4` : 25 s, 1080×1920, animation à 12 i/s façon stop-motion (pile de cartes, étiquettes déchirées, stickers, traits au feutre), musique tropicale à 120 bpm + bruitages papier.
-- `cartes.html` : l'animation ; `extract_cartes.py` : logo officiel détouré (version bleu marine et version blanche) et textures papier.
+- `cartes.html` : l'animation (plan 1 et fond : affiche illustrée, sans texte, via `extract_illustree.py`) ; `extract_cartes.py` : logo officiel détouré (version bleu marine et version blanche) et textures papier.
 - Polices : Anton (titres), Permanent Marker et Caveat (manuscrit), Montserrat.
 
 Re-rendu depuis `tatabe/` :

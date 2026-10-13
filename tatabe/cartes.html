@@ -15,12 +15,12 @@ canvas{display:block}
 const W = 1080, H = 1920;
 const main = document.getElementById('c');
 let g = main.getContext('2d');
-const NAVY = '#0b1a4f', LAGON = '#168acf', DEEP = '#0a3f78', LIGHT = '#bfe7f7', ORANGE = '#f99d0a', CREAM = '#f7f1e3', WH = '#ffffff', GREY = '#c9ced3', GREY_D = '#a7afb7', LAGON_L = '#1675b8';
+const NAVY = '#0b1a4f', VIVID = '#0b46a8', VIVID_R = '#1560d4', LAGON = '#168acf', DEEP = '#0a3f78', LIGHT = '#8fdff2', ORANGE = '#f99d0a', CREAM = '#f7f1e3', WH = '#ffffff', GREY = '#c9ced3', GREY_D = '#a7afb7', LAGON_L = '#1675b8';
 const FPS_ANIM = 12;                     // cadence stop-motion
 const S = [0, 3, 6, 10, 14, 18, 21, 25]; // 1 reveal, 2 engagement, 3 couverts, 4 gobelet, 5 sac, 6 règle, 7 rendez-vous
 
 window.SFX = [
-  [0.15, 'slap'], [0.7, 'pop'], [1.2, 'slap', { k: .7 }], [1.8, 'scribble'],
+  [0.15, 'slap'], [0.75, 'slap', { k: .7 }], [0.8, 'tape'], [1.4, 'scribble'], [1.9, 'pop', { pitch: 1.3 }],
   [S[1], 'slap'], [S[1] + .3, 'tape'], [S[1] + .45, 'pop', { pitch: .9 }], [S[1] + .65, 'impact'], [S[1] + .85, 'pop', { pitch: 1.1 }],
   [S[2], 'rustle'], [S[2] + .35, 'tape'], [S[2] + .6, 'pop'], [S[2] + .8, 'pop', { pitch: 1.15 }], [S[2] + .95, 'pop', { pitch: 1.3 }], [S[2] + 1.2, 'scribble'], [S[2] + 1.6, 'pop', { pitch: 1.4 }],
   [S[3], 'slap'], [S[3] + .35, 'tape'], [S[3] + .5, 'swoosh'], [S[3] + .95, 'ding'], [S[3] + 1.5, 'pop', { pitch: 1.3 }],
@@ -41,7 +41,7 @@ let STEP = 0, BOIL = 1;
 function jit(id, amp = 2) { return (hash(STEP, id) - .5) * 2 * amp * BOIL; }
 
 const img = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
-let FOND, GRAIN, LOGO_W, LOGO_N, PILL, PLATEAU, PART;
+let FOND, GRAIN, FEMME, LOGO_W, LOGO_N, PILL, PLATEAU, PART;
 
 // ---------------------------------------------------------------- texte
 function txt(str, x, y, { f = 'Anton', s = 80, col = WH, a = 1, align = 'center', maxW = 820, stroke = 0, strokeCol = WH, shadow = 0, ls = 0 } = {}) {
@@ -195,15 +195,14 @@ const FALL = S[6];
 const CARDS = [
   // pile de fond (bords visibles derrière, comme sur l'inspiration)
   { bg: ORANGE, state: T => slamIn(T, -1, .07, { fallOut: FALL }) },
-  { bg: NAVY, state: T => slamIn(T, -1, -.05, { fallOut: FALL + .05 }), deco: (w, h) => rays(w, h, '#13286b') },
+  { bg: VIVID, state: T => slamIn(T, -1, -.05, { fallOut: FALL + .05 }), deco: (w, h) => rays(w, h, VIVID_R) },
   // 1 — Reveal gourmand : carte photo
-  { bg: CREAM, state: T => slamIn(T, .1, -.035, { fallOut: FALL + .1 }), draw: T => {
-      g.save(); g.beginPath(); g.rect(-400, -550, 800, 820); g.clip();
-      const ih = 900, iw = PLATEAU.width * ih / PLATEAU.height; g.drawImage(PLATEAU, -iw / 2 + 40, -550 - 20, iw, ih); g.restore();
-      txt('Mtsangamouji · 17 oct.', 0, 345, { f: 'Caveat', s: 78, col: NAVY });
+  { bg: CREAM, w: 900, h: 1500, state: T => slamIn(T, .1, -.03, { fallOut: FALL + .1 }), draw: T => {
+      g.save(); g.beginPath(); g.rect(-410, -700, 820, 1330); g.clip();
+      const iw = 820 * 1.04 * (1 + .04 * lin(T, 0, 3)), ih = FEMME.height * iw / FEMME.width; g.drawImage(FEMME, -iw / 2, -700 - (ih - 1330) * .3, iw, ih); g.restore();
     } },
   // 2 — Engagement
-  { bg: NAVY, deco: (w, h) => rays(w, h, '#13286b'), state: T => slamIn(T, S[1], .03, { from: [60, -1500], rot0: .5, out: S[2], outTo: [-1600, 120], outRot: -.6 }), draw: T => {
+  { bg: VIVID, deco: (w, h) => rays(w, h, VIVID_R), state: T => slamIn(T, S[1], .03, { from: [60, -1500], rot0: .5, out: S[2], outTo: [-1600, 120], outRot: -.6 }), draw: T => {
       torn(0, -360, 520, 120, { rot: -.05, seed: 21, sc: eBack(lin(T, S[1] + .3, S[1] + .5)) }, () => txt('CETTE ANNÉE :', 0, 4, { f: 'Marker', s: 62, col: NAVY, maxW: 470 }));
       const a = lin(T, S[1] + .45, S[1] + .6); txt('VERS LE', 0, -205 + (1 - a) * 30, { s: 130, a });
       const z = lin(T, S[1] + .65, S[1] + .95);
@@ -254,7 +253,7 @@ const CARDS = [
         g.restore(); }
     } },
   // 6 — Règle du marché
-  { bg: NAVY, deco: (w, h) => rays(w, h, '#13286b'), state: T => slamIn(T, S[5], .025, { from: [0, -1500], rot0: .4, fallOut: FALL + .3 }), draw: T => {
+  { bg: VIVID, deco: (w, h) => rays(w, h, VIVID_R), state: T => slamIn(T, S[5], .025, { from: [0, -1500], rot0: .4, fallOut: FALL + .3 }), draw: T => {
       const l = (s0, str, y, col, s) => { const p = lin(T, S[5] + s0, S[5] + s0 + .12); if (p <= 0) return; g.save(); g.translate(0, y); const k = mix(1.5, 1, eOut(p)); g.scale(k, k); txt(str, 0, 0, { s, col, a: p, maxW: 800, shadow: col === ORANGE ? 10 : 0 }); g.restore(); };
       l(.2, 'AUCUN', -360, WH, 250); l(.35, 'JETABLE', -110, ORANGE, 250); l(.5, 'SUR PLACE', 120, WH, 200);
       torn(0, 395, 720, 210, { rot: -.04, seed: 61, sc: eBack(lin(T, S[5] + .7, S[5] + .9)) }, () => { txt('PRÉPARE TON KIT', 0, -42, { f: 'Marker', s: 64, col: NAVY, maxW: 660 }); txt('CHEZ TOI !', 0, 50, { f: 'Marker', s: 64, col: NAVY }); });
@@ -294,26 +293,28 @@ function render(t) {
   STEP = Math.floor(t * FPS_ANIM + 1e-6);
   BOIL = T >= S[6] + 1.4 ? 0 : 1;                            // carte finale immobile pour la lecture
   g.setTransform(1, 0, 0, 1, 0, 0);
-  g.drawImage(FOND, 0, 0, W, H);
+  { const sh = H * 1.08, sw = FOND.width * sh / FOND.height, px = -(sw - W) / 2 + Math.sin(T * .25) * 40, py = -(sh - H) / 2 + Math.cos(T * .2) * 25;
+    g.save(); g.filter = 'blur(3px) saturate(1.1)'; g.drawImage(FOND, px, py, sw, sh); g.restore();
+    const vg = g.createLinearGradient(0, 0, 0, H); vg.addColorStop(0, 'rgba(10,80,190,.18)'); vg.addColorStop(.5, 'rgba(10,80,190,0)'); vg.addColorStop(1, 'rgba(10,60,150,.3)');
+    g.fillStyle = vg; g.fillRect(0, 0, W, H); }
   // pile : du fond vers le dessus (la carte 3 est sous la 2 tant que la 2 n'est pas balayée)
   const order = [0, 1, 2, 4, 3, 5, 6, 7];
   for (const i of order) card(CARDS[i], T);
   card(FINAL, T);
   // éléments posés hors carte
   if (T < S[1] + .2) {
-    const lp = lin(T, .6, .85);
-    if (lp > 0) { const lw = 820, lh = LOGO_W.height * lw / LOGO_W.width; g.save(); g.translate(CX + jit(1, 2), 250 + jit(2, 2)); g.rotate(-.02); const k = eBack(lp); g.scale(k, k); g.drawImage(LOGO_W, -lw / 2, -lh / 2, lw, lh); g.restore(); }
-    torn(CX - 70, 1520, 760, 210, { rot: -.06, col: ORANGE, seed: 11, sc: eBack(lin(T, 1.15, 1.35)) }, () => { txt('LE MARCHÉ GOURMAND', 0, -44, { s: 70, col: NAVY, maxW: 700 }); txt('REVIENT !', 0, 50, { s: 104, col: WH, shadow: 6, maxW: 700 }); });
-    const ap = lin(T, 1.8, 2.25); hand(arrowPts(870, 1440, 820, 1150, 90), ap, { col: WH, w: 12, seed: 12 }); arrowHead(820, 1150, -1.75, ap, WH, 12, 36);
+    torn(CX + 40, 330, 760, 210, { rot: -.05, col: ORANGE, seed: 11, sc: eBack(lin(T, .7, .9)) }, () => { txt('LE MARCHÉ GOURMAND', 0, -44, { s: 70, col: NAVY, maxW: 700 }); txt('REVIENT !', 0, 50, { s: 104, col: WH, shadow: 6, maxW: 700 }); });
+    const ap = lin(T, 1.4, 1.85); hand(arrowPts(900, 470, 860, 1230, -120), ap, { col: WH, w: 13, seed: 12 }); arrowHead(860, 1230, 1.62, ap, WH, 13, 38);
+    txt('miam !', 905, 1330, { f: 'Caveat', s: 90, col: WH, a: lin(T, 1.9, 2.0) });
   }
 }
 
 Promise.all([
-  img('assets/fond-papier.jpg'), img('assets/grain-carte.jpg'), img('assets/logo-blanc.png'), img('assets/logo-navy.png'),
-  img('assets/marche-gourmand.png'), img('assets/plateau.jpg'), img('assets/partenaires.png'),
+  img('assets/fond-plage.jpg'), img('assets/grain-carte.jpg'), img('assets/logo-blanc.png'), img('assets/logo-navy.png'),
+  img('assets/marche-gourmand.png'), img('assets/plateau.jpg'), img('assets/partenaires.png'), img('assets/femme-illustree.jpg'),
   document.fonts.load('80px Anton'), document.fonts.load('80px Marker'), document.fonts.load('700 80px Caveat'), document.fonts.load('900 80px Montserrat'),
-]).then(([a, b, c1, d, e, f, h]) => {
-  FOND = a; GRAIN = b; LOGO_W = c1; LOGO_N = d; PILL = e; PLATEAU = f; PART = h;
+]).then(([a, b, c1, d, e, f, h, fe]) => {
+  FEMME = fe; FOND = a; GRAIN = b; LOGO_W = c1; LOGO_N = d; PILL = e; PLATEAU = f; PART = h;
   makeSticker('plate', 360, () => plate(160));
   makeSticker('fork', 360, () => { g.rotate(0); cutlery('fork', 330); });
   makeSticker('spoon', 360, () => cutlery('spoon', 330));
