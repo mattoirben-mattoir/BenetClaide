@@ -28,7 +28,7 @@ let STEP = 0, BOIL = 1;
 const jit = (id, amp = 2) => (hash(STEP, id) - .5) * 2 * amp * BOIL;
 
 // ---------------------------------------------------------------- minutage
-// Calé sur « Leo N'Gomma » (Baco), 74 BPM : extrait pris à 3,878 s du fichier source (4 demi-temps avant 5,5 s), demi-temps hb(n) en temps vidéo.
+// Calé sur « Leo N'Gomma » (Baco), 74 BPM : extrait pris à 2,256 s du fichier source (8 demi-temps avant 5,5 s), demi-temps hb(n) en temps vidéo.
 const hb = n => .077 + n * .4054;
 const ENTRY_END = hb(10);                 // entrée tenue un temps de plus
 const RUN1 = [ // [début, durée, carte] : 2 demi-temps par carte, 3 pour le kit
@@ -36,9 +36,9 @@ const RUN1 = [ // [début, durée, carte] : 2 demi-temps par carte, 3 pour le ki
   [hb(14), .81, 'objectif'], [hb(16), .81, 'zero'], [hb(18), .81, 'dechet'], [hb(20), 1.22, 'kit'],
   [hb(23), .81, 'assiette'], [hb(25), .81, 'couverts'], [hb(27), .81, 'gobelet'], [hb(29), .81, 'sac'],
 ];
-const OBJ = [hb(31), hb(37)];           // pause objet : tout dans le sac
-const RUN2 = [[hb(37), .81, 'sachet'], [hb(39), 1.62, 'aucun']];   // « aucun jetable sur place » regroupé sur une carte
-const FINAL_T = hb(43), DUR = 22.12;
+const OBJ = [hb(31), hb(35)];           // pause objet : tout dans le sac (raccourcie)
+const RUN2 = [[hb(35), .81, 'plage'], [hb(37), .81, 'serviette'], [hb(39), .81, 'creme'], [hb(41), .81, 'chapeau'], [hb(43), 1.62, 'aucun']];   // « aucun jetable sur place » regroupé sur une carte
+const FINAL_T = hb(47), DUR = 23.74, PART_T = DUR - 1.05;   // fin allégée, puis carte partenaires
 const ROT = [-.07, .05, -.03, .08, -.06, .04, -.08, .06, -.04, .07, -.05, .03];
 
 window.SFX = [
@@ -47,9 +47,9 @@ window.SFX = [
   [1.62, 'pop', { pitch: 1.2 }], [1.8, 'tape'], [2.05, 'scribble'], [2.4, 'pop'], [2.6, 'pop', { pitch: 1.1 }], [2.8, 'pop', { pitch: 1.25 }],
   ...RUN1.map(([t], i) => [t, 'slap', { k: .8 + (i % 3) * .1 }]),
   [hb(10) + .05, 'impact'], [hb(16) + .05, 'impact'], [hb(20) + .05, 'swoosh'],
-  [OBJ[0], 'slap', { k: .6 }], [OBJ[0] + .3, 'drip'], [OBJ[0] + .55, 'drip', { pitch: 1.15 }], [OBJ[0] + .8, 'drip', { pitch: 1.3 }], [OBJ[0] + 1.05, 'drip', { pitch: 1.45 }], [OBJ[0] + 1.3, 'ding'], [OBJ[0] + 1.2, 'scribble'],
-  ...RUN2.map(([t]) => [t, 'slap']), [hb(40), 'pop', { pitch: 1.1 }], [hb(40) + .05, 'impact'], [hb(41), 'pop', { pitch: 1.3 }],
-  [FINAL_T, 'impact'], [FINAL_T + .02, 'slap'], [FINAL_T + .25, 'slap', { k: .6 }], ...Array.from({ length: 12 }, (_, i) => [FINAL_T + .45 + i * .034, 'tick']), [FINAL_T + .95, 'tape'], [FINAL_T + 1.3, 'jingle'],
+  [OBJ[0], 'slap', { k: .6 }], [OBJ[0] + .2, 'drip'], [OBJ[0] + .38, 'drip', { pitch: 1.15 }], [OBJ[0] + .56, 'drip', { pitch: 1.3 }], [OBJ[0] + .74, 'drip', { pitch: 1.45 }], [OBJ[0] + .95, 'ding'], [OBJ[0] + .9, 'scribble'],
+  ...RUN2.map(([t]) => [t, 'slap']), [hb(44), 'pop', { pitch: 1.1 }], [hb(44) + .05, 'impact'], [hb(45), 'pop', { pitch: 1.3 }],
+  [FINAL_T, 'impact'], [FINAL_T + .02, 'slap'], [FINAL_T + .25, 'slap', { k: .6 }], ...Array.from({ length: 12 }, (_, i) => [FINAL_T + .45 + i * .034, 'tick']), [FINAL_T + .95, 'tape'], [FINAL_T + 1.3, 'jingle'], [PART_T, 'slap'],
 ];
 
 const img = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
@@ -150,6 +150,33 @@ function tote(w, part = 'all', handle = NAVY) {
   g.strokeStyle = NAVY; g.lineWidth = w * .035; g.lineCap = 'round'; g.beginPath();
   for (let i = 0; i <= 40; i++) g.lineTo(-w * .28 + i / 40 * w * .56, h * .22 + w * .03 * Math.sin(i / 40 * Math.PI * 4)); g.stroke();
 }
+function towel(w) { // serviette roulée à rayures
+  const h = w * .62; g.save(); g.rotate(-.05);
+  g.fillStyle = WH; g.beginPath(); g.roundRect(-w / 2, -h / 2, w, h, 26); g.fill();
+  g.save(); g.beginPath(); g.roundRect(-w / 2, -h / 2, w, h, 26); g.clip();
+  [[ORANGE, -.3], [BLEU, -.1], [ORANGE, .1], [TURQ, .3]].forEach(([c, y]) => { g.fillStyle = c; g.fillRect(-w / 2, y * h - h * .06, w, h * .12); }); g.restore();
+  g.fillStyle = '#f2f2f2'; g.beginPath(); g.ellipse(w / 2 - 10, 0, 60, h / 2, 0, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = '#d8d8d8'; g.lineWidth = 6; for (let r = 46; r > 6; r -= 14) { g.beginPath(); g.ellipse(w / 2 - 10, 0, r * .9, r * h / 120, 0, 0, Math.PI * 2); g.stroke(); }
+  g.fillStyle = WH; for (let x = -w / 2 + 18; x < w / 2 - 70; x += 26) { g.beginPath(); g.arc(x, h / 2, 7, 0, Math.PI); g.fill(); }
+  g.restore();
+}
+function sunscreen(h) { // tube de crème solaire
+  const w = h * .42; g.save();
+  g.fillStyle = WH; g.beginPath(); g.moveTo(-w / 2, -h / 2 + 40); g.lineTo(w / 2, -h / 2 + 40); g.lineTo(w / 2 - 12, h / 2); g.lineTo(-w / 2 + 12, h / 2); g.closePath(); g.fill();
+  g.fillStyle = BLEU; g.fillRect(-w / 2 + 6, -h / 2 + 40, w - 12, 28);
+  g.fillStyle = ORANGE; g.beginPath(); g.roundRect(-w * .32, -h / 2, w * .64, 46, 10); g.fill();
+  g.fillStyle = ORANGE; g.beginPath(); g.arc(0, -h * .02, w * .3, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = ORANGE; g.lineWidth = 8; g.lineCap = 'round'; for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; g.beginPath(); g.moveTo(Math.cos(a) * w * .36, -h * .02 + Math.sin(a) * w * .36); g.lineTo(Math.cos(a) * w * .46, -h * .02 + Math.sin(a) * w * .46); g.stroke(); }
+  txt('SPF 50', 0, h * .25, { s: w * .26, col: BLEU });
+  g.restore();
+}
+function hat(w) { // chapeau de soleil (bob à large bord)
+  g.save(); g.fillStyle = '#f3d9a4'; g.beginPath(); g.ellipse(0, w * .12, w / 2, w * .17, 0, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = '#d9b46a'; g.lineWidth = 6; g.beginPath(); g.ellipse(0, w * .12, w / 2 - 14, w * .17 - 10, 0, 0, Math.PI * 2); g.stroke();
+  g.fillStyle = '#f7e2b5'; g.beginPath(); g.moveTo(-w * .26, w * .1); g.bezierCurveTo(-w * .26, -w * .32, w * .26, -w * .32, w * .26, w * .1); g.closePath(); g.fill();
+  g.fillStyle = BLEU; g.beginPath(); g.moveTo(-w * .265, w * .02); g.lineTo(w * .265, w * .02); g.lineTo(w * .26, w * .1); g.lineTo(-w * .26, w * .1); g.closePath(); g.fill();
+  g.restore();
+}
 function plasticBag(h) {
   const w = h * .7; g.fillStyle = 'rgba(235,240,244,.96)'; g.strokeStyle = GREY_D; g.lineWidth = h * .03;
   g.beginPath(); g.moveTo(-w / 2, -h * .2); g.lineTo(-w * .32, -h / 2); g.lineTo(-w * .14, -h / 2); g.lineTo(-w * .1, -h * .25); g.lineTo(w * .1, -h * .25); g.lineTo(w * .14, -h / 2); g.lineTo(w * .32, -h / 2); g.lineTo(w / 2, -h * .2); g.lineTo(w * .46, h / 2); g.lineTo(-w * .46, h / 2); g.closePath(); g.fill(); g.stroke();
@@ -218,11 +245,22 @@ const CARDS = {
       txt('4.', -330, -410, { s: 150, col: NAVY });
       sticker('tote', 0, 0, { rot: -.05, id: 16 });
       bigWord('TON SAC', 0, 400, 190, { col: WH, depthCol: NAVY, outline: NAVY, depth: 14, id: 10 }); } },
-  sachet: { bg: NAVY, deco: () => rays('#13286b'), draw: u => {
-      g.save(); g.translate(0, -120); plasticBag(380); g.restore();
-      g.save(); g.strokeStyle = ORANGE; g.lineCap = 'round'; g.lineWidth = 40; g.beginPath(); g.moveTo(-230, 90); g.lineTo(230, -330); g.stroke(); g.restore();
-      bigWord('0 SACHET', 0, 220, 190, { col: ORANGE, depthCol: '#000a2e', outline: WH, depth: 14, id: 11 });
-      bigWord('PLASTIQUE', 0, 410, 150, { col: WH, depthCol: '#000a2e', outline: '#000a2e', depth: 10, id: 12 }); } },
+  plage: { bg: TURQ, deco: () => rays(TURQ_R), draw: u => {
+      bigWord('ET POUR', 0, -170, 220, { col: WH, depthCol: NAVY, outline: NAVY, depth: 16, id: 31 });
+      bigWord('LA PLAGE :', 0, 120, 220, { col: ORANGE, depthCol: NAVY, outline: WH, depth: 18, id: 32 });
+      sparkle(-320, -400, 50, WH, 31); sparkle(310, 400, 44, ORANGE, 32); } },
+  serviette: { bg: WH, deco: (w, h) => dots(w, h, 'rgba(6,72,242,.14)'), draw: u => {
+      sticker('towel', 0, -20, { rot: -.08, id: 33 });
+      if (u > .3) torn(230, -380, 300, 100, { rot: .06, col: ORANGE, seed: 91 }, () => txt('ou paréo', 0, 2, { f: 'Caveat', s: 74, col: NAVY }));
+      bigWord('SERVIETTE', 0, 400, 180, { col: BLEU, depthCol: NAVY, outline: NAVY, depth: 12, id: 34 }); } },
+  creme: { bg: ORANGE, deco: () => rays('#ffb43c'), draw: u => {
+      sticker('sunscreen', -10, -60, { rot: .12, id: 35 }); sparkle(-280, -330, 50, WH, 35); sparkle(270, -200, 36, WH, 36);
+      if (u > .3) torn(0, 210, 600, 100, { rot: -.04, seed: 92 }, () => txt('minérale = lagon protégé', 0, 2, { f: 'Caveat', s: 64, col: NAVY, maxW: 560 }));
+      bigWord('CRÈME SOLAIRE', 0, 410, 170, { col: WH, depthCol: NAVY, outline: NAVY, depth: 12, id: 36 }); } },
+  chapeau: { bg: CREAM, deco: grid, draw: u => {
+      sticker('hat', 0, -40, { rot: -.06, id: 37 });
+      if (u > .3) torn(-170, -400, 440, 100, { rot: -.05, col: BLEU, seed: 93 }, () => txt('soleil très fort !', 0, 2, { f: 'Caveat', s: 66, col: WH, maxW: 400 }));
+      bigWord('CHAPEAU', 0, 400, 190, { col: ORANGE, depthCol: NAVY, outline: NAVY, depth: 12, id: 38 }); } },
   aucun: { bg: ORANGE, deco: () => rays('#ffb43c'), draw: u => {
       bigWord('AUCUN', 0, -300, 270, { col: WH, depthCol: NAVY, outline: NAVY, depth: 18, id: 13 });
       if (u >= .4) bigWord('JETABLE', 0, -20, 290, { col: BLEU, depthCol: NAVY, outline: WH, depth: 22, id: 14 });
@@ -310,38 +348,41 @@ function objectBeat(T) {
   txt('ton kit !', 340, 410, { f: 'Caveat', s: 100, col: WH, align: 'left' });
   const bx = CX, by = 1050, bw = 640;
   g.save(); g.translate(bx + jit(91, 2), by + jit(92, 2)); g.rotate(-.04); tote(bw, 'back', ORANGE); g.restore();
-  [['plate', .3, -60], ['fork', .55, 40], ['spoon', .8, -20], ['cup', 1.05, 70]].forEach(([k, t0, dx], i) => {
-    const q = lin(u, t0 - .3, t0); if (q <= 0 || q >= 1) return;
+  [['plate', .2, -60], ['fork', .38, 40], ['spoon', .56, -20], ['cup', .74, 70]].forEach(([k, t0, dx], i) => {
+    const q = lin(u, t0 - .22, t0); if (q <= 0 || q >= 1) return;
     sticker(k, bx + dx * q + mix(320 * (i % 2 ? 1 : -1), 0, q), mix(380, by + 120, q * q), { rot: (1 - q) * (i % 2 ? .6 : -.6), sc: .85, id: 93 + i });
   });
   g.save(); g.translate(bx + jit(91, 2), by + jit(92, 2)); g.rotate(-.04); tote(bw, 'front'); g.restore();
   // traits de mouvement autour du sac
-  if (u > .3 && u < 1.4) { g.save(); g.strokeStyle = WH; g.lineWidth = 7; g.lineCap = 'round'; [[-1, -1], [1, -1], [-1, .3], [1, .3]].forEach(([sx, sy], i) => { const r0 = 330 + (STEP % 2) * 12; g.beginPath(); g.moveTo(bx + sx * r0, by + sy * 220); g.lineTo(bx + sx * (r0 + 60), by + sy * 250); g.stroke(); }); g.restore(); }
-  if (u >= 1.3) { g.save(); g.translate(bx + 220, by - 140); const k = u < 1.42 ? 1.2 : 1; g.scale(k, k); g.fillStyle = ORANGE; g.beginPath(); g.arc(0, 0, 70, 0, Math.PI * 2); g.fill(); g.strokeStyle = WH; g.lineWidth = 16; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(-30, 2); g.lineTo(-9, 26); g.lineTo(32, -24); g.stroke(); g.restore(); }
-  const words = [['tout', 1.2], ['dans', 1.4], ['ton sac !', 1.6]];
+  if (u > .2 && u < 1.0) { g.save(); g.strokeStyle = WH; g.lineWidth = 7; g.lineCap = 'round'; [[-1, -1], [1, -1], [-1, .3], [1, .3]].forEach(([sx, sy], i) => { const r0 = 330 + (STEP % 2) * 12; g.beginPath(); g.moveTo(bx + sx * r0, by + sy * 220); g.lineTo(bx + sx * (r0 + 60), by + sy * 250); g.stroke(); }); g.restore(); }
+  if (u >= .95) { g.save(); g.translate(bx + 220, by - 140); const k = u < 1.04 ? 1.2 : 1; g.scale(k, k); g.fillStyle = ORANGE; g.beginPath(); g.arc(0, 0, 70, 0, Math.PI * 2); g.fill(); g.strokeStyle = WH; g.lineWidth = 16; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(-30, 2); g.lineTo(-9, 26); g.lineTo(32, -24); g.stroke(); g.restore(); }
+  const words = [['tout', .9], ['dans', 1.05], ['ton sac !', 1.2]];
   let x = 230; words.forEach(([w, t0]) => { if (u >= t0) txt(w, x, 1620, { f: 'Caveat', s: 100, col: WH, align: 'left' }); g.save(); setFont('Caveat', 100); x += g.measureText(w + ' ').width; g.restore(); });
 }
 
 // ---------------------------------------------------------------- carte finale (tenue, lisible)
 function finalCard(T) {
-  const u = T - FINAL_T, w = 920, h = 1420;
+  // directement sur le fond bleu : logo blanc, date, lieu, appel à l'action — rien d'autre
+  const u = T - FINAL_T;
   const typed = (str, t0, rate = 24) => str.slice(0, Math.max(0, Math.min(str.length, Math.floor((u - t0) * rate + 1e-6) + 1)));
-  g.save(); g.translate(CX, 960); g.rotate(-.02);
-  const pop = u < 1 / FPS_ANIM + 1e-6 ? 1.16 : u < 2 / FPS_ANIM + 1e-6 ? .97 : 1; g.scale(pop, pop);   // arrivée plus marquée
-  cardFrame(w, h, WH);
-  const lw = 800, lh = LOGO_N.height * lw / LOGO_N.width; g.drawImage(LOGO_N, -lw / 2, -650, lw, lh);
-  if (u >= .1) { const pw2 = 450, ph2 = PILL.height * pw2 / PILL.width; g.drawImage(PILL, 200 - pw2 / 2, -330 - ph2 / 2, pw2, ph2); }
-  // tampon « 17 OCT. » posé de travers
-  if (u >= .25) { const k = u < .25 + 1 / FPS_ANIM ? 1.25 : 1; g.save(); g.translate(-235, -185); g.rotate(-.12); g.scale(k, k);
+  const pop = u < 1 / FPS_ANIM + 1e-6 ? 1.12 : 1;
+  g.save(); g.translate(CX, 0);
+  { const lw = 900 * pop, lh = LOGO_W.height * lw / LOGO_W.width; g.drawImage(LOGO_W, -lw / 2, 470 - lh / 2, lw, lh); }
+  if (u >= .1) { const pw2 = 470, ph2 = PILL.height * pw2 / PILL.width; g.drawImage(PILL, 200 - pw2 / 2, 680 - ph2 / 2, pw2, ph2); }
+  if (u >= .25) { const k = u < .25 + 1 / FPS_ANIM ? 1.25 : 1; g.save(); g.translate(-235, 880); g.rotate(-.1); g.scale(k, k);
     g.fillStyle = ORANGE; g.beginPath(); g.roundRect(-175, -82, 350, 164, 26); g.fill(); g.strokeStyle = NAVY; g.lineWidth = 6; g.setLineDash([14, 9]); g.beginPath(); g.roundRect(-160, -68, 320, 136, 18); g.stroke(); g.setLineDash([]);
     txt('SAM.', 0, -50, { s: 38, col: NAVY }); txt('17 OCT.', 0, 24, { s: 84, col: NAVY }); g.restore(); }
-  if (u >= .45) txt(typed('10H – 18H', .45), -20, -185, { s: 112, col: NAVY, align: 'left' });
-  if (u >= .7) txt(typed('MTSANGAMOUJI', .7), -405, -45, { s: 128, col: NAVY, align: 'left', maxW: 820 });
-  if (u >= 1.1) torn(0, 120, 1000, 170, { rot: -.035, col: ORANGE, seed: 71 }, () => txt('VIENS AVEC TON KIT !', 0, 4, { s: 112, col: NAVY, maxW: 920 }));
-  if (u >= 1.3) txt('assiette · couverts · gobelet · sac', -110, 275, { f: 'Caveat', s: 62, col: NAVY, maxW: 580 });
-  // petite photo de la femme : on boucle avec l'entrée
-  if (u >= 1.3) { g.save(); g.translate(330, 300); g.rotate(.12); g.shadowColor = 'rgba(0,0,0,.3)'; g.shadowBlur = 12; g.shadowOffsetY = 6; g.fillStyle = CREAM; g.fillRect(-100, -120, 200, 240); g.shadowColor = 'transparent'; g.translate(0, -20); photoIn(FEMME, 170, 170, 1.0, .5, .12); g.restore(); }
-  if (u >= .9) { const bw = 920, bh = PART.height * bw / PART.width; g.drawImage(PART, -bw / 2, h / 2 - bh, bw, bh); }
+  if (u >= .45) txt(typed('10H – 18H', .45), -20, 880, { s: 116, col: WH, align: 'left' });
+  if (u >= .7) txt(typed('MTSANGAMOUJI', .7), 0, 1050, { s: 140, col: WH, maxW: 900 });
+  if (u >= 1.0) txt('plage · rue Koudjouni', 0, 1160, { f: 'Caveat', s: 72, col: WH });
+  if (u >= 1.2) torn(0, 1360, 960, 180, { rot: -.035, col: ORANGE, seed: 71 }, () => txt('VIENS AVEC TON KIT !', 0, 4, { s: 116, col: NAVY, maxW: 880 }));
+  g.restore();
+}
+function partnersCard(T) {
+  const u = T - PART_T, w = 1000, h = 440, pop = u < 1 / FPS_ANIM + 1e-6 ? 1.08 : 1;
+  g.save(); g.translate(CX, 960); g.rotate(-.015); g.scale(pop, pop); cardFrame(w, h, WH);
+  txt('avec nos partenaires', 0, -150, { f: 'Caveat', s: 70, col: NAVY });
+  const bw = 940, bh = PART.height * bw / PART.width; g.drawImage(PART, -bw / 2, h / 2 - bh - 20, bw, bh);
   g.restore();
 }
 
@@ -354,7 +395,8 @@ function render(t) {
   else if (T < OBJ[0]) runStack(RUN1, T, 0);
   else if (T < OBJ[1]) objectBeat(T);
   else if (T < FINAL_T) runStack(RUN2, T, 20);
-  else { runStack(RUN2, FINAL_T - .01, 20); finalCard(T); }
+  else if (T < PART_T) finalCard(T);
+  else partnersCard(T);
 }
 
 Promise.all([
@@ -371,6 +413,9 @@ Promise.all([
   makeSticker('knife', 460, () => cutlery('knife', 430));
   makeSticker('cup', 560, () => cup(440), 20);
   makeSticker('tote', 620, () => tote(500), 18);
+  makeSticker('towel', 640, () => towel(560), 18);
+  makeSticker('sunscreen', 520, () => sunscreen(440), 18);
+  makeSticker('hat', 640, () => hat(560), 18);
   render(0); window.ready = true;
 });
 </script>

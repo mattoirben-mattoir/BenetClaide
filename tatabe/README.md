@@ -23,10 +23,10 @@ Re-rendu depuis `tatabe/` :
 - `tatabe-rafale-viens-avec-ton-kit.mp4` : 20,5 s, 1080×1920, 12 i/s façon stop-motion sur fond papier orange.
 - Entrée : photo instantanée (affiche illustrée) sous film protecteur qui se décolle, logo tataBé tapé lettre à lettre, « 2e édition ! », stickers posés un à un.
 - Rafale : une carte = une idée, posée d'un coup toutes les 0,6 à 1,3 s (UN ÉVÉNEMENT → ZÉRO → DÉCHET → PRÉPARE TON KIT → 1. ASSIETTE → 2. COUVERTS → 3. GOBELET → 4. TON SAC), pause « & voilà ton kit » (tout dans le sac), puis 0 SACHET PLASTIQUE → AUCUN JETABLE SUR PLACE (une carte), carte finale tenue 4,6 s.
-- `rafale.html` ; re-rendu depuis `tatabe/` : `SFX_OUT=sfx-rafale.json PAGE=rafale.html node ../video/render.js x x && SFX_STYLE=tropical SFX_BPM=124 python3 ../video/sfx.py sfx-rafale.json 22.12 audio-rafale.wav && PAGE=rafale.html DUR=20.5 node ../video/render.js audio-rafale.wav tatabe-rafale-viens-avec-ton-kit.mp4`
+- `rafale.html` ; re-rendu depuis `tatabe/` : `SFX_OUT=sfx-rafale.json PAGE=rafale.html node ../video/render.js x x && SFX_STYLE=tropical SFX_BPM=124 python3 ../video/sfx.py sfx-rafale.json 23.74 audio-rafale.wav && PAGE=rafale.html DUR=20.5 node ../video/render.js audio-rafale.wav tatabe-rafale-viens-avec-ton-kit.mp4`
 
 ### Musique de la version « rafale »
 
-- « Leo N'Gomma » de Baco (`assets/musique-baco-leo-ngomma.wav`, capté depuis l'enregistrement d'écran fourni), extrait de 3,878 s à 26 s (v4). Les cartes tombent sur les demi-temps (74 BPM, `hb(n)` dans `rafale.html`) et la carte finale arrive sur le passage le plus fort.
-- Mix : `SFX_MUSIC=0 python3 ../video/sfx.py sfx-rafale.json 22.12 sfx-rafale-effets.wav` puis
-  `ffmpeg -ss 3.878 -t 22.12 -i assets/musique-baco-leo-ngomma.wav -i sfx-rafale-effets.wav -filter_complex "[0:a]afade=t=in:d=0.25,afade=t=out:st=21.2:d=0.9[m];[1:a]volume=0.45[s];[m][s]amix=inputs=2:normalize=0:duration=first[a]" -map "[a]" audio-rafale.wav`.
+- « Leo N'Gomma » de Baco (`assets/musique-baco-leo-ngomma.wav`, capté depuis l'enregistrement d'écran fourni), extrait de 2,256 s à 26 s (v5). Les cartes tombent sur les demi-temps (74 BPM, `hb(n)` dans `rafale.html`) et la carte finale arrive sur le passage le plus fort.
+- Mix : `SFX_MUSIC=0 python3 ../video/sfx.py sfx-rafale.json 23.74 sfx-rafale-effets.wav` puis
+  `ffmpeg -ss 2.256 -t 23.74 -i assets/musique-baco-leo-ngomma.wav -i sfx-rafale-effets.wav -filter_complex "[0:a]afade=t=in:d=0.25,afade=t=out:st=22.84:d=0.9[m];[1:a]volume=0.45[s];[m][s]amix=inputs=2:normalize=0:duration=first[a]" -map "[a]" audio-rafale.wav`.
