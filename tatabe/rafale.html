@@ -30,13 +30,13 @@ const jit = (id, amp = 2) => (hash(STEP, id) - .5) * 2 * amp * BOIL;
 // ---------------------------------------------------------------- minutage
 // Calé sur « Leo N'Gomma » (Baco), 74 BPM : extrait pris à 5,5 s du fichier source, demi-temps hb(n) en temps vidéo.
 const hb = n => .077 + n * .4054;
-const ENTRY_END = hb(8);
+const ENTRY_END = hb(10);                 // entrée tenue un temps de plus
 const RUN1 = [ // [début, durée, carte] : 2 demi-temps par carte, 3 pour le kit
-  [hb(8), .81, 'cette'], [hb(10), .81, 'zero'], [hb(12), .81, 'dechet'], [hb(14), 1.22, 'kit'],
-  [hb(17), .81, 'assiette'], [hb(19), .81, 'couverts'], [hb(21), .81, 'gobelet'], [hb(23), .81, 'sac'],
+  [hb(10), .81, 'evenement'], [hb(12), .81, 'zero'], [hb(14), .81, 'dechet'], [hb(16), 1.22, 'kit'],
+  [hb(19), .81, 'assiette'], [hb(21), .81, 'couverts'], [hb(23), .81, 'gobelet'], [hb(25), .81, 'sac'],
 ];
-const OBJ = [hb(25), hb(31)];           // pause objet : tout dans le sac
-const RUN2 = [[hb(31), .81, 'sachet'], [hb(33), .81, 'aucun'], [hb(35), .81, 'jetable'], [hb(37), .81, 'surplace']];
+const OBJ = [hb(27), hb(33)];           // pause objet : tout dans le sac
+const RUN2 = [[hb(33), .81, 'sachet'], [hb(35), 1.62, 'aucun']];   // « aucun jetable sur place » regroupé sur une carte
 const FINAL_T = hb(39), DUR = 20.5;
 const ROT = [-.07, .05, -.03, .08, -.06, .04, -.08, .06, -.04, .07, -.05, .03];
 
@@ -45,9 +45,9 @@ window.SFX = [
   ...[0, 1, 2, 3, 4, 5].map(i => [1.1 + i * .083, 'tick']),
   [1.62, 'pop', { pitch: 1.2 }], [1.8, 'tape'], [2.05, 'scribble'], [2.4, 'pop'], [2.6, 'pop', { pitch: 1.1 }], [2.8, 'pop', { pitch: 1.25 }],
   ...RUN1.map(([t], i) => [t, 'slap', { k: .8 + (i % 3) * .1 }]),
-  [hb(10) + .05, 'impact'], [hb(14) + .05, 'swoosh'],
+  [hb(12) + .05, 'impact'], [hb(16) + .05, 'swoosh'],
   [OBJ[0], 'slap', { k: .6 }], [OBJ[0] + .3, 'drip'], [OBJ[0] + .55, 'drip', { pitch: 1.15 }], [OBJ[0] + .8, 'drip', { pitch: 1.3 }], [OBJ[0] + 1.05, 'drip', { pitch: 1.45 }], [OBJ[0] + 1.3, 'ding'], [OBJ[0] + 1.2, 'scribble'],
-  ...RUN2.map(([t]) => [t, 'slap']), [hb(35) + .05, 'impact'],
+  ...RUN2.map(([t]) => [t, 'slap']), [hb(36), 'pop', { pitch: 1.1 }], [hb(36) + .05, 'impact'], [hb(37), 'pop', { pitch: 1.3 }],
   [FINAL_T, 'slap'], [FINAL_T + .4, 'tape'], [FINAL_T + .8, 'jingle'],
 ];
 
@@ -185,7 +185,7 @@ function photoIn(im, w, h, zoom = 1, fx = .5, fy = .5) {
 const CW = 860, CH = 1100, CX = W / 2, CY = 940;
 // contenu de chaque carte : u = temps local (s depuis l'apparition)
 const CARDS = {
-  cette: { bg: NAVY, deco: () => rays('#13286b'), draw: u => { bigWord('CETTE', 0, -120, 230, { col: WH, depthCol: '#000a2e', outline: '#000a2e', id: 1 }); bigWord('ANNÉE :', 0, 140, 230, { col: TURQ, depthCol: '#000a2e', outline: '#000a2e', id: 2 }); sparkle(-330, -380, 50, ORANGE, 1); sparkle(320, 390, 40, WH, 2); } },
+  evenement: { bg: NAVY, deco: () => rays('#13286b'), draw: u => { bigWord('UN', 0, -170, 230, { col: WH, depthCol: '#000a2e', outline: '#000a2e', id: 1 }); bigWord('ÉVÉNEMENT', 0, 110, 230, { col: TURQ, depthCol: '#000a2e', outline: '#000a2e', id: 2 }); sparkle(-330, -380, 50, ORANGE, 1); sparkle(320, 390, 40, WH, 2); } },
   zero: { bg: VIVID, deco: () => rays(VIVID_R), draw: u => { bigWord('ZÉRO', 0, 20, 420, { col: ORANGE, depthCol: NAVY, outline: WH, depth: 26, id: 3 }); sparkle(-320, -360, 60, WH, 3); sparkle(330, -300, 34, ORANGE, 4); sparkle(300, 380, 54, WH, 5); } },
   dechet: { bg: TURQ, deco: () => rays(TURQ_R), draw: u => { bigWord('DÉCHET !', 0, 0, 300, { col: WH, depthCol: NAVY, outline: NAVY, depth: 20, id: 4 }); sparkle(-310, -330, 46, WH, 6); sparkle(300, 340, 40, ORANGE, 7); } },
   kit: { bg: WH, draw: u => {
@@ -212,9 +212,11 @@ const CARDS = {
       g.save(); g.strokeStyle = ORANGE; g.lineCap = 'round'; g.lineWidth = 40; g.beginPath(); g.moveTo(-230, 90); g.lineTo(230, -330); g.stroke(); g.restore();
       bigWord('0 SACHET', 0, 220, 190, { col: ORANGE, depthCol: '#000a2e', outline: WH, depth: 14, id: 11 });
       bigWord('PLASTIQUE', 0, 410, 150, { col: WH, depthCol: '#000a2e', outline: '#000a2e', depth: 10, id: 12 }); } },
-  aucun: { bg: VIVID, deco: () => rays(VIVID_R), draw: u => { bigWord('AUCUN', 0, 0, 340, { col: WH, depthCol: NAVY, outline: NAVY, depth: 22, id: 13 }); } },
-  jetable: { bg: NAVY, deco: () => rays('#13286b'), draw: u => { bigWord('JETABLE', 0, 0, 330, { col: ORANGE, depthCol: '#000a2e', outline: WH, depth: 22, id: 14 }); sparkle(-300, -330, 50, WH, 11); } },
-  surplace: { bg: TURQ, deco: () => rays(TURQ_R), draw: u => { bigWord('SUR', 0, -150, 280, { col: WH, depthCol: NAVY, outline: NAVY, depth: 20, id: 15 }); bigWord('PLACE !', 0, 150, 280, { col: WH, depthCol: NAVY, outline: NAVY, depth: 20, id: 16 }); } },
+  aucun: { bg: NAVY, deco: () => rays('#13286b'), draw: u => {
+      bigWord('AUCUN', 0, -300, 270, { col: WH, depthCol: '#000a2e', outline: '#000a2e', depth: 18, id: 13 });
+      if (u >= .4) bigWord('JETABLE', 0, -20, 290, { col: ORANGE, depthCol: '#000a2e', outline: WH, depth: 22, id: 14 });
+      if (u >= .8) bigWord('SUR PLACE', 0, 270, 230, { col: TURQ, depthCol: '#000a2e', outline: '#000a2e', depth: 18, id: 15 });
+      sparkle(-330, -440, 50, ORANGE, 11); sparkle(330, 450, 44, WH, 12); } },
 };
 function drawCard(key, t0, T, idx, { top = true } = {}) {
   const c = CARDS[key], u = T - t0, rot = ROT[idx % ROT.length];
@@ -269,19 +271,18 @@ function entry(T) {
     g.beginPath(); g.moveTo(-40, 50); g.lineTo(-70, 95); g.lineTo(0, 52); g.fillStyle = WH; g.fill(); g.stroke();
     txt('Karibu !', 0, 2, { f: 'Caveat', s: 70, col: NAVY }); g.restore();
   }
-  if (T >= 2.0) torn(110, 290, 430, 100, { rot: .04, seed: 44 }, () => { txt('c\'est le retour', -10, 0, { f: 'Caveat', s: 66, col: NAVY }); });
+  if (T >= 2.0) torn(110, 290, 430, 100, { rot: .04, seed: 44 }, () => { txt('2e édition !', -10, 0, { f: 'Caveat', s: 66, col: NAVY }); });
   hand(ellipsePts(110, 292, 240, 70, 1.05, -2.8), lin(T, 2.05, 2.45), { col: VIVID, w: 6, seed: 45 });
   g.restore();
-  // titre tapé lettre à lettre + curseur
-  const title = 'TATABÉ', n = Math.min(title.length, Math.floor((T - 1.1) * 12 + 1e-6) + 1);
+  // logo tataBé « tapé » lettre à lettre (révélé de gauche à droite, une lettre par image) + curseur
   if (T >= 1.1) {
-    const shown = title.slice(0, n);
-    g.save(); setFont('Anton', 190); const m = g.measureText(title).width; g.restore();
-    txt(shown, CX - m / 2, 250, { s: 190, col: NAVY, align: 'left' });
-    if (n < title.length || (STEP % 2 === 0 && T < 1.9)) { g.save(); setFont('Anton', 190); const mw = g.measureText(shown).width; g.restore(); g.fillStyle = NAVY; g.fillRect(CX - m / 2 + mw + 10, 175, 26, 150); }
+    const CUTS = [.17, .30, .44, .60, .82, 1.0], n = Math.min(CUTS.length, Math.floor((T - 1.1) * 12 + 1e-6) + 1);
+    const lw = 860, lh = LOGO_N.height * lw / LOGO_N.width, lx = CX - lw / 2, ly = 245 - lh / 2;
+    g.save(); g.beginPath(); g.rect(lx - 10, ly - 20, lw * CUTS[n - 1] + 10, lh + 40); g.clip(); g.drawImage(LOGO_N, lx + jit(51, 1.5), ly + jit(52, 1.5), lw, lh); g.restore();
+    if (n < CUTS.length || (STEP % 2 === 0 && T < 2.0)) { g.fillStyle = NAVY; g.fillRect(lx + lw * CUTS[n - 1] + 12, ly + lh * .3, 24, lh * .62); }
   }
   // étiquette tapée en haut à droite
-  if (T >= 1.8) { const s = 'le marché gourmand', k = Math.min(s.length, Math.floor((T - 1.8) * 30) + 1); torn(780, 395, 470, 92, { rot: .03, seed: 46 }, () => txt(s.slice(0, k), -205, 2, { f: 'Caveat', s: 60, col: NAVY, align: 'left' })); }
+  if (T >= 1.8) { const s = 'le marché gourmand', k = Math.min(s.length, Math.floor((T - 1.8) * 30) + 1); torn(790, 455, 470, 92, { rot: .03, seed: 46 }, () => txt(s.slice(0, k), -205, 2, { f: 'Caveat', s: 60, col: NAVY, align: 'left' })); }
   hand(swirlPts(110, 760, 70), lin(T, 2.2, 2.6), { col: NAVY, w: 7, seed: 47 });
   // mots du bas, un par un
   const words = [['REVIENT', 2.4, NAVY], ['!', 2.75, WH]];
