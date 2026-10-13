@@ -195,9 +195,38 @@ def jingle():
     return norm(out, .4)
 
 
+def slap(k=1.0):
+    """Card slammed on the pile: paper smack + soft table thump."""
+    n = int(.25 * SR); x = band(rng.standard_normal(n), 400, 6000) * env(n, .0008, .02)
+    t = t_(.25); th = np.sin(2 * np.pi * np.cumsum(70 + 60 * np.exp(-t / .02)) / SR) * env(n, .001, .06)
+    return norm(x + .8 * th, .55 * k)
+
+
+def tape():
+    """Sticky tape / label pressed down: short tearing crackle."""
+    n = int(.22 * SR); x = band(rng.standard_normal(n), 2000, 9000)
+    am = (rng.random(n) < .02).astype(float); am = np.convolve(am, np.ones(60) / 60, 'same')
+    return norm(x * (.3 + am * 3) * env(n, .01, .08), .28)
+
+
+def rustle(d=.45):
+    """Paper swept away: fluttering band noise."""
+    n = int(d * SR); t = t_(d); x = band(rng.standard_normal(n), 800, 7000)
+    x *= (.6 + .4 * np.sin(2 * np.pi * 23 * t)) * np.sin(np.pi * t / d) ** 1.2
+    return norm(x, .4)
+
+
+def scribble(d=.45):
+    """Marker on paper: scratchy strokes."""
+    n = int(d * SR); t = t_(d); x = band(rng.standard_normal(n), 1500, 6000)
+    x *= np.abs(np.sin(2 * np.pi * 5.5 * t)) ** 2 * np.minimum(t / .03, 1) * np.minimum((d - t) / .05, 1)
+    return norm(x, .22)
+
+
 FX = {'whoosh': whoosh, 'swoosh': swoosh, 'camera': camera, 'pop': pop, 'tick': tick, 'ding': ding,
       'error': error, 'hiss': hiss, 'rattle': rattle, 'roll': roll, 'impact': impact, 'riser': riser,
-      'step': step, 'stumble': stumble, 'snap': snap, 'blip': blip, 'honk': honk, 'screech': screech, 'jingle': jingle, 'thunder': thunder, 'drip': drip}
+      'step': step, 'stumble': stumble, 'snap': snap, 'blip': blip, 'honk': honk, 'screech': screech, 'jingle': jingle, 'thunder': thunder, 'drip': drip,
+      'slap': slap, 'tape': tape, 'rustle': rustle, 'scribble': scribble}
 # where the "hit" of each effect sits inside its sample (so the hit lands on the event time)
 HIT = {'whoosh': .2, 'swoosh': .12, 'camera': .3, 'riser': .8}
 GAIN = {'tick': .8, 'pop': 1.0}

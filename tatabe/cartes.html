@@ -1,0 +1,328 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:Anton;src:url(assets/Anton.woff2)}
+@font-face{font-family:Marker;src:url(assets/PermanentMarker.woff2)}
+@font-face{font-family:Caveat;src:url(assets/Caveat-Bold.woff2);font-weight:700}
+@font-face{font-family:Montserrat;src:url(assets/Montserrat.ttf);font-weight:100 900}
+html,body{margin:0;background:#168acf}
+canvas{display:block}
+</style></head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script>
+// tataBé « Viens avec ton kit » : pile de cartes en stop-motion, 25 s, sans voix off.
+const W = 1080, H = 1920;
+const main = document.getElementById('c');
+let g = main.getContext('2d');
+const NAVY = '#0b1a4f', LAGON = '#168acf', DEEP = '#0a3f78', LIGHT = '#bfe7f7', ORANGE = '#f99d0a', CREAM = '#f7f1e3', WH = '#ffffff', GREY = '#c9ced3', GREY_D = '#a7afb7', LAGON_L = '#1675b8';
+const FPS_ANIM = 12;                     // cadence stop-motion
+const S = [0, 3, 6, 10, 14, 18, 21, 25]; // 1 reveal, 2 engagement, 3 couverts, 4 gobelet, 5 sac, 6 règle, 7 rendez-vous
+
+window.SFX = [
+  [0.15, 'slap'], [0.7, 'pop'], [1.2, 'slap', { k: .7 }], [1.8, 'scribble'],
+  [S[1], 'slap'], [S[1] + .3, 'tape'], [S[1] + .45, 'pop', { pitch: .9 }], [S[1] + .65, 'impact'], [S[1] + .85, 'pop', { pitch: 1.1 }],
+  [S[2], 'rustle'], [S[2] + .35, 'tape'], [S[2] + .6, 'pop'], [S[2] + .8, 'pop', { pitch: 1.15 }], [S[2] + .95, 'pop', { pitch: 1.3 }], [S[2] + 1.2, 'scribble'], [S[2] + 1.6, 'pop', { pitch: 1.4 }],
+  [S[3], 'slap'], [S[3] + .35, 'tape'], [S[3] + .5, 'swoosh'], [S[3] + .95, 'ding'], [S[3] + 1.5, 'pop', { pitch: 1.3 }],
+  [S[4], 'slap'], [S[4] + .35, 'tape'], [S[4] + .6, 'slap', { k: .6 }], [S[4] + 1.4, 'drip'], [S[4] + 1.7, 'drip', { pitch: 1.15 }], [S[4] + 1.9, 'drip', { pitch: 1.3 }], [S[4] + 2.1, 'drip', { pitch: 1.45 }], [S[4] + 2.5, 'ding'], [S[4] + 2.8, 'slap', { k: .6 }],
+  [S[5], 'slap'], [S[5] + .2, 'impact'], [S[5] + .35, 'pop'], [S[5] + .5, 'pop', { pitch: 1.2 }], [S[5] + .9, 'tape'],
+  [S[6], 'rustle'], [S[6] + .3, 'slap'], [S[6] + .7, 'tape'], [S[6] + 1.1, 'jingle'],
+];
+
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const lin = (t, a, b) => clamp((t - a) / (b - a));
+const eOut = x => 1 - Math.pow(1 - x, 3);
+const eIn = x => x * x * x;
+const eBack = x => { const c1 = 1.7, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const mix = (a, b, p) => a + (b - a) * p;
+// bruit déterministe : tremblement image par image (stop-motion « boil »)
+function hash(a, b) { let h = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return h - Math.floor(h); }
+let STEP = 0, BOIL = 1;
+function jit(id, amp = 2) { return (hash(STEP, id) - .5) * 2 * amp * BOIL; }
+
+const img = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
+let FOND, GRAIN, LOGO_W, LOGO_N, PILL, PLATEAU, PART;
+
+// ---------------------------------------------------------------- texte
+function txt(str, x, y, { f = 'Anton', s = 80, col = WH, a = 1, align = 'center', maxW = 820, stroke = 0, strokeCol = WH, shadow = 0, ls = 0 } = {}) {
+  if (a <= 0) return;
+  g.save(); g.globalAlpha *= a; g.font = `${f === 'Caveat' ? '700 ' : ''}${s}px ${f}`;
+  if (ls) g.letterSpacing = ls + 'px';
+  const m = g.measureText(str).width; if (m > maxW) { s *= maxW / m; g.font = `${f === 'Caveat' ? '700 ' : ''}${s}px ${f}`; }
+  g.textAlign = align; g.textBaseline = 'middle';
+  if (shadow) { g.fillStyle = NAVY; g.fillText(str, x + shadow, y + shadow); }
+  if (stroke) { g.lineJoin = 'round'; g.lineWidth = stroke; g.strokeStyle = strokeCol; g.strokeText(str, x, y); }
+  g.fillStyle = col; g.fillText(str, x, y); g.restore();
+}
+
+// ---------------------------------------------------------------- papier
+// Étiquette en papier déchiré (bords irréguliers, ombre portée)
+function tornPath(w, h, seed) {
+  g.beginPath(); const st = 14;
+  for (let x = -w / 2; x <= w / 2; x += st) g.lineTo(x, -h / 2 + (hash(seed, x) - .5) * 7);
+  for (let y = -h / 2; y <= h / 2; y += st) g.lineTo(w / 2 + (hash(seed + 1, y) - .5) * 14, y);
+  for (let x = w / 2; x >= -w / 2; x -= st) g.lineTo(x, h / 2 + (hash(seed + 2, x) - .5) * 7);
+  for (let y = h / 2; y >= -h / 2; y -= st) g.lineTo(-w / 2 + (hash(seed + 3, y) - .5) * 14, y);
+  g.closePath();
+}
+function torn(x, y, w, h, { rot = 0, col = WH, seed = 1, sc = 1, a = 1 } = {}, inner) {
+  if (sc <= 0 || a <= 0) return;
+  g.save(); g.globalAlpha *= a; g.translate(x + jit(seed, 2), y + jit(seed + 9, 2)); g.rotate(rot + jit(seed + 5, .006)); g.scale(sc, sc);
+  g.save(); g.shadowColor = 'rgba(0,0,0,.28)'; g.shadowBlur = 10; g.shadowOffsetY = 6; tornPath(w, h, seed); g.fillStyle = col; g.fill(); g.restore();
+  g.save(); tornPath(w, h, seed); g.clip(); g.globalCompositeOperation = 'multiply'; g.globalAlpha = .5; g.drawImage(GRAIN, -w / 2, -h / 2, Math.max(w, 400), Math.max(h, 400)); g.restore();
+  // ruban adhésif
+  g.fillStyle = 'rgba(255,255,255,.55)'; g.save(); g.translate(-w / 2 + 10, -h / 2 + 4); g.rotate(-.6); g.fillRect(-36, -14, 72, 28); g.restore();
+  if (inner) inner();
+  g.restore();
+}
+// Carte : fond, texture, ombre ; contenu dessiné en coordonnées locales (centre de la carte)
+function card(c, T) {
+  const s = c.state(T); if (!s) return;
+  g.save(); g.translate(s.x, s.y); g.rotate(s.rot); g.scale(s.sc || 1, s.sc || 1);
+  const w = c.w || 880, h = c.h || 1180;
+  g.save(); g.shadowColor = 'rgba(0,20,50,.38)'; g.shadowBlur = 30; g.shadowOffsetY = 14; g.fillStyle = c.bg; g.fillRect(-w / 2, -h / 2, w, h); g.restore();
+  g.save(); g.beginPath(); g.rect(-w / 2, -h / 2, w, h); g.clip();
+  if (c.deco) c.deco(w, h);
+  g.globalCompositeOperation = 'multiply'; g.globalAlpha = .55; g.drawImage(GRAIN, -w / 2, -h / 2, w, h); g.restore();
+  if (c.draw) c.draw(T);
+  g.restore();
+}
+function rays(w, h, col) {
+  g.fillStyle = col;
+  for (let i = 0; i < 24; i += 2) { const a0 = i / 24 * Math.PI * 2, a1 = (i + 1) / 24 * Math.PI * 2; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a0) * 2000, Math.sin(a0) * 2000); g.lineTo(Math.cos(a1) * 2000, Math.sin(a1) * 2000); g.fill(); }
+}
+function grid(w, h) {
+  g.strokeStyle = 'rgba(22,138,207,.22)'; g.lineWidth = 2;
+  for (let x = -w / 2; x < w / 2; x += 44) { g.beginPath(); g.moveTo(x, -h / 2); g.lineTo(x, h / 2); g.stroke(); }
+  for (let y = -h / 2; y < h / 2; y += 44) { g.beginPath(); g.moveTo(-w / 2, y); g.lineTo(w / 2, y); g.stroke(); }
+}
+function dots(w, h, col) { g.fillStyle = col; for (let y = -h / 2; y < h / 2; y += 60) for (let x = -w / 2 + (y / 60 % 2 ? 30 : 0); x < w / 2; x += 60) { g.beginPath(); g.arc(x, y, 7, 0, Math.PI * 2); g.fill(); } }
+
+// Trait à la main (feutre), tracé progressif
+function hand(pts, p, { col = ORANGE, w = 10, seed = 1 } = {}) {
+  if (p <= 0) return;
+  const n = Math.max(2, Math.floor(pts.length * clamp(p)));
+  g.save(); g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath();
+  for (let i = 0; i < n; i++) g.lineTo(pts[i][0] + (hash(seed, i) - .5) * 3, pts[i][1] + (hash(seed + 1, i) - .5) * 3);
+  g.stroke(); g.restore();
+}
+function ellipsePts(cx, cy, rx, ry, turns = 1.12, a0 = -2.4) { const p = []; for (let i = 0; i <= 80; i++) { const a = a0 + i / 80 * Math.PI * 2 * turns, k = 1 + .06 * Math.sin(i * .3); p.push([cx + Math.cos(a) * rx * k, cy + Math.sin(a) * ry * k]); } return p; }
+function arrowPts(x0, y0, x1, y1, bend = 60) { const p = []; for (let i = 0; i <= 30; i++) { const t = i / 30, mx = (x0 + x1) / 2 - (y1 - y0) / 400 * bend, my = (y0 + y1) / 2 + (x1 - x0) / 400 * bend; p.push([(1 - t) ** 2 * x0 + 2 * (1 - t) * t * mx + t * t * x1, (1 - t) ** 2 * y0 + 2 * (1 - t) * t * my + t * t * y1]); } return p; }
+function arrowHead(x1, y1, ang, p, col = ORANGE, w = 10, L = 34) { if (p < 1) return; g.save(); g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'round'; g.beginPath(); g.moveTo(x1 + Math.cos(ang + 2.6) * L, y1 + Math.sin(ang + 2.6) * L); g.lineTo(x1, y1); g.lineTo(x1 + Math.cos(ang - 2.6) * L, y1 + Math.sin(ang - 2.6) * L); g.stroke(); g.restore(); }
+function sparkle(x, y, r, p, col = WH) {
+  if (p <= 0) return; const k = Math.sin(clamp(p) * Math.PI) * .4 + (p >= 1 ? .8 : eBack(clamp(p)) * .8);
+  g.save(); g.translate(x, y); g.scale(k, k); g.fillStyle = col; g.beginPath();
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2, rr = i % 2 ? r * .28 : r; g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+  g.fill(); g.restore();
+}
+
+// ---------------------------------------------------------------- pictogrammes (même famille que la version précédente)
+const P = {
+  fork: new Path2D('M5 4v18c0 5 3 8 7 8s7-3 7-8V4M9.6 4v15M14.4 4v15M12 30v48'),
+  spoonHead: new Path2D('M12 4c4.2 0 7.5 5 7.5 11s-3.3 11-7.5 11-7.5-5-7.5-11 3.3-11 7.5-11z'),
+  spoonHandle: new Path2D('M12 26v52'),
+  knife: new Path2D('M10 78V40c-3 0-4-6-4-16S8 4 14 4c2 0 3 2 3 5v31h-7z'),
+  knifeHandle: new Path2D('M13 44v34'),
+};
+function cutlery(kind, h) {
+  const k = h / 84; g.save(); g.scale(k, k); g.translate(-12, -42); g.lineCap = 'round'; g.lineJoin = 'round';
+  const out = LAGON_L, fill = '#f2f6fa';
+  const two = (p, wide, thin) => { g.strokeStyle = out; g.lineWidth = wide; g.stroke(p); g.strokeStyle = fill; g.lineWidth = thin; g.stroke(p); };
+  const filled = p => { g.lineWidth = 2.4; g.strokeStyle = out; g.fillStyle = fill; g.fill(p); g.stroke(p); };
+  if (kind === 'fork') two(P.fork, 5.4, 2.8);
+  if (kind === 'spoon') { two(P.spoonHandle, 6.2, 3.6); filled(P.spoonHead); }
+  if (kind === 'knife') { two(P.knifeHandle, 7.4, 4.8); filled(P.knife); }
+  g.restore();
+}
+function plate(r) {
+  g.fillStyle = WH; g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = LAGON_L; g.lineWidth = r * .085; g.beginPath(); g.arc(0, 0, r * .955, 0, Math.PI * 2); g.stroke();
+  g.strokeStyle = '#d6e6f2'; g.lineWidth = r * .03; g.beginPath(); g.arc(0, 0, r * .66, 0, Math.PI * 2); g.stroke();
+}
+function cup(h) {
+  const tw = h * .36, bw = h * .27, top = -h / 2, bot = h / 2;
+  const body = () => { g.beginPath(); g.moveTo(-tw, top); g.lineTo(tw, top); g.lineTo(bw, bot); g.quadraticCurveTo(0, bot + h * .03, -bw, bot); g.closePath(); };
+  g.strokeStyle = LAGON_L; g.lineWidth = h * .06; g.beginPath(); g.ellipse(tw * .98, 0, h * .14, h * .2, 0, -Math.PI / 2, Math.PI / 2); g.stroke();
+  body(); g.fillStyle = '#f2f6fa'; g.fill(); g.lineWidth = h * .025; g.stroke();
+  g.save(); body(); g.clip(); g.fillStyle = LAGON_L; g.fillRect(-tw, -h * .08, tw * 2, h * .16); g.restore();
+  g.lineWidth = h * .035; g.beginPath(); g.moveTo(-tw, top); g.lineTo(tw, top); g.stroke();
+}
+function plasticBag(h) { // sachet plastique (gris translucide)
+  const w = h * .7; g.save(); g.fillStyle = 'rgba(230,236,240,.95)'; g.strokeStyle = GREY_D; g.lineWidth = h * .03;
+  g.beginPath(); g.moveTo(-w / 2, -h * .2); g.lineTo(-w * .32, -h / 2); g.lineTo(-w * .14, -h / 2); g.lineTo(-w * .1, -h * .25); g.lineTo(w * .1, -h * .25); g.lineTo(w * .14, -h / 2); g.lineTo(w * .32, -h / 2); g.lineTo(w / 2, -h * .2); g.lineTo(w * .46, h / 2); g.lineTo(-w * .46, h / 2); g.closePath(); g.fill(); g.stroke();
+  g.restore();
+}
+// Sticker : objet découpé avec liseré blanc épais et ombre (rendu hors écran, mis en cache)
+const STK = {};
+function makeSticker(key, size, drawFn, border = 16) {
+  if (STK[key]) return STK[key];
+  const cv = document.createElement('canvas'); cv.width = cv.height = size; const cx = cv.getContext('2d');
+  const prev = g; g = cx; g.translate(size / 2, size / 2); drawFn(); g = prev;
+  const sil = document.createElement('canvas'); sil.width = sil.height = size; const sx = sil.getContext('2d');
+  sx.drawImage(cv, 0, 0); sx.globalCompositeOperation = 'source-in'; sx.fillStyle = WH; sx.fillRect(0, 0, size, size);
+  const out = document.createElement('canvas'); out.width = out.height = size + border * 2; const ox = out.getContext('2d');
+  for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2; ox.drawImage(sil, border + Math.cos(a) * border, border + Math.sin(a) * border); }
+  ox.drawImage(cv, border, border);
+  return (STK[key] = out);
+}
+function sticker(key, x, y, { rot = 0, sc = 1, a = 1, id = 0 } = {}) {
+  const s = STK[key]; if (!s || sc <= 0 || a <= 0) return;
+  g.save(); g.globalAlpha *= a; g.translate(x + jit(id, 2), y + jit(id + 3, 2)); g.rotate(rot + jit(id + 7, .01)); g.scale(sc, sc);
+  g.shadowColor = 'rgba(0,20,50,.35)'; g.shadowBlur = 14; g.shadowOffsetY = 8;
+  g.drawImage(s, -s.width / 2, -s.height / 2); g.restore();
+}
+// Chute d'un sticker : arrive d'en haut avec rotation, se cale
+function fall(key, x, y, t0, T, o = {}) {
+  const p = lin(T, t0, t0 + .34); if (p <= 0) return;
+  const yy = mix(y + (o.from ?? -700), y, eOut(p)), r = mix(o.rot0 ?? -.6, o.rot ?? 0, eOut(p));
+  sticker(key, x, yy, { rot: r, sc: (o.sc || 1) * (p < 1 ? mix(1.2, 1, p) : 1), id: o.id || 0 });
+}
+
+// ---------------------------------------------------------------- cartes
+// state(T) -> {x, y, rot, sc} ; null = hors champ
+const CX = W / 2, CY = 990;
+function slamIn(T, t0, rot, { from = [0, -1500], rot0 = -.5, out = 1e9, outTo = [-1500, 200], outRot = -.5, fallOut = 1e9 } = {}) {
+  if (T < t0) return null;
+  const p = lin(T, t0, t0 + .3);
+  let x = CX + from[0] * (1 - eOut(p)), y = CY + from[1] * (1 - eOut(p)), r = mix(rot0, rot, eOut(p)), sc = p < 1 ? mix(1.12, 1, eOut(p)) : 1;
+  const q = lin(T, out, out + .3); if (q >= 1) return null;
+  if (q > 0) { x += outTo[0] * eIn(q); y += outTo[1] * eIn(q); r += outRot * eIn(q); }
+  const f = lin(T, fallOut, fallOut + .35); if (f >= 1) return null;
+  if (f > 0) { y += 1700 * eIn(f); r += .3 * eIn(f); }
+  return { x: x + jit(t0 * 10, 1.5), y: y + jit(t0 * 10 + 1, 1.5), rot: r + jit(t0 * 10 + 2, .004), sc };
+}
+const FALL = S[6];
+const CARDS = [
+  // pile de fond (bords visibles derrière, comme sur l'inspiration)
+  { bg: ORANGE, state: T => slamIn(T, -1, .07, { fallOut: FALL }) },
+  { bg: NAVY, state: T => slamIn(T, -1, -.05, { fallOut: FALL + .05 }), deco: (w, h) => rays(w, h, '#13286b') },
+  // 1 — Reveal gourmand : carte photo
+  { bg: CREAM, state: T => slamIn(T, .1, -.035, { fallOut: FALL + .1 }), draw: T => {
+      g.save(); g.beginPath(); g.rect(-400, -550, 800, 820); g.clip();
+      const ih = 900, iw = PLATEAU.width * ih / PLATEAU.height; g.drawImage(PLATEAU, -iw / 2 + 40, -550 - 20, iw, ih); g.restore();
+      txt('Mtsangamouji · 17 oct.', 0, 345, { f: 'Caveat', s: 78, col: NAVY });
+    } },
+  // 2 — Engagement
+  { bg: NAVY, deco: (w, h) => rays(w, h, '#13286b'), state: T => slamIn(T, S[1], .03, { from: [60, -1500], rot0: .5, out: S[2], outTo: [-1600, 120], outRot: -.6 }), draw: T => {
+      torn(0, -360, 520, 120, { rot: -.05, seed: 21, sc: eBack(lin(T, S[1] + .3, S[1] + .5)) }, () => txt('CETTE ANNÉE :', 0, 4, { f: 'Marker', s: 62, col: NAVY, maxW: 470 }));
+      const a = lin(T, S[1] + .45, S[1] + .6); txt('VERS LE', 0, -205 + (1 - a) * 30, { s: 130, a });
+      const z = lin(T, S[1] + .65, S[1] + .95);
+      if (z > 0) { g.save(); g.translate(0, 100); g.rotate(-.04); const k = eBack(z) * (1 + Math.sin(T * 9) * .015 * BOIL); g.scale(k, k); txt('ZÉRO', 0, 0, { s: 330, col: ORANGE, stroke: 22, strokeCol: WH, shadow: 14, maxW: 760 }); g.restore(); }
+      const d = lin(T, S[1] + .85, S[1] + 1.0); txt('DÉCHET !', 0, 372 + (1 - d) * 30, { s: 180, a: d, maxW: 760 });
+    } },
+  // 3 — Assiette + couverts (révélée sous la carte 2 balayée)
+  { bg: CREAM, deco: grid, state: T => slamIn(T, S[2] - .2, -.025, { from: [0, 0], rot0: -.025, fallOut: FALL + .15 }), draw: T => {
+      torn(0, -440, 760, 130, { rot: -.03, col: NAVY, seed: 31, sc: eBack(lin(T, S[2] + .35, S[2] + .55)) }, () => txt('1. ASSIETTE + COUVERTS', 0, 4, { s: 78, maxW: 700 }));
+      fall('plate', -160, 10, S[2] + .5, T, { rot: -.08, rot0: -.9, id: 31 });
+      fall('fork', 110, 30, S[2] + .7, T, { rot: .14, rot0: 1.1, id: 32 });
+      fall('spoon', 230, 40, S[2] + .85, T, { rot: -.1, rot0: -1.0, id: 33 });
+      hand(ellipsePts(20, 30, 360, 280), lin(T, S[2] + 1.15, S[2] + 1.6), { seed: 34 });
+      txt('de la maison !', 90, 420, { f: 'Caveat', s: 92, col: NAVY, a: lin(T, S[2] + 1.6, S[2] + 1.7) });
+      const ap = lin(T, S[2] + 1.75, S[2] + 2.05); hand(arrowPts(-150, 420, -250, 300, -80), ap, { col: NAVY, w: 8, seed: 35 }); arrowHead(-250, 300, -2.3, ap, NAVY, 8, 26);
+    } },
+  // 4 — Gobelet
+  { bg: LIGHT, deco: (w, h) => dots(w, h, 'rgba(255,255,255,.7)'), state: T => slamIn(T, S[3], .045, { from: [400, -1500], rot0: .6, fallOut: FALL + .2 }), draw: T => {
+      torn(0, -440, 600, 130, { rot: .03, col: ORANGE, seed: 41, sc: eBack(lin(T, S[3] + .35, S[3] + .55)) }, () => txt('2. TON GOBELET', 0, 4, { s: 86, col: NAVY, maxW: 540 }));
+      const p = lin(T, S[3] + .5, S[3] + .95);
+      if (p > 0) sticker('cup', 0, 40, { rot: mix(-2.4, .08, eOut(p)), sc: mix(.25, 1, eBack(p)), id: 42 });
+      sparkle(-250, -170, 46, lin(T, S[3] + .95, S[3] + 1.2)); sparkle(250, -90, 34, lin(T, S[3] + 1.05, S[3] + 1.3), ORANGE);
+      sparkle(240, 230, 52, lin(T, S[3] + 1.15, S[3] + 1.4)); sparkle(-230, 220, 28, lin(T, S[3] + 1.25, S[3] + 1.5), ORANGE);
+      txt('réutilisable !', 0, 430, { f: 'Caveat', s: 96, col: NAVY, a: lin(T, S[3] + 1.5, S[3] + 1.6) });
+    } },
+  // 5 — Sac réutilisable
+  { bg: ORANGE, state: T => slamIn(T, S[4], -.04, { from: [-400, -1500], rot0: -.6, fallOut: FALL + .25 }), draw: T => {
+      torn(0, -455, 700, 200, { rot: -.03, seed: 51, sc: eBack(lin(T, S[4] + .35, S[4] + .55)) }, () => { txt('3. TON SAC', 0, -40, { s: 86, col: NAVY }); txt('RÉUTILISABLE', 0, 48, { s: 86, col: NAVY }); });
+      const bp = lin(T, S[4] + .6, S[4] + .9), by = 60 + (1 - eOut(bp)) * -900;
+      if (bp > 0) {
+        totebagBack(-20, by);
+        const items = [['plate', 1.3, -.2], ['fork', 1.6, .2], ['spoon', 1.8, -.2], ['cup', 2.0, .1]];
+        items.forEach(([k, t0, r], i) => {
+          const q = lin(T, S[4] + t0 - .35, S[4] + t0); if (q <= 0 || q >= 1) return;
+          sticker(k + 'S', mix(330, -20 + (i - 1.5) * 30, eOut(q)), mix(-330, by - 40 + 260 * eIn(q), eOut(q)) , { rot: r * (1 - q), sc: .6, id: 55 + i });
+        });
+        totebagFront(-20, by);
+        const c = lin(T, S[4] + 2.4, S[4] + 2.7);
+        if (c > 0) { g.save(); g.translate(150, by - 30); g.scale(eBack(c), eBack(c)); g.fillStyle = NAVY; g.beginPath(); g.arc(0, 0, 66, 0, Math.PI * 2); g.fill(); g.strokeStyle = WH; g.lineWidth = 16; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(-28, 2); g.lineTo(-8, 24); g.lineTo(30, -22); g.stroke(); g.restore(); }
+      }
+      const sp = lin(T, S[4] + 2.8, S[4] + 3.0);
+      if (sp > 0) { g.save(); g.translate(-235, 430); g.rotate(-.1); g.scale(eBack(sp), eBack(sp));
+        g.shadowColor = 'rgba(0,0,0,.3)'; g.shadowBlur = 10; g.shadowOffsetY = 6; g.fillStyle = WH; g.beginPath(); g.arc(0, 0, 150, 0, Math.PI * 2); g.fill(); g.shadowColor = 'transparent';
+        g.fillStyle = NAVY; g.beginPath(); g.arc(0, 0, 136, 0, Math.PI * 2); g.fill();
+        g.save(); g.translate(0, -50); plasticBag(130); g.restore();
+        g.strokeStyle = ORANGE; g.lineWidth = 14; g.lineCap = 'round'; g.beginPath(); g.moveTo(-60, 0); g.lineTo(60, -100); g.stroke();
+        txt('0 SACHET', 0, 46, { s: 46, maxW: 220 }); txt('PLASTIQUE', 0, 92, { s: 40, maxW: 220 });
+        g.restore(); }
+    } },
+  // 6 — Règle du marché
+  { bg: NAVY, deco: (w, h) => rays(w, h, '#13286b'), state: T => slamIn(T, S[5], .025, { from: [0, -1500], rot0: .4, fallOut: FALL + .3 }), draw: T => {
+      const l = (s0, str, y, col, s) => { const p = lin(T, S[5] + s0, S[5] + s0 + .12); if (p <= 0) return; g.save(); g.translate(0, y); const k = mix(1.5, 1, eOut(p)); g.scale(k, k); txt(str, 0, 0, { s, col, a: p, maxW: 800, shadow: col === ORANGE ? 10 : 0 }); g.restore(); };
+      l(.2, 'AUCUN', -360, WH, 250); l(.35, 'JETABLE', -110, ORANGE, 250); l(.5, 'SUR PLACE', 120, WH, 200);
+      torn(0, 395, 720, 210, { rot: -.04, seed: 61, sc: eBack(lin(T, S[5] + .7, S[5] + .9)) }, () => { txt('PRÉPARE TON KIT', 0, -42, { f: 'Marker', s: 64, col: NAVY, maxW: 660 }); txt('CHEZ TOI !', 0, 50, { f: 'Marker', s: 64, col: NAVY }); });
+    } },
+];
+// 7 — Carte finale (stable)
+const FINAL = { bg: WH, w: 900, h: 1320, state: T => slamIn(T, S[6] + .25, -.015, { from: [0, -1700], rot0: -.3 }), draw: T => {
+    const lw = 780, lh = LOGO_N.height * lw / LOGO_N.width; g.drawImage(LOGO_N, -lw / 2, -560, lw, lh);
+    const pw = 440, ph = PILL.height * pw / PILL.width; g.drawImage(PILL, 210 - pw / 2, -290 - ph / 2, pw, ph);
+    txt('17 OCTOBRE · 10H À 18H', 0, -150, { s: 92, col: NAVY, maxW: 800 });
+    txt('MTSANGAMOUJI', 0, -40, { s: 120, col: NAVY, maxW: 800 });
+    torn(0, 130, 980, 150, { rot: -.035, col: ORANGE, seed: 71, sc: eBack(lin(T, S[6] + .7, S[6] + .9)) }, () => txt('VIENS AVEC TON KIT !', 0, 4, { s: 104, col: NAVY, maxW: 900 }));
+    txt('assiette · couverts · gobelet · sac', 0, 275, { f: 'Caveat', s: 64, col: NAVY, a: lin(T, S[6] + 1.0, S[6] + 1.1), maxW: 820 });
+    const bw = 900, bh = PART.height * bw / PART.width; g.drawImage(PART, -bw / 2, 660 - bh, bw, bh);
+  } };
+
+// Tote bag crème, anses et vague bleu marine (fond / face avant pour que les objets entrent)
+function totebagBack(x, y, w = 470) {
+  const h = w * .9, top = y - h / 2 + 60;
+  g.save(); g.lineCap = 'round'; g.strokeStyle = NAVY; g.lineWidth = w * .06;
+  g.beginPath(); g.moveTo(x - w * .22, top + 6); g.bezierCurveTo(x - w * .22, top - w * .42, x + w * .22, top - w * .42, x + w * .22, top + 6); g.stroke();
+  g.fillStyle = '#d9cdb0'; g.beginPath(); g.ellipse(x, top + 4, w * .47, w * .04, 0, 0, Math.PI * 2); g.fill(); g.restore();
+}
+function totebagFront(x, y, w = 470) {
+  const h = w * .9, top = y - h / 2 + 60;
+  g.save(); g.shadowColor = 'rgba(0,0,0,.25)'; g.shadowBlur = 12; g.shadowOffsetY = 8;
+  g.fillStyle = CREAM; g.beginPath(); g.moveTo(x - w * .47, top); g.lineTo(x + w * .47, top); g.lineTo(x + w / 2, top + h); g.lineTo(x - w / 2, top + h); g.closePath(); g.fill(); g.restore();
+  g.save(); g.globalCompositeOperation = 'multiply'; g.globalAlpha = .5; g.beginPath(); g.moveTo(x - w * .47, top); g.lineTo(x + w * .47, top); g.lineTo(x + w / 2, top + h); g.lineTo(x - w / 2, top + h); g.closePath(); g.clip(); g.drawImage(GRAIN, x - w / 2, top, w, h); g.restore();
+  g.strokeStyle = NAVY; g.lineWidth = w * .035; g.lineCap = 'round'; g.beginPath();
+  for (let i = 0; i <= 40; i++) g.lineTo(x - w * .28 + i / 40 * w * .56, y + h * .22 + w * .03 * Math.sin(i / 40 * Math.PI * 4));
+  g.stroke();
+}
+
+// ================================================================ montage
+function render(t) {
+  const T = Math.floor(t * FPS_ANIM + 1e-6) / FPS_ANIM;   // temps « posterisé » : animation à 12 i/s
+  STEP = Math.floor(t * FPS_ANIM + 1e-6);
+  BOIL = T >= S[6] + 1.4 ? 0 : 1;                            // carte finale immobile pour la lecture
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.drawImage(FOND, 0, 0, W, H);
+  // pile : du fond vers le dessus (la carte 3 est sous la 2 tant que la 2 n'est pas balayée)
+  const order = [0, 1, 2, 4, 3, 5, 6, 7];
+  for (const i of order) card(CARDS[i], T);
+  card(FINAL, T);
+  // éléments posés hors carte
+  if (T < S[1] + .2) {
+    const lp = lin(T, .6, .85);
+    if (lp > 0) { const lw = 820, lh = LOGO_W.height * lw / LOGO_W.width; g.save(); g.translate(CX + jit(1, 2), 250 + jit(2, 2)); g.rotate(-.02); const k = eBack(lp); g.scale(k, k); g.drawImage(LOGO_W, -lw / 2, -lh / 2, lw, lh); g.restore(); }
+    torn(CX - 70, 1520, 760, 210, { rot: -.06, col: ORANGE, seed: 11, sc: eBack(lin(T, 1.15, 1.35)) }, () => { txt('LE MARCHÉ GOURMAND', 0, -44, { s: 70, col: NAVY, maxW: 700 }); txt('REVIENT !', 0, 50, { s: 104, col: WH, shadow: 6, maxW: 700 }); });
+    const ap = lin(T, 1.8, 2.25); hand(arrowPts(870, 1440, 820, 1150, 90), ap, { col: WH, w: 12, seed: 12 }); arrowHead(820, 1150, -1.75, ap, WH, 12, 36);
+  }
+}
+
+Promise.all([
+  img('assets/fond-papier.jpg'), img('assets/grain-carte.jpg'), img('assets/logo-blanc.png'), img('assets/logo-navy.png'),
+  img('assets/marche-gourmand.png'), img('assets/plateau.jpg'), img('assets/partenaires.png'),
+  document.fonts.load('80px Anton'), document.fonts.load('80px Marker'), document.fonts.load('700 80px Caveat'), document.fonts.load('900 80px Montserrat'),
+]).then(([a, b, c1, d, e, f, h]) => {
+  FOND = a; GRAIN = b; LOGO_W = c1; LOGO_N = d; PILL = e; PLATEAU = f; PART = h;
+  makeSticker('plate', 360, () => plate(160));
+  makeSticker('fork', 360, () => { g.rotate(0); cutlery('fork', 330); });
+  makeSticker('spoon', 360, () => cutlery('spoon', 330));
+  makeSticker('cup', 520, () => cup(400), 20);
+  makeSticker('plateS', 360, () => plate(160));
+  makeSticker('forkS', 360, () => cutlery('fork', 330));
+  makeSticker('spoonS', 360, () => cutlery('spoon', 330));
+  makeSticker('cupS', 360, () => cup(260));
+  render(0); window.ready = true;
+});
+</script>
+</body></html>
