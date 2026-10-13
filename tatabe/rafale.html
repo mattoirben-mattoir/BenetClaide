@@ -38,7 +38,7 @@ const RUN1 = [ // [début, durée, carte] : 2 demi-temps par carte, 3 pour le ki
 ];
 const OBJ = [hb(31), hb(35)];           // pause objet : tout dans le sac (raccourcie)
 const RUN2 = [[hb(35), .81, 'plage'], [hb(37), .81, 'serviette'], [hb(39), .81, 'creme'], [hb(41), .81, 'chapeau'], [hb(43), 1.62, 'aucun']];   // « aucun jetable sur place » regroupé sur une carte
-const FINAL_T = hb(47), DUR = 23.74, PART_T = DUR - 1.05;   // fin allégée, puis carte partenaires
+const FINAL_T = hb(47), DUR = 23.74;   // carte finale blanche (version v3) tenue jusqu'à la fin
 const ROT = [-.07, .05, -.03, .08, -.06, .04, -.08, .06, -.04, .07, -.05, .03];
 
 window.SFX = [
@@ -49,7 +49,7 @@ window.SFX = [
   [hb(10) + .05, 'impact'], [hb(16) + .05, 'impact'], [hb(20) + .05, 'swoosh'],
   [OBJ[0], 'slap', { k: .6 }], [OBJ[0] + .2, 'drip'], [OBJ[0] + .38, 'drip', { pitch: 1.15 }], [OBJ[0] + .56, 'drip', { pitch: 1.3 }], [OBJ[0] + .74, 'drip', { pitch: 1.45 }], [OBJ[0] + .95, 'ding'], [OBJ[0] + .9, 'scribble'],
   ...RUN2.map(([t]) => [t, 'slap']), [hb(44), 'pop', { pitch: 1.1 }], [hb(44) + .05, 'impact'], [hb(45), 'pop', { pitch: 1.3 }],
-  [FINAL_T, 'impact'], [FINAL_T + .02, 'slap'], [FINAL_T + .25, 'slap', { k: .6 }], ...Array.from({ length: 12 }, (_, i) => [FINAL_T + .45 + i * .034, 'tick']), [FINAL_T + .95, 'tape'], [FINAL_T + 1.3, 'jingle'], [PART_T, 'slap'],
+  [FINAL_T, 'slap'], [FINAL_T + .4, 'tape'], [FINAL_T + .8, 'jingle'],
 ];
 
 const img = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
@@ -175,6 +175,16 @@ function hat(w) { // chapeau de soleil (bob à large bord)
   g.strokeStyle = '#d9b46a'; g.lineWidth = 6; g.beginPath(); g.ellipse(0, w * .12, w / 2 - 14, w * .17 - 10, 0, 0, Math.PI * 2); g.stroke();
   g.fillStyle = '#f7e2b5'; g.beginPath(); g.moveTo(-w * .26, w * .1); g.bezierCurveTo(-w * .26, -w * .32, w * .26, -w * .32, w * .26, w * .1); g.closePath(); g.fill();
   g.fillStyle = BLEU; g.beginPath(); g.moveTo(-w * .265, w * .02); g.lineTo(w * .265, w * .02); g.lineTo(w * .26, w * .1); g.lineTo(-w * .26, w * .1); g.closePath(); g.fill();
+  g.restore();
+}
+function skewer(a, dy) { // brochette dessinée : pique en bois + morceaux grillés
+  g.save(); g.translate(0, dy); g.rotate(a);
+  g.strokeStyle = '#d8b07a'; g.lineWidth = 7; g.lineCap = 'round'; g.beginPath(); g.moveTo(-150, 0); g.lineTo(150, 0); g.stroke();
+  [-95, -42, 11, 64].forEach((x, i) => {
+    g.fillStyle = i % 2 ? '#9a4f22' : '#7d3a17'; g.beginPath(); g.roundRect(x - 24, -26, 48, 52, 14); g.fill();
+    g.strokeStyle = '#3d1a08'; g.lineWidth = 5; g.beginPath(); g.moveTo(x - 14, -16); g.lineTo(x + 8, 18); g.moveTo(x + 2, -20); g.lineTo(x + 18, 8); g.stroke();
+    g.fillStyle = '#c9772f'; g.beginPath(); g.arc(x - 9, -10, 6, 0, Math.PI * 2); g.fill();
+  });
   g.restore();
 }
 function plasticBag(h) {
@@ -362,27 +372,16 @@ function objectBeat(T) {
 
 // ---------------------------------------------------------------- carte finale (tenue, lisible)
 function finalCard(T) {
-  // directement sur le fond bleu : logo blanc, date, lieu, appel à l'action — rien d'autre
-  const u = T - FINAL_T;
-  const typed = (str, t0, rate = 24) => str.slice(0, Math.max(0, Math.min(str.length, Math.floor((u - t0) * rate + 1e-6) + 1)));
-  const pop = u < 1 / FPS_ANIM + 1e-6 ? 1.12 : 1;
-  g.save(); g.translate(CX, 0);
-  { const lw = 900 * pop, lh = LOGO_W.height * lw / LOGO_W.width; g.drawImage(LOGO_W, -lw / 2, 470 - lh / 2, lw, lh); }
-  if (u >= .1) { const pw2 = 470, ph2 = PILL.height * pw2 / PILL.width; g.drawImage(PILL, 200 - pw2 / 2, 680 - ph2 / 2, pw2, ph2); }
-  if (u >= .25) { const k = u < .25 + 1 / FPS_ANIM ? 1.25 : 1; g.save(); g.translate(-235, 880); g.rotate(-.1); g.scale(k, k);
-    g.fillStyle = ORANGE; g.beginPath(); g.roundRect(-175, -82, 350, 164, 26); g.fill(); g.strokeStyle = NAVY; g.lineWidth = 6; g.setLineDash([14, 9]); g.beginPath(); g.roundRect(-160, -68, 320, 136, 18); g.stroke(); g.setLineDash([]);
-    txt('SAM.', 0, -50, { s: 38, col: NAVY }); txt('17 OCT.', 0, 24, { s: 84, col: NAVY }); g.restore(); }
-  if (u >= .45) txt(typed('10H – 18H', .45), -20, 880, { s: 116, col: WH, align: 'left' });
-  if (u >= .7) txt(typed('MTSANGAMOUJI', .7), 0, 1050, { s: 140, col: WH, maxW: 900 });
-  if (u >= 1.0) txt('plage · rue Koudjouni', 0, 1160, { f: 'Caveat', s: 72, col: WH });
-  if (u >= 1.2) torn(0, 1360, 960, 180, { rot: -.035, col: ORANGE, seed: 71 }, () => txt('VIENS AVEC TON KIT !', 0, 4, { s: 116, col: NAVY, maxW: 880 }));
-  g.restore();
-}
-function partnersCard(T) {
-  const u = T - PART_T, w = 1000, h = 440, pop = u < 1 / FPS_ANIM + 1e-6 ? 1.08 : 1;
-  g.save(); g.translate(CX, 960); g.rotate(-.015); g.scale(pop, pop); cardFrame(w, h, WH);
-  txt('avec nos partenaires', 0, -150, { f: 'Caveat', s: 70, col: NAVY });
-  const bw = 940, bh = PART.height * bw / PART.width; g.drawImage(PART, -bw / 2, h / 2 - bh - 20, bw, bh);
+  const u = T - FINAL_T, w = 920, h = 1420;
+  g.save(); g.translate(CX, 960); g.rotate(-.02); const pop = u < 1 / FPS_ANIM + 1e-6 ? 1.06 : 1; g.scale(pop, pop);
+  cardFrame(w, h, WH);
+  const lw = 800, lh = LOGO_N.height * lw / LOGO_N.width; g.drawImage(LOGO_N, -lw / 2, -650, lw, lh);
+  if (u >= .1) { const pw2 = 450, ph2 = PILL.height * pw2 / PILL.width; g.drawImage(PILL, 200 - pw2 / 2, -370 - ph2 / 2, pw2, ph2); }
+  if (u >= .2) txt('17 OCTOBRE · 10H À 18H', 0, -220, { s: 96, col: NAVY, maxW: 820 });
+  if (u >= .3) txt('MTSANGAMOUJI', 0, -100, { s: 126, col: NAVY, maxW: 820 });
+  if (u >= .4) torn(0, 80, 1000, 170, { rot: -.035, col: ORANGE, seed: 71 }, () => txt('VIENS AVEC TON KIT !', 0, 4, { s: 112, col: NAVY, maxW: 920 }));
+  if (u >= .6) txt('assiette · couverts · gobelet · sac', 0, 240, { f: 'Caveat', s: 68, col: NAVY, maxW: 840 });
+  if (u >= .8) { const bw = 920, bh = PART.height * bw / PART.width; g.drawImage(PART, -bw / 2, h / 2 - bh, bw, bh); }
   g.restore();
 }
 
@@ -395,8 +394,7 @@ function render(t) {
   else if (T < OBJ[0]) runStack(RUN1, T, 0);
   else if (T < OBJ[1]) objectBeat(T);
   else if (T < FINAL_T) runStack(RUN2, T, 20);
-  else if (T < PART_T) finalCard(T);
-  else partnersCard(T);
+  else { runStack(RUN2, FINAL_T - .01, 20); finalCard(T); }
 }
 
 Promise.all([
@@ -407,7 +405,7 @@ Promise.all([
   PLATEAU = pl;
   FOND = a; GRAIN = b; LOGO_N = c; LOGO_W = lwh; PILL = d; PART = e; FEMME = f; PLAGE = h;
   makeSticker('plate', 400, () => plate(180));
-  makeSticker('plateFood', 400, () => { plate(180); g.save(); g.beginPath(); g.arc(0, 0, 180 * .62, 0, Math.PI * 2); g.clip(); const s = 260 / 300; g.drawImage(FEMME, 110, 730, 330, 300, -150, -130, 330 * s * 1.15, 300 * s * 1.15); g.restore(); g.strokeStyle = '#d6e6f2'; g.lineWidth = 5; g.beginPath(); g.arc(0, 0, 180 * .62, 0, Math.PI * 2); g.stroke(); });
+  makeSticker('plateFood', 400, () => { plate(180); [[-.45, -48], [-.45, 48]].forEach(([a, dy]) => skewer(a, dy)); });
   makeSticker('fork', 460, () => cutlery('fork', 430));
   makeSticker('spoon', 460, () => cutlery('spoon', 430));
   makeSticker('knife', 460, () => cutlery('knife', 430));
