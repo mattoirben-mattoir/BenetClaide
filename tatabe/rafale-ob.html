@@ -34,9 +34,16 @@ const ENTRY_END = hb(10);                 // entrée tenue un temps de plus
 const RUN1 = [ // [début, durée, carte] : 2 demi-temps par carte, 3 pour le kit
   [hb(10), 1.22, 'edition'], [hb(13), .81, 'plateau'],
   [hb(15), .81, 'objectif'], [hb(17), .81, 'zero'], [hb(19), .81, 'dechet'], [hb(21), 1.62, 'kit'],
-  [hb(25), .81, 'assiette'], [hb(27), .81, 'couverts'], [hb(29), .81, 'gobelet'], [hb(31), .81, 'sac'],
 ];
-const OBJ = [hb(33), hb(39)];           // pause objet : tout dans le sac (6 demi-temps)
+// Scène kit (reprise de la version reçue) : UN seul sac qui se remplit objet par objet, compteur, « TON KIT EST PRÊT ! »
+const KIT = [hb(25), hb(39)];
+const KIT_ITEMS = [ // [apparition, chute, sticker, mot] ; le sac lui-même ouvre la scène
+  [hb(25), null, null, 'TON SAC'],
+  [hb(27), hb(29.4), 'plateFood', 'ASSIETTE'],
+  [hb(30), hb(32.4), 'cutlerySet', 'COUVERTS'],
+  [hb(33), hb(35.4), 'cup', 'GOBELET'],
+];
+const KIT_READY = hb(36);
 const RUN2 = [[hb(39), .81, 'plage'], [hb(51), 1.62, 'aucun']];   // « aucun jetable sur place » regroupé sur une carte
 // Scène plage : chaque objet apparaît en grand avec son nom puis tombe dans le même sac (rappel du kit)
 const BEACH = [hb(41), hb(51)];
@@ -59,7 +66,8 @@ window.SFX = [
   [1.62, 'pop', { pitch: 1.2 }], [1.8, 'tape'], [2.05, 'scribble'], [2.4, 'pop'], [2.6, 'pop', { pitch: 1.1 }], [2.8, 'pop', { pitch: 1.25 }],
   ...RUN1.map(([t], i) => [t, 'slap', { k: .8 + (i % 3) * .1 }]),
   [hb(10) - .05, 'whoosh'], [hb(17) + .05, 'impact'], [hb(21) - .05, 'swoosh'], [hb(21) + .17, 'impact'], [hb(39) - .05, 'whoosh'],
-  [OBJ[0], 'slap', { k: .6 }], [OBJ[0] + .25, 'drip'], [OBJ[0] + .5, 'drip', { pitch: 1.15 }], [OBJ[0] + .75, 'drip', { pitch: 1.3 }], [OBJ[0] + 1.0, 'drip', { pitch: 1.45 }], [OBJ[0] + 1.25, 'ding'], [OBJ[0] + 1.3, 'scribble'],
+  [KIT[0], 'slap'], [KIT[0] + .05, 'impact'], ...KIT_ITEMS.slice(1).flatMap(([a, d], i) => [[a, 'whoosh'], [a + .05, 'pop', { pitch: 1 + i * .15 }], [d + .2, 'drip', { pitch: 1 + i * .15 }]]), [KIT_READY, 'ding'], [KIT_READY + .05, 'impact'],
+  [2.95, 'slap', { k: .5 }],
   ...RUN2.map(([t]) => [t, 'slap']), [BEACH[0], 'slap', { k: .6 }], ...BEACH_ITEMS.flatMap(([a, d], i) => [[a, 'whoosh'], [a + .05, 'pop', { pitch: 1 + i * .15 }], [d + .2, 'drip', { pitch: 1 + i * .15 }]]), [hb(50), 'ding'], [hb(52), 'pop', { pitch: 1.1 }], [hb(52) + .05, 'impact'], [hb(53), 'pop', { pitch: 1.3 }],
   [FINAL_T, 'rustle', { d: .4 }], [FINAL_T + .17, 'slap'], [FINAL_T + .55, 'tape'], [FINAL_T + .95, 'jingle'],
 ];
@@ -386,6 +394,10 @@ function entry(T) {
   if (T >= 1.8) { const s = 'le marché gourmand', k = Math.min(s.length, Math.floor((T - 1.8) * 30) + 1); torn(790, 575, 470, 92, { rot: .03, seed: 46 }, () => txt(s.slice(0, k), -205, 2, { f: 'Caveat', s: 60, col: NAVY, align: 'left' })); }
   hand(swirlPts(110, 840, 70), lin(T, 2.2, 2.6), { col: WH, w: 7, seed: 47 });
   // mots du bas, un par un
+  if (T >= 2.95) { const k = T < 2.95 + 1 / FPS_ANIM + 1e-6 ? 1.3 : 1; g.save(); g.translate(250, 1225); g.rotate(-.12); g.scale(k, k);   // date dès l'entrée
+    g.shadowColor = 'rgba(0,0,0,.3)'; g.shadowBlur = 10; g.shadowOffsetY = 5; g.fillStyle = ORANGE; g.beginPath(); g.roundRect(-140, -62, 280, 124, 22); g.fill(); g.shadowColor = 'transparent';
+    g.strokeStyle = NAVY; g.lineWidth = 5; g.setLineDash([12, 8]); g.beginPath(); g.roundRect(-128, -50, 256, 100, 15); g.stroke(); g.setLineDash([]);
+    txt('17 OCT.', 0, 4, { s: 78, col: NAVY }); g.restore(); }
   const words = [['REVIENT', 2.4, WH], ['!', 2.75, ORANGE]];
   let x = 0; g.save(); setFont('Anton', 150); const widths = words.map(w => g.measureText(w[0] + ' ').width); g.restore();
   const tot = widths.reduce((a, b) => a + b, 0); x = CX - tot / 2;
@@ -393,11 +405,36 @@ function entry(T) {
 }
 
 // ---------------------------------------------------------------- pause objet : tout dans le sac
+function dots4(n, total, y) { // compteur du kit : pastilles remplies au fil des objets
+  for (let i = 0; i < total; i++) { const x = CX + (i - (total - 1) / 2) * 56; g.beginPath(); g.arc(x, y, 17, 0, Math.PI * 2); g.fillStyle = i < n ? ORANGE : 'rgba(255,255,255,.25)'; g.fill(); g.lineWidth = 5; g.strokeStyle = WH; g.stroke(); }
+}
+function kitBag(T) {
+  const bx = CX, by = 1130, bw = 560;
+  const bp = lin(T, KIT[0], KIT[0] + .25), byy = by + (1 - eOut(bp)) * 900;   // le sac arrive par le bas
+  let cur = 0; KIT_ITEMS.forEach(([a], i) => { if (T >= a) cur = i; });
+  const done = KIT_ITEMS.filter(([a, d]) => d === null ? T >= a + .25 : T >= d + .22).length;
+  g.save(); g.translate(bx + jit(81, 2), byy + jit(82, 2)); g.rotate(-.04); tote(bw, 'back', NAVY); g.restore();
+  // objets déjà rangés qui dépassent du sac
+  if (T >= hb(29.4) + .22) sticker('plate', bx - 30, byy - 175, { rot: -.12, sc: .42, id: 71 });
+  if (T >= hb(32.4) + .22) sticker('fork', bx - 110, byy - 185, { rot: -.25, sc: .5, id: 72 });
+  if (T >= hb(35.4) + .22) sticker('cup', bx + 115, byy - 170, { rot: .2, sc: .42, id: 73 });
+  KIT_ITEMS.forEach(([a, d, key], i) => {
+    if (!key || T < a) return;
+    const q = lin(T, d, d + .22); if (q >= 1) return;
+    const pin = T < a + 1 / FPS_ANIM + 1e-6 ? 1.12 : 1, base = { plateFood: 1.25, cutlerySet: .95, cup: .85 }[key];
+    sticker(key, mix(bx, bx + (i - 2) * 60, q), mix(720, byy + 140, q * q), { rot: mix(i % 2 ? .08 : -.08, i % 2 ? .7 : -.7, q), sc: mix(base, .4, q) * pin, id: 75 + i });
+  });
+  g.save(); g.translate(bx + jit(81, 2), byy + jit(82, 2)); g.rotate(-.04); tote(bw, 'front'); g.restore();
+  if (T < KIT_READY) bigWord(KIT_ITEMS[cur][3], CX, 345, 170, { col: WH, depthCol: NAVY, outline: NAVY, depth: 14, id: 60 + cur, maxW: 900 });
+  else { bigWord('TON KIT', CX, 330, 170, { col: WH, depthCol: NAVY, outline: NAVY, depth: 14, id: 66 }); bigWord('EST PRÊT !', CX, 500, 150, { col: ORANGE, depthCol: NAVY, outline: WH, depth: 14, id: 67 }); }
+  if (T < KIT_READY) dots4(done, 4, 480);
+  if (T >= KIT_READY) { g.save(); g.translate(bx + 210, byy - 120); const k = T < KIT_READY + .09 ? 1.25 : 1; g.scale(k, k); g.fillStyle = ORANGE; g.beginPath(); g.arc(0, 0, 70, 0, Math.PI * 2); g.fill(); g.strokeStyle = WH; g.lineWidth = 16; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(-30, 2); g.lineTo(-9, 26); g.lineTo(32, -24); g.stroke(); g.restore(); }
+}
 function beachBag(T) {
   const bx = CX, by = 1130, bw = 560;
   // le sac du kit, déjà rempli : fourchette et gobelet dépassent
   g.save(); g.translate(bx + jit(81, 2), by + jit(82, 2)); g.rotate(-.04); tote(bw, 'back', NAVY); g.restore();
-  sticker('fork', bx - 90, by - 190, { rot: -.25, sc: .5, id: 83 }); sticker('cup', bx + 110, by - 170, { rot: .2, sc: .42, id: 84 });
+  sticker('plate', bx - 30, by - 175, { rot: -.12, sc: .42, id: 71 }); sticker('fork', bx - 110, by - 185, { rot: -.25, sc: .5, id: 72 }); sticker('cup', bx + 115, by - 170, { rot: .2, sc: .42, id: 73 });
   let cur = -1; BEACH_ITEMS.forEach(([a], i) => { if (T >= a) cur = i; });
   BEACH_ITEMS.forEach(([a, d, key, word, sub], i) => {
     if (T < a) return;
@@ -416,8 +453,8 @@ function beachBag(T) {
   }
   if (T >= hb(50)) { g.save(); g.translate(bx + 210, by - 120); const k = T < hb(50) + .09 ? 1.2 : 1; g.scale(k, k); g.fillStyle = BLEU; g.beginPath(); g.arc(0, 0, 66, 0, Math.PI * 2); g.fill(); g.strokeStyle = WH; g.lineWidth = 15; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(-28, 2); g.lineTo(-8, 24); g.lineTo(30, -22); g.stroke(); g.restore(); }
 }
-function objectBeat(T) {
-  const u = T - OBJ[0];
+function objectBeat(T) {   // (non utilisé depuis la scène kit à sac unique)
+  const u = T - KIT[0];
   txt('&', 170, 360, { f: 'Anton', s: 220, col: ORANGE });
   txt('voilà', 280, 310, { f: 'Caveat', s: 100, col: WH, align: 'left' });
   txt('ton kit !', 340, 410, { f: 'Caveat', s: 100, col: WH, align: 'left' });
@@ -461,8 +498,8 @@ function render(t) {
   BOIL = T >= FINAL_T + 1.0 ? 0 : 1;
   g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(chapAt(T) === 'O' ? FOND_O : FOND, 0, 0, W, H);
   if (T < ENTRY_END) entry(T);
-  else if (T < OBJ[0]) runStack(RUN1, T, 0);
-  else if (T < OBJ[1]) objectBeat(T);
+  else if (T < KIT[0]) runStack(RUN1, T, 0);
+  else if (T < KIT[1]) kitBag(T);
   else if (T >= BEACH[0] && T < BEACH[1]) beachBag(T);
   else if (T < FINAL_T) runStack(RUN2, T, 20);
   else { const f = clamp((T - FINAL_T) / .25); if (f < 1) { g.save(); g.translate(0, f * f * 1900); runStack(RUN2, FINAL_T - .01, 20); g.restore(); } finalCard(T); }   // la pile tombe, la carte finale claque
@@ -486,6 +523,7 @@ Promise.all([
   makeSticker('towel', 640, () => towel(560), 18);
   makeSticker('sunscreen', 520, () => sunscreen(440), 18);
   makeSticker('hat', 640, () => hat(560), 18);
+  makeSticker('cutlerySet', 560, () => { g.save(); g.translate(-130, 10); g.rotate(-.18); cutlery('fork', 380); g.restore(); g.save(); g.translate(0, -10); cutlery('spoon', 380); g.restore(); g.save(); g.translate(130, 10); g.rotate(.18); cutlery('knife', 380); g.restore(); });
   render(0); window.ready = true;
 });
 </script>

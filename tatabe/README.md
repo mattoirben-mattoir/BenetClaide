@@ -41,3 +41,9 @@ Re-rendu depuis `tatabe/` :
 - v9 (`tatabe-orange-bleu-v9.mp4`) : la plage rejoint le sac — serviette, crème solaire (minérale) et chapeau apparaissent en grand puis tombent dans le même sac que le kit (fourchette et gobelet qui dépassent), coche à la fin.
 - v8 (`tatabe-orange-bleu-v8.mp4`) : carte finale compacte et remontée, logos partenaires entre 1 100 et 1 340 px (hors de la zone de légende), liste du kit retirée, vague blanche décorative dans la zone basse.
 - Rendu : `rafale-ob.html`, mix `audio-ob.wav` (même extrait de Baco, 2,256 s → 26 s), `LOUDNORM=0` au rendu.
+
+## Version finale v12 (hybride)
+
+- `tatabe-final-v12.mp4` (27 s, 1080×1920, 30 i/s, −13,9 LUFS / −1,7 dBTP) et `couverture-final-v12.jpg`.
+- Base v11 (entrée film + logo tapé, cartes géantes 2e ÉDITION / OBJECTIF / ZÉRO / DÉCHET, fleurs d'ylang-ylang) + idée de la version reçue : un seul sac qui se remplit (TON SAC → ASSIETTE → COUVERTS → GOBELET, compteur, « TON KIT EST PRÊT ! »), puis les objets de plage dans le même sac. Tampon « 17 OCT. » dès l'entrée.
+- `rafale-ob-v11.html` garde la v11.
