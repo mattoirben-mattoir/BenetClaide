@@ -36,6 +36,7 @@ Re-rendu depuis `tatabe/` :
 - `tatabe-orange-bleu-v7.mp4` : même script que la v6, fond qui alterne bleu (robe) / orange (soleil) à chaque chapitre, cartes inversées en conséquence.
 - Corrections de l'état des lieux : zones sûres (rien d'important dans les 250 px du haut ni les 420 px du bas), film translucide qui part dès 0,13 s, petits textes illisibles retirés (« minérale = lagon protégé » gardé, carte crème solaire sur 3 demi-temps), entrées variées (balayage, zoom à travers, pile qui tombe), son normalisé en deux passes à −14 LUFS / −1,4 dBTP.
 - `couverture-orange-bleu-v7.jpg` : image de couverture du Reel.
+- v10 (`tatabe-orange-bleu-v10.mp4`) : objets redessinés en une seule famille (piste A) — aplats de la palette de l'affiche, même contour bleu marine, vus de face, grain papier, fleurs blanches de la robe (salouva) sur sac, gobelet, serviette, crème et chapeau, liseré blanc découpé. Planche : `planche-objets-v10.png`.
 - v9 (`tatabe-orange-bleu-v9.mp4`) : la plage rejoint le sac — serviette, crème solaire (minérale) et chapeau apparaissent en grand puis tombent dans le même sac que le kit (fourchette et gobelet qui dépassent), coche à la fin.
 - v8 (`tatabe-orange-bleu-v8.mp4`) : carte finale compacte et remontée, logos partenaires entre 1 100 et 1 340 px (hors de la zone de légende), liste du kit retirée, vague blanche décorative dans la zone basse.
 - Rendu : `rafale-ob.html`, mix `audio-ob.wav` (même extrait de Baco, 2,256 s → 26 s), `LOUDNORM=0` au rendu.
